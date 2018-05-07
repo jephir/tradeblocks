@@ -26,7 +26,10 @@ func register(name string) error {
 	if err := writePrivateKey(name, key); err != nil {
 		return err
 	}
-	return writePublicKey(name, &key.PublicKey)
+	if err := writePublicKey(name, &key.PublicKey); err != nil {
+		return err
+	}
+	return login(name)
 }
 
 func writePrivateKey(name string, key *rsa.PrivateKey) error {
