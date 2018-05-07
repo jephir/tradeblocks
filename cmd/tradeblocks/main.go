@@ -1,7 +1,12 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -10,12 +15,69 @@ import (
 	"github.com/jephir/dexathon"
 )
 
-func register(name string) {
+const keySize = 4096
+
+func register(name string) error {
 	fmt.Printf("your input for register is %s \n", name)
+	key, err := rsa.GenerateKey(rand.Reader, keySize)
+	if err != nil {
+		return err
+	}
+	if err := writePrivateKey(name, key); err != nil {
+		return err
+	}
+	return writePublicKey(name, &key.PublicKey)
 }
 
-func login(name string) {
+func writePrivateKey(name string, key *rsa.PrivateKey) error {
+	f, err := os.Create(name + ".pem")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := pem.Encode(f, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	}); err != nil {
+		return err
+	}
+	return f.Close()
+}
+
+func writePublicKey(name string, key *rsa.PublicKey) error {
+	f, err := os.Create(name + ".pub")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	bytes, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		return err
+	}
+	if err := pem.Encode(f, &pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: bytes,
+	}); err != nil {
+		return err
+	}
+	return f.Close()
+}
+
+func login(name string) error {
 	fmt.Printf("your input for login is %s \n", name)
+	return ioutil.WriteFile("user", []byte(name), 0644)
+}
+
+func readPrivateKey() (*rsa.PrivateKey, error) {
+	user, err := ioutil.ReadFile("user")
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := ioutil.ReadFile(string(user) + ".pem")
+	if err != nil {
+		return nil, err
+	}
+	return x509.ParsePKCS1PrivateKey(bytes)
 }
 
 func issue(balance float64) {
