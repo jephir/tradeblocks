@@ -79,7 +79,7 @@ func NewIssue(balance float64) (newTransaction BaseTransaction, err error) {
 	var link = ""     // purposeful empty (nil) value: see docs
 	var previous = "" // purposeful empty (nil) value: see docs
 	var representative = LoadRepresentative()
-	var token = LoadToken()
+	var token = account
 
 	newTransaction = BaseTransaction{
 		action:         "issue",
