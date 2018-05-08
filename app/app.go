@@ -55,7 +55,6 @@ func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 		return "", err
 	}
 	return addressPrefix + base64.StdEncoding.EncodeToString(hash.Sum(nil)), nil
-
 }
 
 // Send transfers tokens to the specified account
