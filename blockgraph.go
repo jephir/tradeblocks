@@ -11,6 +11,19 @@ type AccountBlock struct {
 	Link           string
 }
 
+// NewIssueBlock initializes a new issue block
+func NewIssueBlock(address string, balance float64) *AccountBlock {
+	return &AccountBlock{
+		Action:         "issue",
+		Account:        address,
+		Token:          address,
+		Previous:       "",
+		Representative: "",
+		Balance:        balance,
+		Link:           "",
+	}
+}
+
 // SwapBlock represents a block in the swap blockchain
 type SwapBlock struct {
 	Action       string
