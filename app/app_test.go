@@ -62,3 +62,59 @@ func TestSend(t *testing.T) {
 		t.Errorf("Issue was incorrect, got: %s, want: %s", got, expect)
 	}
 }
+
+func TestOpen(t *testing.T) {
+	expect := `{"Action":"open","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
+	publicKey.Seek(0, io.SeekStart)
+	address, err := PublicKeyToAddress(publicKey)
+	if err != nil {
+		t.Error(err)
+	}
+	issue := tradeblocks.NewIssueBlock("xtb:sender", 50.0)
+	send := tradeblocks.NewSendBlock("xtb:sender", issue, address, 50.0)
+	send.PreviousBlock = issue
+	send.Hash = "testhash"
+	publicKey.Seek(0, io.SeekStart)
+	open, err := Open(publicKey, send)
+	if err != nil {
+		t.Error(err)
+	}
+	s, err := json.Marshal(open)
+	if err != nil {
+		t.Error(err)
+	}
+	got := string(s)
+	if got != expect {
+		t.Errorf("Issue was incorrect, got: %s, want: %s", got, expect)
+	}
+}
+
+func TestReceive(t *testing.T) {
+	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
+	publicKey.Seek(0, io.SeekStart)
+	address, err := PublicKeyToAddress(publicKey)
+	if err != nil {
+		t.Error(err)
+	}
+	issue := tradeblocks.NewIssueBlock("xtb:sender", 50.0)
+	send := tradeblocks.NewSendBlock("xtb:sender", issue, address, 50.0)
+	send.PreviousBlock = issue
+	send.Hash = "testhash"
+	send2 := tradeblocks.NewSendBlock("xtb:sender", send, address, 25.0)
+	send2.PreviousBlock = send
+	send2.Hash = "test2hash"
+	previous := tradeblocks.NewOpenBlock(address, send2)
+	publicKey.Seek(0, io.SeekStart)
+	open, err := Receive(publicKey, previous, send)
+	if err != nil {
+		t.Error(err)
+	}
+	s, err := json.Marshal(open)
+	if err != nil {
+		t.Error(err)
+	}
+	got := string(s)
+	if got != expect {
+		t.Errorf("Issue was incorrect, got: %s, want: %s", got, expect)
+	}
+}
