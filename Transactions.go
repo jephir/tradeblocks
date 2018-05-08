@@ -46,8 +46,11 @@ type SwapTransaction struct {
 }
 
 // NewChange creates a new openTransaction with the given sendTx
-func NewChange(representative string) (newTransaction BaseTransaction) {
-	var account = LoadAccount()
+func NewChange(representative string) (newTransaction BaseTransaction, err error) {
+	account, err := LoadAccount()
+	if err != nil {
+		return
+	}
 	var balance = LoadBalance()
 	var link = "" // purposeful empty (nil) value: see docs
 	var previous = LoadPrevious()
@@ -64,12 +67,15 @@ func NewChange(representative string) (newTransaction BaseTransaction) {
 	}
 	fmt.Printf("this is the open transaction: \n")
 	spew.Dump(newTransaction)
-	return newTransaction
+	return
 }
 
 // NewIssue creates a new openTransaction with the given sendTx
-func NewIssue(balance float64) (newTransaction BaseTransaction) {
-	var account = LoadAccount()
+func NewIssue(balance float64) (newTransaction BaseTransaction, err error) {
+	account, err := LoadAccount()
+	if err != nil {
+		return
+	}
 	var link = ""     // purposeful empty (nil) value: see docs
 	var previous = "" // purposeful empty (nil) value: see docs
 	var representative = LoadRepresentative()
@@ -86,12 +92,15 @@ func NewIssue(balance float64) (newTransaction BaseTransaction) {
 	}
 	fmt.Printf("this is the open transaction: \n")
 	spew.Dump(newTransaction)
-	return newTransaction
+	return
 }
 
 // NewOpen creates a new openTransaction with the given sendTx
-func NewOpen(link string) (newTransaction BaseTransaction) {
-	var account = LoadAccount()
+func NewOpen(link string) (newTransaction BaseTransaction, err error) {
+	account, err := LoadAccount()
+	if err != nil {
+		return
+	}
 	var balance = LoadBalance() // load from the tx?
 	var previous = ""           // purposeful empty (nil) value: see docs
 	var representative = LoadRepresentative()
@@ -108,12 +117,15 @@ func NewOpen(link string) (newTransaction BaseTransaction) {
 	}
 	fmt.Printf("this is the open transaction: \n")
 	spew.Dump(newTransaction)
-	return newTransaction
+	return
 }
 
 // NewReceive creates a new openTransaction with the given sendTx
-func NewReceive(link string) (newTransaction BaseTransaction) {
-	var account = LoadAccount()
+func NewReceive(link string) (newTransaction BaseTransaction, err error) {
+	account, err := LoadAccount()
+	if err != nil {
+		return
+	}
 	var balance = LoadBalance()
 	var previous = LoadPrevious()
 	var representative = LoadRepresentative()
@@ -130,12 +142,15 @@ func NewReceive(link string) (newTransaction BaseTransaction) {
 	}
 	fmt.Printf("this is the open transaction: \n")
 	spew.Dump(newTransaction)
-	return newTransaction
+	return
 }
 
 // NewSend creates a new openTransaction with the given sendTx
-func NewSend(toAccount, token string, amount float64) (newTransaction BaseTransaction) {
-	var account = LoadAccount()
+func NewSend(toAccount, token string, amount float64) (newTransaction BaseTransaction, err error) {
+	account, err := LoadAccount()
+	if err != nil {
+		return
+	}
 	var curBalance = LoadBalance()
 	var previous = LoadPrevious()
 	var representative = LoadRepresentative()
@@ -153,5 +168,5 @@ func NewSend(toAccount, token string, amount float64) (newTransaction BaseTransa
 	}
 	fmt.Printf("this is the open transaction: \n")
 	spew.Dump(newTransaction)
-	return newTransaction
+	return
 }

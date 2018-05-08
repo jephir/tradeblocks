@@ -71,54 +71,59 @@ func login(name string) error {
 	return ioutil.WriteFile("user", []byte(name), 0644)
 }
 
-func readPrivateKey() (*rsa.PrivateKey, error) {
-	user, err := ioutil.ReadFile("user")
-	if err != nil {
-		return nil, err
-	}
-	bytes, err := ioutil.ReadFile(string(user) + ".pem")
-	if err != nil {
-		return nil, err
-	}
-	return x509.ParsePKCS1PrivateKey(bytes)
-}
-
-func issue(balance float64) {
+func issue(balance float64) error {
 	fmt.Printf("your input for issue is %v \n", balance)
 	// creates a new BaseTransaction with action = 'issue'
-	var issue = dexathon.NewIssue(balance)
+	issue, err := dexathon.NewIssue(balance)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("the issue at hand is \n")
 	spew.Dump(issue)
+	return nil
 }
 
-func send(toAccount, token string, amount float64) {
+func send(toAccount, token string, amount float64) error {
 	fmt.Printf("your input for send is %s %s %v \n", toAccount, token, amount)
 	// creates a new BaseTransaction with action = 'send'
-	var issue = dexathon.NewSend(toAccount, token, amount)
+	issue, err := dexathon.NewSend(toAccount, token, amount)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("the issue at hand is \n")
 	spew.Dump(issue)
+	return nil
 }
 
-func open(sendTx string) {
+func open(sendTx string) error {
 	fmt.Printf("your input for open is %s \n", sendTx)
 	// creates a new BaseTransaction with action = 'open'
-	var issue = dexathon.NewOpen(sendTx)
+	issue, err := dexathon.NewOpen(sendTx)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("the issue at hand is \n")
 	spew.Dump(issue)
+	return nil
 }
 
-func receive(sendTx string) {
+func receive(sendTx string) error {
 	fmt.Printf("your input for receive is %s \n", sendTx)
 	// creates a new BaseTransaction with action = 'receive'
-	var issue = dexathon.NewReceive(sendTx)
+	issue, err := dexathon.NewReceive(sendTx)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("the issue at hand is \n")
 	spew.Dump(issue)
+	return nil
 }
 
-func badInputs(funcName string, additionalInfo string) {
+func badInputs(funcName string, additionalInfo string) error {
 	fmt.Printf("Error in function %s \n", funcName)
 	fmt.Printf("Invalid inputs: %v \n", strings.Join(os.Args[2:], ", "))
 	fmt.Printf("Additional information: \n%s", additionalInfo)
+	return nil
 }
 
 func main() {
@@ -128,14 +133,18 @@ func main() {
 	case "register":
 		goodInputs, addInfo := dexathon.RegisterInputValidation()
 		if goodInputs {
-			register(os.Args[2])
+			if err := register(os.Args[2]); err != nil {
+				panic(err)
+			}
 		} else {
 			badInputs("register", addInfo)
 		}
 	case "login":
 		goodInputs, addInfo := dexathon.LoginInputValidation()
 		if goodInputs {
-			login(os.Args[2])
+			if err := login(os.Args[2]); err != nil {
+				panic(err)
+			}
 		} else {
 			badInputs("login", addInfo)
 		}
@@ -143,7 +152,9 @@ func main() {
 		goodInputs, addInfo := dexathon.IssueInputValidation()
 		if goodInputs {
 			balance, _ := strconv.ParseFloat(os.Args[2], 64)
-			issue(balance)
+			if err := issue(balance); err != nil {
+				panic(err)
+			}
 		} else {
 			badInputs("issue", addInfo)
 		}
@@ -151,21 +162,27 @@ func main() {
 		goodInputs, addInfo := dexathon.SendInputValidation()
 		if goodInputs {
 			amount, _ := strconv.ParseFloat(os.Args[4], 64)
-			send(os.Args[2], os.Args[3], amount)
+			if err := send(os.Args[2], os.Args[3], amount); err != nil {
+				panic(err)
+			}
 		} else {
 			badInputs("send", addInfo)
 		}
 	case "open":
 		goodInputs, addInfo := dexathon.OpenInputValidation()
 		if goodInputs {
-			open(os.Args[2])
+			if err := open(os.Args[2]); err != nil {
+				panic(err)
+			}
 		} else {
 			badInputs("open", addInfo)
 		}
 	case "receive":
 		goodInputs, addInfo := dexathon.ReceiveInputValidation()
 		if goodInputs {
-			receive(os.Args[2])
+			if err := receive(os.Args[2]); err != nil {
+				panic(err)
+			}
 		} else {
 			badInputs("receive", addInfo)
 		}
