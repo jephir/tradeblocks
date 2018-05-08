@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -10,6 +11,8 @@ import (
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
 )
+
+const keySize = 4096
 
 func main() {
 	var command = os.Args[1]
@@ -37,7 +40,7 @@ func main() {
 		goodInputs, addInfo := tradeblocks.IssueInputValidation()
 		if goodInputs {
 			balance, _ := strconv.ParseFloat(os.Args[2], 64)
-			if err := app.Issue(balance); err != nil {
+			if err := issue(balance); err != nil {
 				panic(err)
 			}
 		} else {
@@ -47,7 +50,7 @@ func main() {
 		goodInputs, addInfo := tradeblocks.SendInputValidation()
 		if goodInputs {
 			amount, _ := strconv.ParseFloat(os.Args[4], 64)
-			if err := app.Send(os.Args[2], os.Args[3], amount); err != nil {
+			if err := send(os.Args[2], os.Args[3], amount); err != nil {
 				panic(err)
 			}
 		} else {
@@ -93,7 +96,7 @@ func register(name string) error {
 		return err
 	}
 	defer publicKeyFile.Close()
-	if err := app.Register(privateKeyFile, publicKeyFile, name); err != nil {
+	if err := app.Register(privateKeyFile, publicKeyFile, name, keySize); err != nil {
 		return err
 	}
 	if err := publicKeyFile.Close(); err != nil {
@@ -113,7 +116,61 @@ func login(name string) error {
 func issue(balance float64) error {
 	fmt.Printf("your input for issue is %v \n", balance)
 	// creates a new BaseTransaction with action = 'issue'
+	key, err := openPublicKey()
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+	issue, err := app.Issue(key, balance)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("the issue at hand is \n")
 	spew.Dump(issue)
 	return nil
+}
+
+func send(to string, token string, amount float64) error {
+	fmt.Printf("your input for send is %s %s %v \n", to, token, amount)
+	// creates a new BaseTransaction with action = 'send'
+	key, err := openPublicKey()
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+	address, err := app.PublicKeyToAddress(key)
+	if err != nil {
+		return err
+	}
+	previous, err := getHeadBlock(address, token)
+	if err != nil {
+		return err
+	}
+	send, err := app.Send(key, previous, to, amount)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("the issue at hand is \n")
+	spew.Dump(send)
+	return nil
+}
+
+func openPublicKey() (*os.File, error) {
+	user, err := ioutil.ReadFile("user")
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(string(user) + ".pub")
+}
+
+func getHeadBlock(account string, token string) (*tradeblocks.AccountBlock, error) {
+	return &tradeblocks.AccountBlock{
+		Action:         "open",
+		Account:        account,
+		Token:          token,
+		Previous:       "",
+		Representative: "",
+		Balance:        100,
+		Link:           "",
+	}, nil
 }

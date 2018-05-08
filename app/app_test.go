@@ -22,7 +22,6 @@ func TestIssue(t *testing.T) {
 	-----END RSA PUBLIC KEY-----
 	`
 	expect := `{"Action":"issue","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Token":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Previous":"","Representative":"","Balance":100,"Link":""}`
-	//expect := `&{issue xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg= xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=   100 }`
 	issue, err := Issue(strings.NewReader(publicKey), 100)
 	if err != nil {
 		t.Error(err)

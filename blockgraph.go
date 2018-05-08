@@ -9,18 +9,61 @@ type AccountBlock struct {
 	Representative string
 	Balance        float64
 	Link           string
+
+	// Calculated on local machine
+	Hash          string
+	PreviousBlock *AccountBlock
 }
 
-// NewIssueBlock initializes a new issue block
-func NewIssueBlock(address string, balance float64) *AccountBlock {
+// NewIssueBlock initializes a new crypto token
+func NewIssueBlock(account string, balance float64) *AccountBlock {
 	return &AccountBlock{
 		Action:         "issue",
-		Account:        address,
-		Token:          address,
+		Account:        account,
+		Token:          account,
 		Previous:       "",
 		Representative: "",
 		Balance:        balance,
 		Link:           "",
+	}
+}
+
+// NewOpenBlock initializes the start of an account blockchain
+func NewOpenBlock(account string, send *AccountBlock) *AccountBlock {
+	return &AccountBlock{
+		Action:         "open",
+		Account:        account,
+		Token:          send.Token,
+		Previous:       "",
+		Representative: "",
+		Balance:        send.PreviousBlock.Balance - send.Balance,
+		Link:           send.Hash,
+	}
+}
+
+// NewSendBlock initializes a send to the specified address
+func NewSendBlock(account string, previous *AccountBlock, to string, amount float64) *AccountBlock {
+	return &AccountBlock{
+		Action:         "send",
+		Account:        account,
+		Token:          previous.Token,
+		Previous:       previous.Hash,
+		Representative: previous.Representative,
+		Balance:        previous.Balance - amount,
+		Link:           to,
+	}
+}
+
+// NewReceiveBlock initializes a receive of tokens
+func NewReceiveBlock(account string, previous *AccountBlock, send *AccountBlock) *AccountBlock {
+	return &AccountBlock{
+		Action:         "receive",
+		Account:        account,
+		Token:          previous.Token,
+		Previous:       previous.Hash,
+		Representative: previous.Representative,
+		Balance:        send.PreviousBlock.Balance - send.Balance,
+		Link:           send.Hash,
 	}
 }
 

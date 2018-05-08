@@ -7,10 +7,8 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"fmt"
 	"io"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jephir/tradeblocks"
 )
 
@@ -43,14 +41,15 @@ func Register(privateKey io.Writer, publicKey io.Writer, name string, keySize in
 
 // Issue creates a new crypto coin with the specified balance
 func Issue(publicKey io.Reader, balance float64) (*tradeblocks.AccountBlock, error) {
-	address, err := publicKeyToAddress(publicKey)
+	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
 		return nil, err
 	}
 	return tradeblocks.NewIssueBlock(address, balance), nil
 }
 
-func publicKeyToAddress(publicKey io.Reader) (address string, err error) {
+// PublicKeyToAddress returns the string serialization of the specified public key
+func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	hash := sha256.New()
 	if _, err := io.Copy(hash, publicKey); err != nil {
 		return "", err
@@ -59,38 +58,35 @@ func publicKeyToAddress(publicKey io.Reader) (address string, err error) {
 
 }
 
-func Send(toAccount, token string, amount float64) error {
-	fmt.Printf("your input for send is %s %s %v \n", toAccount, token, amount)
-	// creates a new BaseTransaction with action = 'send'
-	issue, err := tradeblocks.NewSend(toAccount, token, amount)
+// Send transfers tokens to the specified account
+func Send(publicKey io.Reader, previous *tradeblocks.AccountBlock, to string, amount float64) (*tradeblocks.AccountBlock, error) {
+	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Printf("the issue at hand is \n")
-	spew.Dump(issue)
-	return nil
+	return tradeblocks.NewSendBlock(address, previous, to, amount), nil
 }
 
-func Open(sendTx string) error {
-	fmt.Printf("your input for open is %s \n", sendTx)
-	// creates a new BaseTransaction with action = 'open'
-	issue, err := tradeblocks.NewOpen(sendTx)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("the issue at hand is \n")
-	spew.Dump(issue)
-	return nil
-}
+// func Open(sendTx string) error {
+// 	fmt.Printf("your input for open is %s \n", sendTx)
+// 	// creates a new BaseTransaction with action = 'open'
+// 	issue, err := tradeblocks.NewOpen(sendTx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	fmt.Printf("the issue at hand is \n")
+// 	spew.Dump(issue)
+// 	return nil
+// }
 
-func Receive(sendTx string) error {
-	fmt.Printf("your input for receive is %s \n", sendTx)
-	// creates a new BaseTransaction with action = 'receive'
-	issue, err := tradeblocks.NewReceive(sendTx)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("the issue at hand is \n")
-	spew.Dump(issue)
-	return nil
-}
+// func Receive(sendTx string) error {
+// 	fmt.Printf("your input for receive is %s \n", sendTx)
+// 	// creates a new BaseTransaction with action = 'receive'
+// 	issue, err := tradeblocks.NewReceive(sendTx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	fmt.Printf("the issue at hand is \n")
+// 	spew.Dump(issue)
+// 	return nil
+// }
