@@ -1,4 +1,4 @@
-package dexathon
+package tradeblocks
 
 import (
 	"fmt"

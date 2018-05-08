@@ -1,4 +1,4 @@
-package dexathon
+package tradeblocks
 
 // AccountBlock represents a block in the account blockchain
 type AccountBlock struct {
