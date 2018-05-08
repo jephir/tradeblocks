@@ -67,26 +67,20 @@ func Send(publicKey io.Reader, previous *tradeblocks.AccountBlock, to string, am
 	return tradeblocks.NewSendBlock(address, previous, to, amount), nil
 }
 
-// func Open(sendTx string) error {
-// 	fmt.Printf("your input for open is %s \n", sendTx)
-// 	// creates a new BaseTransaction with action = 'open'
-// 	issue, err := tradeblocks.NewOpen(sendTx)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	fmt.Printf("the issue at hand is \n")
-// 	spew.Dump(issue)
-// 	return nil
-// }
+// Open creates a new account blockchain
+func Open(publicKey io.Reader, send *tradeblocks.AccountBlock) (*tradeblocks.AccountBlock, error) {
+	address, err := PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	return tradeblocks.NewOpenBlock(address, send), nil
+}
 
-// func Receive(sendTx string) error {
-// 	fmt.Printf("your input for receive is %s \n", sendTx)
-// 	// creates a new BaseTransaction with action = 'receive'
-// 	issue, err := tradeblocks.NewReceive(sendTx)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	fmt.Printf("the issue at hand is \n")
-// 	spew.Dump(issue)
-// 	return nil
-// }
+// Receive receives tokens from a send transaction
+func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *tradeblocks.AccountBlock) (*tradeblocks.AccountBlock, error) {
+	address, err := PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	return tradeblocks.NewReceiveBlock(address, previous, send), nil
+}

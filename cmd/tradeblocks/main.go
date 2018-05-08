@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
+	"io"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -59,7 +60,7 @@ func main() {
 	case "open":
 		goodInputs, addInfo := tradeblocks.OpenInputValidation()
 		if goodInputs {
-			if err := app.Open(os.Args[2]); err != nil {
+			if err := open(os.Args[2]); err != nil {
 				panic(err)
 			}
 		} else {
@@ -68,7 +69,7 @@ func main() {
 	case "receive":
 		goodInputs, addInfo := tradeblocks.ReceiveInputValidation()
 		if goodInputs {
-			if err := app.Receive(os.Args[2]); err != nil {
+			if err := receive(os.Args[2]); err != nil {
 				panic(err)
 			}
 		} else {
@@ -138,11 +139,7 @@ func send(to string, token string, amount float64) error {
 		return err
 	}
 	defer key.Close()
-	address, err := app.PublicKeyToAddress(key)
-	if err != nil {
-		return err
-	}
-	previous, err := getHeadBlock(address, token)
+	previous, err := getHeadBlock(key, token)
 	if err != nil {
 		return err
 	}
@@ -155,6 +152,52 @@ func send(to string, token string, amount float64) error {
 	return nil
 }
 
+func open(link string) error {
+	fmt.Printf("your input for open is %s \n", link)
+	// creates a new BaseTransaction with action = 'open'
+	key, err := openPublicKey()
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+	send, err := getBlock(link)
+	if err != nil {
+		return err
+	}
+	issue, err := app.Open(key, send)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("the issue at hand is \n")
+	spew.Dump(issue)
+	return nil
+}
+
+func receive(link string) error {
+	fmt.Printf("your input for receive is %s \n", link)
+	// creates a new BaseTransaction with action = 'receive'
+	key, err := openPublicKey()
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+	send, err := getBlock(link)
+	if err != nil {
+		return err
+	}
+	previous, err := getHeadBlock(key, send.Token)
+	if err != nil {
+		return err
+	}
+	issue, err := app.Receive(key, previous, send)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("the issue at hand is \n")
+	spew.Dump(issue)
+	return nil
+}
+
 func openPublicKey() (*os.File, error) {
 	user, err := ioutil.ReadFile("user")
 	if err != nil {
@@ -163,11 +206,29 @@ func openPublicKey() (*os.File, error) {
 	return os.Open(string(user) + ".pub")
 }
 
-func getHeadBlock(account string, token string) (*tradeblocks.AccountBlock, error) {
+func getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.AccountBlock, error) {
+	address, err := app.PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	// TODO Get the block from the server
 	return &tradeblocks.AccountBlock{
 		Action:         "open",
-		Account:        account,
+		Account:        address,
 		Token:          token,
+		Previous:       "",
+		Representative: "",
+		Balance:        100,
+		Link:           "",
+	}, nil
+}
+
+func getBlock(hash string) (*tradeblocks.AccountBlock, error) {
+	// TODO Get the block from the server
+	return &tradeblocks.AccountBlock{
+		Action:         "open",
+		Account:        "xtb:test",
+		Token:          "xtb:testtoken",
 		Previous:       "",
 		Representative: "",
 		Balance:        100,
