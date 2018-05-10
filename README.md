@@ -10,20 +10,30 @@ $ go install -i github.com/jephir/tradeblocks/cmd/tradeblocks github.com/jephir/
 
 ## Demo
 
-Create a user `alice` and a new token `my-coin` with 1000 tokens.
+1.  Create a user `alice` and a new token `apple-coin` with 1000 tokens.
 
 ```sh
 $ XTB_ALICE="$(tradeblocks register alice)"
-$ XTB_MY_COIN="$(tradeblocks register my-coin)"
+$ XTB_APPLE_COIN="$(tradeblocks register apple-coin)"
+$ tradeblocks login apple-coin
 $ tradeblocks issue 1000
 ```
 
-Send 50 tokens to `alice`.
+2.  Send 50 `apple-coin` tokens to `alice`.
 
 ```sh
-$ SEND_TX="$(tradeblocks send $XTB_ALICE $XTB_MY_COIN 50)"
+$ XTB_SEND="$(tradeblocks send $XTB_ALICE $XTB_APPLE_COIN 50)"
 $ tradeblocks login alice
-$ tradeblocks receive $SEND_TX
+$ tradeblocks receive $XTB_SEND
+```
+
+3.  Create a new token `banana-coin` with 2000 tokens. Then, offer to trade 25 `banana-coin` for 50 `apple-coin` with `alice`. Finally, accept the trade as `alice`.
+
+```sh
+$ XTB_BANANA_COIN="$(tradeblocks register banana-coin)"
+$ XTB_TRADE="$(tradeblocks trade $XTB_BANANA_COIN 25 $XTB_ALICE $XTB_APPLE_COIN 50)"
+$ tradeblocks login alice
+$ tradeblocks trade $XTB_TRADE
 ```
 
 ## Running Tests

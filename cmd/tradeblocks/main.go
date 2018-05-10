@@ -84,6 +84,9 @@ func main() {
 		} else {
 			badInputs("receive", addInfo)
 		}
+	case "trade":
+		// TODO Implement trading
+		fmt.Println("TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
 	}
 	if block != nil {
 		h, err := app.AccountBlockHash(block)

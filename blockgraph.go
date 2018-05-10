@@ -56,13 +56,14 @@ func NewSendBlock(account string, previous *AccountBlock, to string, amount floa
 
 // NewReceiveBlock initializes a receive of tokens
 func NewReceiveBlock(account string, previous *AccountBlock, send *AccountBlock) *AccountBlock {
+	balance := 0.0 // send.PreviousBlock.Balance - send.Balance
 	return &AccountBlock{
 		Action:         "receive",
 		Account:        account,
 		Token:          previous.Token,
 		Previous:       previous.Hash,
 		Representative: previous.Representative,
-		Balance:        send.PreviousBlock.Balance - send.Balance,
+		Balance:        balance,
 		Link:           send.Hash,
 	}
 }
