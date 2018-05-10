@@ -28,7 +28,7 @@ func issueInputValidation() (goodInputs bool, addInfo string) {
 		if _, err := strconv.ParseFloat(os.Args[2], 64); err != nil {
 			goodInputs = false
 			addInfo = "CLI args invalid type.\n" +
-				"Run this command with $ tradeblocks issue <balance: integer>"
+				"Run this command with $ tradeblocks issue <balance: float>"
 		}
 	}
 	return
@@ -44,7 +44,7 @@ func sendInputValidation() (goodInputs bool, addInfo string) {
 			goodInputs = false
 			addInfo = "CLI args invalid type.\n" +
 				"Run this command with $ tradeblocks send" +
-				"<to_account: string> <token: string> <amount: int> \n"
+				"<to_account: string> <token: string> <amount: float> \n"
 		}
 	}
 	return
@@ -60,6 +60,6 @@ func openInputValidation() (goodInputs bool, addInfo string) {
 func receiveInputValidation() (goodInputs bool, addInfo string) {
 	goodInputs = len(os.Args) == 3
 	addInfo = "CLI args invalid length.\n" +
-		"Run this command with $ tradeblocks login <send_tx>"
+		"Run this command with $ tradeblocks receive <send_tx>"
 	return
 }
