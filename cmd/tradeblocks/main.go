@@ -22,18 +22,22 @@ func main() {
 	case "register":
 		goodInputs, addInfo := tradeblocks.RegisterInputValidation()
 		if goodInputs {
-			if err := register(os.Args[2]); err != nil {
+			address, err := register(os.Args[2])
+			if err != nil {
 				panic(err)
 			}
+			fmt.Println(address)
 		} else {
 			badInputs("register", addInfo)
 		}
 	case "login":
 		goodInputs, addInfo := tradeblocks.LoginInputValidation()
 		if goodInputs {
-			if err := login(os.Args[2]); err != nil {
+			address, err := login(os.Args[2])
+			if err != nil {
 				panic(err)
 			}
+			fmt.Println(address)
 		} else {
 			badInputs("login", addInfo)
 		}
@@ -82,36 +86,45 @@ func badInputs(funcName string, additionalInfo string) error {
 	fmt.Printf("Error in function %s \n", funcName)
 	fmt.Printf("Invalid inputs: %v \n", strings.Join(os.Args[2:], ", "))
 	fmt.Printf("Additional information: \n%s", additionalInfo)
+	os.Exit(1)
 	return nil
 }
 
-func register(name string) error {
-	fmt.Printf("your input for register is %s \n", name)
+func register(name string) (address string, err error) {
 	privateKeyFile, err := os.Create(name + ".pem")
 	if err != nil {
-		return err
+		return
 	}
 	defer privateKeyFile.Close()
 	publicKeyFile, err := os.Create(name + ".pub")
 	if err != nil {
-		return err
+		return
 	}
 	defer publicKeyFile.Close()
-	if err := app.Register(privateKeyFile, publicKeyFile, name, keySize); err != nil {
-		return err
+	address, err = app.Register(privateKeyFile, publicKeyFile, name, keySize)
+	if err != nil {
+		return
 	}
 	if err := publicKeyFile.Close(); err != nil {
-		return err
+		return "", err
 	}
 	if err := privateKeyFile.Close(); err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return
 }
 
-func login(name string) error {
-	fmt.Printf("your input for login is %s \n", name)
-	return ioutil.WriteFile("user", []byte(name), 0644)
+func login(name string) (address string, err error) {
+	if err := ioutil.WriteFile("user", []byte(name), 0644); err != nil {
+		return "", err
+	}
+	f, err := openPublicKey()
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	address, err = app.PublicKeyToAddress(f)
+	return
 }
 
 func issue(balance float64) error {

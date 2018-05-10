@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -15,28 +16,33 @@ import (
 const addressPrefix = "xtb:"
 
 // Register creates a new key pair with the specified local name
-func Register(privateKey io.Writer, publicKey io.Writer, name string, keySize int) error {
+func Register(privateKey io.Writer, publicKey io.Writer, name string, keySize int) (address string, err error) {
 	key, err := rsa.GenerateKey(rand.Reader, keySize)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := pem.Encode(privateKey, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	}); err != nil {
-		return err
+		return "", err
 	}
-	bytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	b, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if err := pem.Encode(publicKey, &pem.Block{
+	p := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PUBLIC KEY",
-		Bytes: bytes,
-	}); err != nil {
-		return err
+		Bytes: b,
+	})
+	address, err = PublicKeyToAddress(bytes.NewReader(p))
+	if err != nil {
+		return "", err
 	}
-	return nil
+	if _, err := io.Copy(publicKey, bytes.NewReader(p)); err != nil {
+		return "", err
+	}
+	return
 }
 
 // Issue creates a new crypto coin with the specified balance
@@ -54,7 +60,7 @@ func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	if _, err := io.Copy(hash, publicKey); err != nil {
 		return "", err
 	}
-	return addressPrefix + base64.StdEncoding.EncodeToString(hash.Sum(nil)), nil
+	return addressPrefix + base64.RawURLEncoding.EncodeToString(hash.Sum(nil)), nil
 }
 
 // Send transfers tokens to the specified account

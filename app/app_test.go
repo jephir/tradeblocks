@@ -18,13 +18,13 @@ var publicKey = strings.NewReader(`-----BEGIN RSA PUBLIC KEY-----
 	`)
 
 func TestRegister(t *testing.T) {
-	if err := Register(ioutil.Discard, ioutil.Discard, "testuser", 1024); err != nil {
+	if _, err := Register(ioutil.Discard, ioutil.Discard, "testuser", 1024); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestIssue(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Token":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"","PreviousBlock":null}`
+	expect := `{"Action":"issue","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"","PreviousBlock":null}`
 	publicKey.Seek(0, io.SeekStart)
 	issue, err := Issue(publicKey, 100)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestIssue(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
-	expect := `{"Action":"send","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Token":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Previous":"","Representative":"","Balance":50,"Link":"xtb:testreceiver","Hash":"","PreviousBlock":null}`
+	expect := `{"Action":"send","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Previous":"","Representative":"","Balance":50,"Link":"xtb:testreceiver","Hash":"","PreviousBlock":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -64,7 +64,7 @@ func TestSend(t *testing.T) {
 }
 
 func TestOpen(t *testing.T) {
-	expect := `{"Action":"open","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
+	expect := `{"Action":"open","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -90,7 +90,7 @@ func TestOpen(t *testing.T) {
 }
 
 func TestReceive(t *testing.T) {
-	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl+/PhDyg=","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
+	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
