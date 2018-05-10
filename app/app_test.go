@@ -90,7 +90,7 @@ func TestOpen(t *testing.T) {
 }
 
 func TestReceive(t *testing.T) {
-	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
+	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"","Representative":"","Balance":0,"Link":"testhash","Hash":"","PreviousBlock":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
