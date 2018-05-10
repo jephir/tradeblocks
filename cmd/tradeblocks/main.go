@@ -21,7 +21,7 @@ func main() {
 
 	switch command {
 	case "register":
-		goodInputs, addInfo := tradeblocks.RegisterInputValidation()
+		goodInputs, addInfo := registerInputValidation()
 		if goodInputs {
 			address, err := register(os.Args[2])
 			if err != nil {
@@ -32,7 +32,7 @@ func main() {
 			badInputs("register", addInfo)
 		}
 	case "login":
-		goodInputs, addInfo := tradeblocks.LoginInputValidation()
+		goodInputs, addInfo := loginInputValidation()
 		if goodInputs {
 			address, err := login(os.Args[2])
 			if err != nil {
@@ -43,7 +43,7 @@ func main() {
 			badInputs("login", addInfo)
 		}
 	case "issue":
-		goodInputs, addInfo := tradeblocks.IssueInputValidation()
+		goodInputs, addInfo := issueInputValidation()
 		if goodInputs {
 			balance, _ := strconv.ParseFloat(os.Args[2], 64)
 			block, err = issue(balance)
@@ -54,7 +54,7 @@ func main() {
 			badInputs("issue", addInfo)
 		}
 	case "send":
-		goodInputs, addInfo := tradeblocks.SendInputValidation()
+		goodInputs, addInfo := sendInputValidation()
 		if goodInputs {
 			amount, _ := strconv.ParseFloat(os.Args[4], 64)
 			block, err = send(os.Args[2], os.Args[3], amount)
@@ -65,7 +65,7 @@ func main() {
 			badInputs("send", addInfo)
 		}
 	case "open":
-		goodInputs, addInfo := tradeblocks.OpenInputValidation()
+		goodInputs, addInfo := openInputValidation()
 		if goodInputs {
 			block, err = open(os.Args[2])
 			if err != nil {
@@ -75,7 +75,7 @@ func main() {
 			badInputs("open", addInfo)
 		}
 	case "receive":
-		goodInputs, addInfo := tradeblocks.ReceiveInputValidation()
+		goodInputs, addInfo := receiveInputValidation()
 		if goodInputs {
 			block, err = receive(os.Args[2])
 			if err != nil {

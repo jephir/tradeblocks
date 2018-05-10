@@ -1,25 +1,25 @@
-package tradeblocks
+package main
 
 import (
 	"os"
 	"strconv"
 )
 
-func RegisterInputValidation() (goodInputs bool, addInfo string) {
+func registerInputValidation() (goodInputs bool, addInfo string) {
 	goodInputs = len(os.Args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks register <name>"
 	return
 }
 
-func LoginInputValidation() (goodInputs bool, addInfo string) {
+func loginInputValidation() (goodInputs bool, addInfo string) {
 	goodInputs = len(os.Args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks login <name>"
 	return
 }
 
-func IssueInputValidation() (goodInputs bool, addInfo string) {
+func issueInputValidation() (goodInputs bool, addInfo string) {
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks issue <balance>"
 	goodInputs = false
@@ -34,7 +34,7 @@ func IssueInputValidation() (goodInputs bool, addInfo string) {
 	return
 }
 
-func SendInputValidation() (goodInputs bool, addInfo string) {
+func sendInputValidation() (goodInputs bool, addInfo string) {
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks send <to_account> <token> <amount>"
 	goodInputs = false
@@ -50,14 +50,14 @@ func SendInputValidation() (goodInputs bool, addInfo string) {
 	return
 }
 
-func OpenInputValidation() (goodInputs bool, addInfo string) {
+func openInputValidation() (goodInputs bool, addInfo string) {
 	goodInputs = len(os.Args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks open <send_tx>"
 	return
 }
 
-func ReceiveInputValidation() (goodInputs bool, addInfo string) {
+func receiveInputValidation() (goodInputs bool, addInfo string) {
 	goodInputs = len(os.Args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks login <send_tx>"
