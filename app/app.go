@@ -6,7 +6,9 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base32"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"io"
 
@@ -54,15 +56,6 @@ func Issue(publicKey io.Reader, balance float64) (*tradeblocks.AccountBlock, err
 	return tradeblocks.NewIssueBlock(address, balance), nil
 }
 
-// PublicKeyToAddress returns the string serialization of the specified public key
-func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
-	hash := sha256.New()
-	if _, err := io.Copy(hash, publicKey); err != nil {
-		return "", err
-	}
-	return addressPrefix + base64.RawURLEncoding.EncodeToString(hash.Sum(nil)), nil
-}
-
 // Send transfers tokens to the specified account
 func Send(publicKey io.Reader, previous *tradeblocks.AccountBlock, to string, amount float64) (*tradeblocks.AccountBlock, error) {
 	address, err := PublicKeyToAddress(publicKey)
@@ -88,4 +81,26 @@ func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *trad
 		return nil, err
 	}
 	return tradeblocks.NewReceiveBlock(address, previous, send), nil
+}
+
+// PublicKeyToAddress returns the string serialization of the specified public key
+func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
+	hash := sha256.New()
+	if _, err := io.Copy(hash, publicKey); err != nil {
+		return "", err
+	}
+	return addressPrefix + base64.RawURLEncoding.EncodeToString(hash.Sum(nil)), nil
+}
+
+// AccountBlockHash returns the hash of the specified account block
+func AccountBlockHash(block *tradeblocks.AccountBlock) (string, error) {
+	b, err := json.Marshal(block)
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
+		return "", err
+	}
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil)), nil
 }

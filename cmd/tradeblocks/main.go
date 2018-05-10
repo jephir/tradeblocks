@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,6 +16,8 @@ const keySize = 4096
 
 func main() {
 	var command = os.Args[1]
+	var block *tradeblocks.AccountBlock
+	var err error
 
 	switch command {
 	case "register":
@@ -45,7 +46,8 @@ func main() {
 		goodInputs, addInfo := tradeblocks.IssueInputValidation()
 		if goodInputs {
 			balance, _ := strconv.ParseFloat(os.Args[2], 64)
-			if err := issue(balance); err != nil {
+			block, err = issue(balance)
+			if err != nil {
 				panic(err)
 			}
 		} else {
@@ -55,7 +57,8 @@ func main() {
 		goodInputs, addInfo := tradeblocks.SendInputValidation()
 		if goodInputs {
 			amount, _ := strconv.ParseFloat(os.Args[4], 64)
-			if err := send(os.Args[2], os.Args[3], amount); err != nil {
+			block, err = send(os.Args[2], os.Args[3], amount)
+			if err != nil {
 				panic(err)
 			}
 		} else {
@@ -64,7 +67,8 @@ func main() {
 	case "open":
 		goodInputs, addInfo := tradeblocks.OpenInputValidation()
 		if goodInputs {
-			if err := open(os.Args[2]); err != nil {
+			block, err = open(os.Args[2])
+			if err != nil {
 				panic(err)
 			}
 		} else {
@@ -73,12 +77,20 @@ func main() {
 	case "receive":
 		goodInputs, addInfo := tradeblocks.ReceiveInputValidation()
 		if goodInputs {
-			if err := receive(os.Args[2]); err != nil {
+			block, err = receive(os.Args[2])
+			if err != nil {
 				panic(err)
 			}
 		} else {
 			badInputs("receive", addInfo)
 		}
+	}
+	if block != nil {
+		h, err := app.AccountBlockHash(block)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(h)
 	}
 }
 
@@ -127,88 +139,56 @@ func login(name string) (address string, err error) {
 	return
 }
 
-func issue(balance float64) error {
-	fmt.Printf("your input for issue is %v \n", balance)
-	// creates a new BaseTransaction with action = 'issue'
+func issue(balance float64) (*tradeblocks.AccountBlock, error) {
 	key, err := openPublicKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer key.Close()
-	issue, err := app.Issue(key, balance)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("the issue at hand is \n")
-	spew.Dump(issue)
-	return nil
+	return app.Issue(key, balance)
 }
 
-func send(to string, token string, amount float64) error {
-	fmt.Printf("your input for send is %s %s %v \n", to, token, amount)
-	// creates a new BaseTransaction with action = 'send'
+func send(to string, token string, amount float64) (*tradeblocks.AccountBlock, error) {
 	key, err := openPublicKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer key.Close()
 	previous, err := getHeadBlock(key, token)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	send, err := app.Send(key, previous, to, amount)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("the issue at hand is \n")
-	spew.Dump(send)
-	return nil
+	return app.Send(key, previous, to, amount)
 }
 
-func open(link string) error {
-	fmt.Printf("your input for open is %s \n", link)
-	// creates a new BaseTransaction with action = 'open'
+func open(link string) (*tradeblocks.AccountBlock, error) {
 	key, err := openPublicKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer key.Close()
 	send, err := getBlock(link)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	issue, err := app.Open(key, send)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("the issue at hand is \n")
-	spew.Dump(issue)
-	return nil
+	return app.Open(key, send)
 }
 
-func receive(link string) error {
-	fmt.Printf("your input for receive is %s \n", link)
-	// creates a new BaseTransaction with action = 'receive'
+func receive(link string) (*tradeblocks.AccountBlock, error) {
 	key, err := openPublicKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer key.Close()
 	send, err := getBlock(link)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	previous, err := getHeadBlock(key, send.Token)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	issue, err := app.Receive(key, previous, send)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("the issue at hand is \n")
-	spew.Dump(issue)
-	return nil
+	return app.Receive(key, previous, send)
 }
 
 func openPublicKey() (*os.File, error) {
