@@ -1,40 +1,38 @@
-package main
+package web
 
 import (
 	"encoding/json"
 	"github.com/jephir/tradeblocks"
-	"log"
 	"net/http"
 
 	"github.com/jephir/tradeblocks/app"
 )
 
-func main() {
-	srv := newServer()
-	log.Fatal(http.ListenAndServe(":8080", srv))
-}
-
-type server struct {
+// Server implements a TradeBlocks node
+type Server struct {
 	blockstore *app.BlockStore
 	mux        *http.ServeMux
 }
 
-func newServer() *server {
-	return &server{
+// NewServer allocates and returns a new server
+func NewServer() *Server {
+	s := &Server{
 		blockstore: app.NewBlockStore(),
 		mux:        http.NewServeMux(),
 	}
+	s.routes()
+	return s
 }
 
-func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-func (s *server) routes() {
+func (s *Server) routes() {
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
 }
 
-func (s *server) handleAccountBlock() http.HandlerFunc {
+func (s *Server) handleAccountBlock() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
