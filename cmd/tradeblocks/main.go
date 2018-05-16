@@ -19,6 +19,10 @@ func main() {
 	var block *tradeblocks.AccountBlock
 	var err error
 
+	c := &client{
+		base: "http://localhost:8080",
+	}
+
 	switch command {
 	case "register":
 		goodInputs, addInfo := registerInputValidation()
@@ -89,11 +93,11 @@ func main() {
 		fmt.Println("TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
 	}
 	if block != nil {
-		h, err := app.AccountBlockHash(block)
+		result, err := c.SendAccountBlock(block)
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(h)
+		fmt.Println(result.Hash)
 	}
 }
 

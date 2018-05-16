@@ -51,11 +51,15 @@ func (s *server) handleAccountBlock() http.HandlerFunc {
 		case "POST":
 			var b tradeblocks.AccountBlock
 			if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-				http.Error(w, err.Error(), 400)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			if err := s.blockstore.AddBlock(&b); err != nil {
-				http.Error(w, err.Error(), 400)
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if err := json.NewEncoder(w).Encode(b); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		default:

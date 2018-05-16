@@ -23,11 +23,12 @@ func NewBlockStore() *BlockStore {
 func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) error {
 	// TODO Validate block
 	// err := s.validator.ValidateAccountBlock(b)
-	hash, err := AccountBlockHash(b)
+	var err error
+	b.Hash, err = AccountBlockHash(b)
 	if err != nil {
 		return err
 	}
-	s.accountBlocks[hash] = b
+	s.accountBlocks[b.Hash] = b
 	return nil
 }
 
