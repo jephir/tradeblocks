@@ -55,8 +55,7 @@ func NewSendBlock(account string, previous *AccountBlock, to string, amount floa
 }
 
 // NewReceiveBlock initializes a receive of tokens
-func NewReceiveBlock(account string, previous *AccountBlock, send *AccountBlock) *AccountBlock {
-	balance := 0.0 // send.PreviousBlock.Balance - send.Balance
+func NewReceiveBlock(account string, previous *AccountBlock, send *AccountBlock, balance float64) *AccountBlock {
 	return &AccountBlock{
 		Action:         "receive",
 		Account:        account,
