@@ -2,8 +2,9 @@ package web
 
 import (
 	"encoding/json"
-	"github.com/jephir/tradeblocks"
 	"net/http"
+
+	"github.com/jephir/tradeblocks"
 
 	"github.com/jephir/tradeblocks/app"
 )
@@ -37,7 +38,7 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			hash := r.FormValue("hash")
-			block := s.blockstore.GetBlock(hash)
+			block, _ := s.blockstore.GetBlock(hash)
 			if block == nil {
 				http.Error(w, "No block found.", http.StatusBadRequest)
 				return

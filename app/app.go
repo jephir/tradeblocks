@@ -80,7 +80,8 @@ func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *trad
 	if err != nil {
 		return nil, err
 	}
-	return tradeblocks.NewReceiveBlock(address, previous, send), nil
+	balance := send.PreviousBlock.Balance - send.Balance
+	return tradeblocks.NewReceiveBlock(address, previous, send, balance), nil
 }
 
 // PublicKeyToAddress returns the string serialization of the specified public key

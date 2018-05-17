@@ -2,11 +2,12 @@ package app
 
 import (
 	"encoding/json"
-	"github.com/jephir/tradeblocks"
 	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
 )
 
 var publicKey = strings.NewReader(`-----BEGIN RSA PUBLIC KEY-----
@@ -90,7 +91,7 @@ func TestOpen(t *testing.T) {
 }
 
 func TestReceive(t *testing.T) {
-	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"","Representative":"","Balance":0,"Link":"testhash","Hash":"","PreviousBlock":null}`
+	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"testhash","Hash":"","PreviousBlock":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -105,11 +106,11 @@ func TestReceive(t *testing.T) {
 	send2.Hash = "test2hash"
 	previous := tradeblocks.NewOpenBlock(address, send2)
 	publicKey.Seek(0, io.SeekStart)
-	open, err := Receive(publicKey, previous, send)
+	receive, err := Receive(publicKey, previous, send)
 	if err != nil {
 		t.Error(err)
 	}
-	s, err := json.Marshal(open)
+	s, err := json.Marshal(receive)
 	if err != nil {
 		t.Error(err)
 	}

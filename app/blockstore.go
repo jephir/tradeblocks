@@ -33,6 +33,7 @@ func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) error {
 }
 
 // GetBlock returns the account block with the specified hash, or nil if it doesn't exist
-func (s *BlockStore) GetBlock(hash string) *tradeblocks.AccountBlock {
-	return s.accountBlocks[hash]
+// error return added for future proofing
+func (s *BlockStore) GetBlock(hash string) (*tradeblocks.AccountBlock, error) {
+	return s.accountBlocks[hash], nil
 }

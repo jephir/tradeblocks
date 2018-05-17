@@ -2,8 +2,9 @@ package app
 
 import (
 	"encoding/json"
-	"github.com/jephir/tradeblocks"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
 )
 
 func TestBlockStore(t *testing.T) {
@@ -13,7 +14,7 @@ func TestBlockStore(t *testing.T) {
 	if err := s.AddBlock(b); err != nil {
 		t.Error(err)
 	}
-	res := s.GetBlock(b.Hash)
+	res, _ := s.GetBlock(b.Hash)
 	ss, err := json.Marshal(res)
 	if err != nil {
 		t.Error(err)
