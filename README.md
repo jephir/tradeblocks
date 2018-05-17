@@ -5,7 +5,7 @@ Decentralized exchange implementation for Binance Dexathon.
 ## Installation
 
 ```sh
-$ go install -i github.com/jephir/tradeblocks/cmd/tradeblocks github.com/jephir/tradeblocks/cmd/tradeblocks-node
+$ go install -i github.com/jephir/tradeblocks/cmd/tradeblocks
 ```
 
 ## Demo

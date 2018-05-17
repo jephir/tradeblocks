@@ -4,20 +4,26 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/web"
 )
 
 const keySize = 4096
+const serverURL = "http://localhost:8080"
 
 func main() {
 	var command = os.Args[1]
 	var block *tradeblocks.AccountBlock
 	var err error
+
+	srv := web.NewServer()
+	c := web.NewClient(serverURL)
 
 	switch command {
 	case "register":
@@ -89,11 +95,18 @@ func main() {
 		fmt.Println("TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
 	}
 	if block != nil {
-		h, err := app.AccountBlockHash(block)
+		req, err := c.NewAccountBlockRequest(block)
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(h)
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+		res := w.Result()
+		result, err := c.DecodeResponse(res)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(result.Hash)
 	}
 }
 
