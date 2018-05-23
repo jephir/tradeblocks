@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jephir/tradeblocks"
@@ -13,7 +14,7 @@ import (
 
 type client struct {
 	keySize int
-	dir string
+	dir     string
 }
 
 func (c *client) badInputs(funcName string, additionalInfo string) error {
@@ -25,12 +26,14 @@ func (c *client) badInputs(funcName string, additionalInfo string) error {
 }
 
 func (c *client) register(name string) (address string, err error) {
-	privateKeyFile, err := os.Create(name + ".pem")
+	privateKeyPath := filepath.Join(c.dir, name+".pem")
+	privateKeyFile, err := os.Create(privateKeyPath)
 	if err != nil {
 		return
 	}
 	defer privateKeyFile.Close()
-	publicKeyFile, err := os.Create(name + ".pub")
+	publicKeyPath := filepath.Join(c.dir, name+".pub")
+	publicKeyFile, err := os.Create(publicKeyPath)
 	if err != nil {
 		return
 	}
@@ -118,7 +121,8 @@ func (c *client) openPublicKey() (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.Open(string(user) + ".pub")
+	p := filepath.Join(c.dir, string(user)+".pub")
+	return os.Open(p)
 }
 
 func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.AccountBlock, error) {
