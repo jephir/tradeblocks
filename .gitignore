@@ -2,6 +2,7 @@ cmd/tradeblocks/tradeblocks
 cmd/tradeblocks/*.pem
 cmd/tradeblocks/*.pub
 cmd/tradeblocks/user
+cmd/tradeblocks/data
 cmd/tradeblocks-node/tradeblocks-node
 
 .vscode

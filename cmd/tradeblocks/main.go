@@ -5,6 +5,7 @@ import (
 	"github.com/jephir/tradeblocks/app"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/jephir/tradeblocks"
@@ -13,12 +14,14 @@ import (
 
 const keySize = 4096
 const serverURL = "http://localhost:8080"
-const blocksDir = "blocks"
+const dataDir = "data"
 
 func main() {
 	var command = os.Args[1]
 	var block *tradeblocks.AccountBlock
 	var err error
+
+	blocksDir := filepath.Join(dataDir, "blocks")
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -27,6 +30,10 @@ func main() {
 
 	store := app.NewBlockStore()
 	storage := newBlockStorage(store, blocksDir)
+
+	if err := os.MkdirAll(blocksDir, 0700); err != nil {
+		panic(err)
+	}
 
 	if err := storage.load(); err != nil {
 		panic(err)
