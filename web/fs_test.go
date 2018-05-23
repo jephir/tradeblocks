@@ -16,14 +16,14 @@ func TestFS(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	store1.AccountBlocks["test1"] = b1
+	store1.AccountBlocks[h1] = b1
 
 	b2 := tradeblocks.NewIssueBlock("xtb:test2", 100)
 	h2, err := app.AccountBlockHash(b2)
 	if err != nil {
 		t.Error(err)
 	}
-	store1.AccountBlocks["test2"] = b2
+	store1.AccountBlocks[h2] = b2
 
 	dir, err := ioutil.TempDir("", "web")
 	if err != nil {
@@ -51,7 +51,7 @@ func TestFS(t *testing.T) {
 		return
 	}
 	if b1check == nil {
-		t.Errorf("block %s is missing", h1)
+		t.Errorf("block [1] %s is missing", h1)
 		return
 	}
 
@@ -61,7 +61,7 @@ func TestFS(t *testing.T) {
 		return
 	}
 	if b2check == nil {
-		t.Errorf("block %s is missing", h2)
+		t.Errorf("block [2] %s is missing", h2)
 		return
 	}
 }
