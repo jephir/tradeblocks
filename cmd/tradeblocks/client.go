@@ -127,7 +127,8 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 }
 
 func (c *client) openPublicKey() (*os.File, error) {
-	user, err := ioutil.ReadFile("user")
+	userPath := filepath.Join(c.dir, "user")
+	user, err := ioutil.ReadFile(userPath)
 	if err != nil {
 		return nil, err
 	}

@@ -23,11 +23,6 @@ func main() {
 
 	blocksDir := filepath.Join(dataDir, "blocks")
 
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
 	store := app.NewBlockStore()
 	storage := newBlockStorage(store, blocksDir)
 
@@ -41,7 +36,7 @@ func main() {
 
 	srv := web.NewServer(store)
 	c := web.NewClient(serverURL)
-	cmd := newClient(store, wd, keySize)
+	cmd := newClient(store, dataDir, keySize)
 
 	switch command {
 	case "register":
