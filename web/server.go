@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/jephir/tradeblocks"
-
 	"github.com/jephir/tradeblocks/app"
 )
 

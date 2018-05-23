@@ -4,18 +4,18 @@ import (
 	"github.com/jephir/tradeblocks"
 )
 
-// Keyed by hash
-type accountBlocksMap map[string]*tradeblocks.AccountBlock
+// AccountBlocksMap maps block hashes to account blocks
+type AccountBlocksMap map[string]*tradeblocks.AccountBlock
 
 // BlockStore stores all of the local blockchains
 type BlockStore struct {
-	accountBlocks accountBlocksMap
+	AccountBlocks AccountBlocksMap
 }
 
 // NewBlockStore allocates and returns a new BlockStore
 func NewBlockStore() *BlockStore {
 	return &BlockStore{
-		accountBlocks: make(accountBlocksMap),
+		AccountBlocks: make(AccountBlocksMap),
 	}
 }
 
@@ -28,12 +28,12 @@ func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) error {
 	if err != nil {
 		return err
 	}
-	s.accountBlocks[b.Hash] = b
+	s.AccountBlocks[b.Hash] = b
 	return nil
 }
 
 // GetBlock returns the account block with the specified hash, or nil if it doesn't exist
 // error return added for future proofing
 func (s *BlockStore) GetBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	return s.accountBlocks[hash], nil
+	return s.AccountBlocks[hash], nil
 }
