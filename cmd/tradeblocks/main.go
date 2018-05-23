@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jephir/tradeblocks/app"
 	"net/http/httptest"
 	"os"
 	"strconv"
@@ -12,23 +13,28 @@ import (
 
 const keySize = 4096
 const serverURL = "http://localhost:8080"
+const blocksDir = "blocks"
 
 func main() {
 	var command = os.Args[1]
 	var block *tradeblocks.AccountBlock
 	var err error
 
-	dir, err := os.Getwd()
+	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
-	srv := web.NewServer()
-	c := web.NewClient(serverURL)
-	cmd := &client{
-		keySize: keySize,
-		dir:     dir,
+	store := app.NewBlockStore()
+	storage := newBlockStorage(store, blocksDir)
+
+	if err := storage.load(); err != nil {
+		panic(err)
 	}
+
+	srv := web.NewServer(store)
+	c := web.NewClient(serverURL)
+	cmd := newClient(store, wd, keySize)
 
 	switch command {
 	case "register":
@@ -99,6 +105,7 @@ func main() {
 		// TODO Implement trading
 		fmt.Println("TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
 	}
+
 	if block != nil {
 		req, err := c.NewAccountBlockRequest(block)
 		if err != nil {
@@ -112,5 +119,9 @@ func main() {
 			panic(err)
 		}
 		fmt.Println(result.Hash)
+	}
+
+	if err := storage.save(); err != nil {
+		panic(err)
 	}
 }

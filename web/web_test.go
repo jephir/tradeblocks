@@ -2,17 +2,18 @@ package web
 
 import (
 	"encoding/json"
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/jephir/tradeblocks"
 )
 
 const base = "http://localhost:8080"
 
 func TestWeb(t *testing.T) {
 	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"IUXJ2EGVQFRXKCDF4NJTUE7NTYPBPJPGYBBE4ZC6PIGBEFDFXW2Q","PreviousBlock":null}`
-	srv := NewServer()
+	store := app.NewBlockStore()
+	srv := NewServer(store)
 	client := NewClient(base)
 	b := tradeblocks.NewIssueBlock("xtb:test", 100)
 	req, err := client.NewAccountBlockRequest(b)

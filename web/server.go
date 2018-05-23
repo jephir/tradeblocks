@@ -2,10 +2,9 @@ package web
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"net/http"
 )
 
 // Server implements a TradeBlocks node
@@ -15,9 +14,9 @@ type Server struct {
 }
 
 // NewServer allocates and returns a new server
-func NewServer() *Server {
+func NewServer(blockstore *app.BlockStore) *Server {
 	s := &Server{
-		blockstore: app.NewBlockStore(),
+		blockstore: blockstore,
 		mux:        http.NewServeMux(),
 	}
 	s.routes()

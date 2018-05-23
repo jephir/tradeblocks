@@ -13,8 +13,18 @@ import (
 )
 
 type client struct {
-	keySize int
 	dir     string
+	keySize int
+
+	store *app.BlockStore
+}
+
+func newClient(store *app.BlockStore, dir string, keySize int) *client {
+	return &client{
+		store:   store,
+		dir:     dir,
+		keySize: keySize,
+	}
 }
 
 func (c *client) badInputs(funcName string, additionalInfo string) error {
