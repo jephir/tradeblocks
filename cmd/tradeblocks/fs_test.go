@@ -25,7 +25,7 @@ func TestFS(t *testing.T) {
 	}
 	store1.AccountBlocks[h2] = b2
 
-	dir, err := ioutil.TempDir("", "web")
+	dir, err := ioutil.TempDir("", "tradeblocks")
 	if err != nil {
 		t.Error(err)
 		return

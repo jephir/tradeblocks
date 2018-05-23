@@ -5,7 +5,6 @@ import (
 	"github.com/jephir/tradeblocks/app"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/jephir/tradeblocks"
@@ -21,22 +20,14 @@ func main() {
 	var block *tradeblocks.AccountBlock
 	var err error
 
-	blocksDir := filepath.Join(dataDir, "blocks")
-
 	store := app.NewBlockStore()
-	storage := newBlockStorage(store, blocksDir)
-
-	if err := os.MkdirAll(blocksDir, 0700); err != nil {
-		panic(err)
-	}
-
-	if err := storage.load(); err != nil {
-		panic(err)
-	}
-
 	srv := web.NewServer(store)
 	c := web.NewClient(serverURL)
 	cmd := newClient(store, dataDir, keySize)
+
+	if err := cmd.init(); err != nil {
+		panic(err)
+	}
 
 	switch command {
 	case "register":
@@ -123,7 +114,7 @@ func main() {
 		fmt.Println(result.Hash)
 	}
 
-	if err := storage.save(); err != nil {
+	if err := cmd.save(); err != nil {
 		panic(err)
 	}
 }

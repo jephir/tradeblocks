@@ -16,15 +16,34 @@ type client struct {
 	dir     string
 	keySize int
 
-	store *app.BlockStore
+	store   *app.BlockStore
+	storage *blockStorage
 }
 
 func newClient(store *app.BlockStore, dir string, keySize int) *client {
-	return &client{
-		store:   store,
+	c := &client{
 		dir:     dir,
 		keySize: keySize,
+		store:   store,
 	}
+	c.storage = newBlockStorage(store, c.blocksDir())
+	return c
+}
+
+func (c *client) init() error {
+	if err := os.MkdirAll(c.blocksDir(), 0700); err != nil {
+		return err
+	}
+
+	return c.storage.load()
+}
+
+func (c *client) save() error {
+	return c.storage.save()
+}
+
+func (c *client) blocksDir() string {
+	return filepath.Join(c.dir, "blocks")
 }
 
 func (c *client) badInputs(funcName string, additionalInfo string) error {
