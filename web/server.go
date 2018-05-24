@@ -32,6 +32,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) routes() {
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
+	s.mux.HandleFunc("/blocks", s.handleBlocks())
 }
 
 func (s *Server) handleAccountBlock() http.HandlerFunc {
@@ -72,15 +73,55 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 	}
 }
 
+func (s *Server) handleBlocks() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case "GET":
+			result := make(app.AccountBlocksMap)
+			for r := range s.service.getBlocks() {
+				result[r.hash] = r.block
+			}
+			if err := json.NewEncoder(w).Encode(result); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		default:
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	}
+}
+
 // service represents concurrency-safe resources that the HTTP handlers can access
 type service struct {
-	mu         sync.Mutex
+	mu         sync.RWMutex
 	blockstore *app.BlockStore
 }
 
+type hashAccountBlock struct {
+	hash  string
+	block *tradeblocks.AccountBlock
+}
+
+func (s *service) getBlocks() <-chan hashAccountBlock {
+	// Use goroutine to hold open read mutex while returning blocks
+	ch := make(chan hashAccountBlock)
+	go func() {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		for hash, block := range s.blockstore.AccountBlocks {
+			ch <- hashAccountBlock{
+				hash:  hash,
+				block: block,
+			}
+		}
+		close(ch)
+	}()
+	return ch
+}
+
 func (s *service) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.blockstore.GetBlock(hash)
 }
 
