@@ -10,17 +10,17 @@ import (
 
 // Server implements a TradeBlocks node
 type Server struct {
-	mux *http.ServeMux
-
-	mu         sync.Mutex
-	blockstore *app.BlockStore
+	mux     *http.ServeMux
+	service *service
 }
 
 // NewServer allocates and returns a new server
 func NewServer(blockstore *app.BlockStore) *Server {
 	s := &Server{
-		blockstore: blockstore,
-		mux:        http.NewServeMux(),
+		service: &service{
+			blockstore: blockstore,
+		},
+		mux: http.NewServeMux(),
 	}
 	s.routes()
 	return s
@@ -39,7 +39,7 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			hash := r.FormValue("hash")
-			block, err := s.getBlock(hash)
+			block, err := s.service.getBlock(hash)
 			if err != nil {
 				http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
 				return
@@ -58,7 +58,7 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			if err := s.addBlock(&b); err != nil {
+			if err := s.service.addBlock(&b); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -72,13 +72,19 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 	}
 }
 
-func (s *Server) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
+// service represents concurrency-safe resources that the HTTP handlers can access
+type service struct {
+	mu         sync.Mutex
+	blockstore *app.BlockStore
+}
+
+func (s *service) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.blockstore.GetBlock(hash)
 }
 
-func (s *Server) addBlock(block *tradeblocks.AccountBlock) error {
+func (s *service) addBlock(block *tradeblocks.AccountBlock) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.blockstore.AddBlock(block)
