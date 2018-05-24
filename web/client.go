@@ -22,8 +22,8 @@ func NewClient(url string) *Client {
 	return &Client{base: url}
 }
 
-// NewAccountBlockRequest returns an http.Request to send the specified block
-func (c *Client) NewAccountBlockRequest(b *tradeblocks.AccountBlock) (r *http.Request, err error) {
+// NewPostAccountRequest returns an http.Request to send the specified block
+func (c *Client) NewPostAccountRequest(b *tradeblocks.AccountBlock) (r *http.Request, err error) {
 	var buf bytes.Buffer
 	err = json.NewEncoder(&buf).Encode(b)
 	if err != nil {
@@ -34,8 +34,8 @@ func (c *Client) NewAccountBlockRequest(b *tradeblocks.AccountBlock) (r *http.Re
 	return
 }
 
-// DecodeResponse returns the result of a server request
-func (c *Client) DecodeResponse(res *http.Response) (result tradeblocks.AccountBlock, err error) {
+// DecodeAccountResponse returns the result of a PostAccount request
+func (c *Client) DecodeAccountResponse(res *http.Response) (result tradeblocks.AccountBlock, err error) {
 	err = c.checkResponse(res)
 	if err != nil {
 		return

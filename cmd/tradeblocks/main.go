@@ -100,14 +100,14 @@ func main() {
 	}
 
 	if block != nil {
-		req, err := c.NewAccountBlockRequest(block)
+		req, err := c.NewPostAccountRequest(block)
 		if err != nil {
 			panic(err)
 		}
 		w := httptest.NewRecorder()
 		srv.ServeHTTP(w, req)
 		res := w.Result()
-		result, err := c.DecodeResponse(res)
+		result, err := c.DecodeAccountResponse(res)
 		if err != nil {
 			panic(err)
 		}

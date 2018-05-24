@@ -20,7 +20,7 @@ func TestWeb(t *testing.T) {
 
 	// Create request
 	b := tradeblocks.NewIssueBlock("xtb:test", 100)
-	req, err := client.NewAccountBlockRequest(b)
+	req, err := client.NewPostAccountRequest(b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestWeb(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.ServeHTTP(w, req)
 	res := w.Result()
-	result, err := client.DecodeResponse(res)
+	result, err := client.DecodeAccountResponse(res)
 	if err != nil {
 		t.Fatal(err)
 	}
