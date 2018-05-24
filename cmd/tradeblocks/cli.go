@@ -31,7 +31,7 @@ func (cli *cli) dispatch(args []string) error {
 
 	switch command {
 	case "register":
-		goodInputs, addInfo := registerInputValidation()
+		goodInputs, addInfo := registerInputValidation(args)
 		if goodInputs {
 			address, err := cmd.register(args[2])
 			if err != nil {
@@ -42,7 +42,7 @@ func (cli *cli) dispatch(args []string) error {
 			cmd.badInputs("register", addInfo)
 		}
 	case "login":
-		goodInputs, addInfo := loginInputValidation()
+		goodInputs, addInfo := loginInputValidation(args)
 		if goodInputs {
 			address, err := cmd.login(args[2])
 			if err != nil {
@@ -53,7 +53,7 @@ func (cli *cli) dispatch(args []string) error {
 			cmd.badInputs("login", addInfo)
 		}
 	case "issue":
-		goodInputs, addInfo := issueInputValidation()
+		goodInputs, addInfo := issueInputValidation(args)
 		if goodInputs {
 			balance, _ := strconv.ParseFloat(args[2], 64)
 			block, err = cmd.issue(balance)
@@ -64,7 +64,7 @@ func (cli *cli) dispatch(args []string) error {
 			cmd.badInputs("issue", addInfo)
 		}
 	case "send":
-		goodInputs, addInfo := sendInputValidation()
+		goodInputs, addInfo := sendInputValidation(args)
 		if goodInputs {
 			amount, _ := strconv.ParseFloat(args[4], 64)
 			block, err = cmd.send(args[2], args[3], amount)
@@ -75,7 +75,7 @@ func (cli *cli) dispatch(args []string) error {
 			cmd.badInputs("send", addInfo)
 		}
 	case "open":
-		goodInputs, addInfo := openInputValidation()
+		goodInputs, addInfo := openInputValidation(args)
 		if goodInputs {
 			block, err = cmd.open(args[2])
 			if err != nil {
@@ -85,7 +85,7 @@ func (cli *cli) dispatch(args []string) error {
 			cmd.badInputs("open", addInfo)
 		}
 	case "receive":
-		goodInputs, addInfo := receiveInputValidation()
+		goodInputs, addInfo := receiveInputValidation(args)
 		if goodInputs {
 			block, err = cmd.receive(args[2])
 			if err != nil {

@@ -19,7 +19,7 @@ func TestCLI(t *testing.T) {
 		serverURL: "http://localhost:8080",
 		dataDir:   dir,
 	}
-	if err := c.dispatch([]string{"register", "test"}); err != nil {
+	if err := c.dispatch([]string{"tradeblocks", "register", "test"}); err != nil {
 		t.Fatal(err)
 	}
 }

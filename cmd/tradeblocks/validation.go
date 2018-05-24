@@ -1,31 +1,30 @@
 package main
 
 import (
-	"os"
 	"strconv"
 )
 
-func registerInputValidation() (goodInputs bool, addInfo string) {
-	goodInputs = len(os.Args) == 3
+func registerInputValidation(args []string) (goodInputs bool, addInfo string) {
+	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks register <name>"
 	return
 }
 
-func loginInputValidation() (goodInputs bool, addInfo string) {
-	goodInputs = len(os.Args) == 3
+func loginInputValidation(args []string) (goodInputs bool, addInfo string) {
+	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks login <name>"
 	return
 }
 
-func issueInputValidation() (goodInputs bool, addInfo string) {
+func issueInputValidation(args []string) (goodInputs bool, addInfo string) {
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks issue <balance>"
 	goodInputs = false
-	if len(os.Args) == 3 {
+	if len(args) == 3 {
 		goodInputs = true
-		if _, err := strconv.ParseFloat(os.Args[2], 64); err != nil {
+		if _, err := strconv.ParseFloat(args[2], 64); err != nil {
 			goodInputs = false
 			addInfo = "CLI args invalid type.\n" +
 				"Run this command with $ tradeblocks issue <balance: float>"
@@ -34,13 +33,13 @@ func issueInputValidation() (goodInputs bool, addInfo string) {
 	return
 }
 
-func sendInputValidation() (goodInputs bool, addInfo string) {
+func sendInputValidation(args []string) (goodInputs bool, addInfo string) {
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks send <to_account> <token> <amount>"
 	goodInputs = false
-	if len(os.Args) == 5 {
+	if len(args) == 5 {
 		goodInputs = true
-		if _, err := strconv.ParseFloat(os.Args[4], 64); err != nil {
+		if _, err := strconv.ParseFloat(args[4], 64); err != nil {
 			goodInputs = false
 			addInfo = "CLI args invalid type.\n" +
 				"Run this command with $ tradeblocks send" +
@@ -50,15 +49,15 @@ func sendInputValidation() (goodInputs bool, addInfo string) {
 	return
 }
 
-func openInputValidation() (goodInputs bool, addInfo string) {
-	goodInputs = len(os.Args) == 3
+func openInputValidation(args []string) (goodInputs bool, addInfo string) {
+	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks open <send_tx>"
 	return
 }
 
-func receiveInputValidation() (goodInputs bool, addInfo string) {
-	goodInputs = len(os.Args) == 3
+func receiveInputValidation(args []string) (goodInputs bool, addInfo string) {
+	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
 		"Run this command with $ tradeblocks receive <send_tx>"
 	return
