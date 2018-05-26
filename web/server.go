@@ -4,25 +4,40 @@ import (
 	"encoding/json"
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"log"
 	"net/http"
 	"sync"
 )
 
 // Server implements a TradeBlocks node
 type Server struct {
-	mux     *http.ServeMux
-	service *service
+	mux           *http.ServeMux
+	accountStream *sse
+	service       *service
 }
 
 // NewServer allocates and returns a new server
 func NewServer(blockstore *app.BlockStore) *Server {
 	s := &Server{
+		mux:           http.NewServeMux(),
+		accountStream: newSSE(),
 		service: &service{
 			blockstore: blockstore,
 		},
-		mux: http.NewServeMux(),
 	}
 	s.routes()
+	s.accountStream.connectHandler = func() []event {
+		var result []event
+
+		for r := range s.service.getBlocks() {
+			ss, err := app.SerializeAccountBlock(r.block)
+			if err != nil {
+				log.Println(err)
+			}
+			result = append(result, event(ss))
+		}
+		return result
+	}
 	return s
 }
 
@@ -31,6 +46,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) routes() {
+	s.mux.Handle("/accounts", s.accountStream)
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
 }
@@ -91,6 +107,16 @@ func (s *Server) handleBlocks() http.HandlerFunc {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
 	}
+}
+
+// BroadcastAccountBlock sends the specified account block to all event listeners
+func (s *Server) BroadcastAccountBlock(b *tradeblocks.AccountBlock) error {
+	ss, err := app.SerializeAccountBlock(b)
+	if err != nil {
+		return err
+	}
+	s.accountStream.broadcast <- event(ss)
+	return nil
 }
 
 // service represents concurrency-safe resources that the HTTP handlers can access

@@ -92,6 +92,11 @@ func (n *Node) accountChangeHandler() app.AccountChangeListener {
 		n.mu.Lock()
 		defer n.mu.Unlock()
 
+		// Send block to account listeners
+		if err := n.server.BroadcastAccountBlock(b); err != nil {
+			log.Printf("node: couldn't broadcast account block: %s", err.Error())
+		}
+
 		// Broadcast block if not seen before
 		if _, found := n.seenAccountBlocks[hash]; !found {
 			n.seenAccountBlocks[hash] = struct{}{}
