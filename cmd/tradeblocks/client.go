@@ -115,7 +115,7 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 	return app.Send(key, previous, to, amount)
 }
 
-func (c *client) open(link string) (*tradeblocks.AccountBlock, error) {
+func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, error) {
 	key, err := c.openPublicKey()
 	if err != nil {
 		return nil, err
@@ -125,10 +125,10 @@ func (c *client) open(link string) (*tradeblocks.AccountBlock, error) {
 	if err != nil {
 		return nil, err
 	}
-	return app.Open(key, send)
+	return app.Open(key, send, balance)
 }
 
-func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
+func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock, error) {
 	key, err := c.openPublicKey()
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 	if err != nil {
 		return nil, err
 	}
-	return app.Receive(key, previous, send)
+	return app.Receive(key, previous, send, amount)
 }
 
 func (c *client) openPublicKey() (*os.File, error) {

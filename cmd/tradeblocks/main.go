@@ -13,6 +13,7 @@ func main() {
 			keySize:   4096,
 			serverURL: "http://localhost:8080",
 			dataDir:   "data",
+			out:       os.Stdout,
 		}
 		if err := c.dispatch(os.Args); err != nil {
 			panic(err)

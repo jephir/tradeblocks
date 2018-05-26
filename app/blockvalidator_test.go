@@ -16,15 +16,12 @@ func openSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountB
 
 	s := NewBlockStore()
 	i := tradeblocks.NewIssueBlock("xtb:test", 100.0)
-	i.Hash = "TEST_HASH"
 	s.AddBlock(i)
-	send := tradeblocks.NewSendBlock("xtb:test", i, address, 100.0)
-	send.PreviousBlock = i
-	send.Hash = "testhash"
+	send := tradeblocks.NewSendBlock(i, address, 100.0)
 	s.AddBlock(send)
 
 	publicKey.Seek(0, io.SeekStart)
-	open, errOpen := Open(publicKey, send)
+	open, errOpen := Open(publicKey, send, 100.0)
 	if errOpen != nil {
 		return new(tradeblocks.AccountBlock), new(tradeblocks.AccountBlock), *new(AccountBlockValidator), errKey
 	}
@@ -149,11 +146,8 @@ func sendSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 	}
 
 	i := tradeblocks.NewIssueBlock("xtb:test", 100.0)
-	i.Hash = "TEST_HASH"
 	s.AddBlock(i)
-	send := tradeblocks.NewSendBlock("xtb:test", i, address, 100.0)
-	send.PreviousBlock = i
-	send.Hash = "testhash"
+	send := tradeblocks.NewSendBlock(i, address, 100.0)
 	s.AddBlock(send)
 
 	validator := NewSendValidator(s)
@@ -191,20 +185,16 @@ func TestSendBlockValidator(t *testing.T) {
 func receiveSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
 	s := NewBlockStore()
 
-	i := tradeblocks.NewIssueBlock("xtb:test", 100.0)
-	i.Hash = "TEST_HASH"
+	i := tradeblocks.NewIssueBlock("xtb:initiator", 100.0)
 	s.AddBlock(i)
-	send := tradeblocks.NewSendBlock("xtb:test", i, "xtb:sender", 50.0)
-	send.PreviousBlock = i
-	send.Hash = "testhash"
+	send := tradeblocks.NewSendBlock(i, "xtb:target", 50.0)
 	s.AddBlock(send)
 
-	i2 := tradeblocks.NewIssueBlock("xtb:test", 100.0)
-	i2.Hash = "TEST_HASH"
+	i2 := tradeblocks.NewIssueBlock("xtb:target", 100.0)
 	s.AddBlock(i2)
 
 	publicKey.Seek(0, io.SeekStart)
-	receive := tradeblocks.NewReceiveBlock("xtb:sender", i2, send, 150)
+	receive := tradeblocks.NewReceiveBlock(i2, send, 50)
 
 	validator := NewReceiveValidator(s)
 

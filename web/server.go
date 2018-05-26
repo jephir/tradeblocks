@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"log"
 	"net/http"
 	"sync"
 )
@@ -59,7 +60,7 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			if err := s.service.addBlock(&b); err != nil {
+			if _, err := s.service.addBlock(&b); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -67,6 +68,8 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			ss, _ := app.SerializeAccountBlock(&b)
+			log.Printf("web: added block %s: %s", b.Hash(), ss)
 		default:
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
@@ -125,7 +128,7 @@ func (s *service) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	return s.blockstore.GetBlock(hash)
 }
 
-func (s *service) addBlock(block *tradeblocks.AccountBlock) error {
+func (s *service) addBlock(block *tradeblocks.AccountBlock) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.blockstore.AddBlock(block)

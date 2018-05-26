@@ -58,30 +58,21 @@ func Issue(publicKey io.Reader, balance float64) (*tradeblocks.AccountBlock, err
 
 // Send transfers tokens to the specified account
 func Send(publicKey io.Reader, previous *tradeblocks.AccountBlock, to string, amount float64) (*tradeblocks.AccountBlock, error) {
-	address, err := PublicKeyToAddress(publicKey)
-	if err != nil {
-		return nil, err
-	}
-	return tradeblocks.NewSendBlock(address, previous, to, amount), nil
+	return tradeblocks.NewSendBlock(previous, to, amount), nil
 }
 
 // Open creates a new account blockchain
-func Open(publicKey io.Reader, send *tradeblocks.AccountBlock) (*tradeblocks.AccountBlock, error) {
+func Open(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64) (*tradeblocks.AccountBlock, error) {
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
 		return nil, err
 	}
-	return tradeblocks.NewOpenBlock(address, send), nil
+	return tradeblocks.NewOpenBlock(address, send, balance), nil
 }
 
 // Receive receives tokens from a send transaction
-func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *tradeblocks.AccountBlock) (*tradeblocks.AccountBlock, error) {
-	address, err := PublicKeyToAddress(publicKey)
-	if err != nil {
-		return nil, err
-	}
-	balance := send.PreviousBlock.Balance - send.Balance
-	return tradeblocks.NewReceiveBlock(address, previous, send, balance), nil
+func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *tradeblocks.AccountBlock, amount float64) (*tradeblocks.AccountBlock, error) {
+	return tradeblocks.NewReceiveBlock(previous, send, amount), nil
 }
 
 // PublicKeyToAddress returns the string serialization of the specified public key
@@ -104,4 +95,13 @@ func AccountBlockHash(block *tradeblocks.AccountBlock) (string, error) {
 		return "", err
 	}
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil)), nil
+}
+
+// SerializeAccountBlock returns the string representation of the specified account block
+func SerializeAccountBlock(block *tradeblocks.AccountBlock) (string, error) {
+	b, err := json.Marshal(block)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }

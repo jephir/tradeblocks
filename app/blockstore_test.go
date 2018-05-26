@@ -8,13 +8,13 @@ import (
 )
 
 func TestBlockStore(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"IUXJ2EGVQFRXKCDF4NJTUE7NTYPBPJPGYBBE4ZC6PIGBEFDFXW2Q","PreviousBlock":null}`
+	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":""}`
 	s := NewBlockStore()
 	b := tradeblocks.NewIssueBlock("xtb:test", 100)
-	if err := s.AddBlock(b); err != nil {
+	if _, err := s.AddBlock(b); err != nil {
 		t.Error(err)
 	}
-	res, _ := s.GetBlock(b.Hash)
+	res, _ := s.GetBlock(b.Hash())
 	ss, err := json.Marshal(res)
 	if err != nil {
 		t.Error(err)

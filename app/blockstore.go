@@ -7,9 +7,13 @@ import (
 // AccountBlocksMap maps block hashes to account blocks
 type AccountBlocksMap map[string]*tradeblocks.AccountBlock
 
+// AccountChangeListener is called whenever an account block is added or changed
+type AccountChangeListener func(hash string, b *tradeblocks.AccountBlock)
+
 // BlockStore stores all of the local blockchains
 type BlockStore struct {
-	AccountBlocks AccountBlocksMap
+	AccountChangeListener AccountChangeListener
+	AccountBlocks         AccountBlocksMap
 }
 
 // NewBlockStore allocates and returns a new BlockStore
@@ -19,17 +23,20 @@ func NewBlockStore() *BlockStore {
 	}
 }
 
-// AddBlock verifies and adds the specified block to the store
-func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) error {
+// AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
+func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
 	// TODO Validate block
 	// err := s.validator.ValidateAccountBlock(b)
 	var err error
-	b.Hash, err = AccountBlockHash(b)
 	if err != nil {
-		return err
+		return "", err
 	}
-	s.AccountBlocks[b.Hash] = b
-	return nil
+	h := b.Hash()
+	s.AccountBlocks[h] = b
+	if s.AccountChangeListener != nil {
+		s.AccountChangeListener(h, b)
+	}
+	return h, nil
 }
 
 // GetBlock returns the account block with the specified hash, or nil if it doesn't exist

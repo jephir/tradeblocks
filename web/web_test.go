@@ -11,7 +11,7 @@ import (
 const base = "http://localhost:8080"
 
 func TestWeb(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"IUXJ2EGVQFRXKCDF4NJTUE7NTYPBPJPGYBBE4ZC6PIGBEFDFXW2Q","PreviousBlock":null}`
+	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":""}`
 
 	// Setup test
 	store := app.NewBlockStore()
@@ -46,7 +46,7 @@ func TestWeb(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
-	expect := `{"BCLI4OUVWVHVP6R26QBJWAS2YDFV5RUKNBQ3FW7WTOCWFDSLUZ4A":{"Action":"issue","Account":"xtb:test2","Token":"xtb:test2","Previous":"","Representative":"","Balance":50,"Link":"","Hash":"BCLI4OUVWVHVP6R26QBJWAS2YDFV5RUKNBQ3FW7WTOCWFDSLUZ4A","PreviousBlock":null},"JGK6IUUR6FQOOXZ5VVLLXM7VAUXJQTNLOZZFWKY35HQVWFDOWSIA":{"Action":"issue","Account":"xtb:test1","Token":"xtb:test1","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"JGK6IUUR6FQOOXZ5VVLLXM7VAUXJQTNLOZZFWKY35HQVWFDOWSIA","PreviousBlock":null}}`
+	expect := `{"7XUGVPQ2EEDUK4AHUUQQMVHHOJSTXHZUTRNCZHSVGQ3IDCBUZKSA":{"Action":"issue","Account":"xtb:test1","Token":"xtb:test1","Previous":"","Representative":"","Balance":100,"Link":""},"PGFQ6WR7ZRJDKCXW4N5DHKK4Q2YUTINGD7ETFDO2BKYV2S4V2OBA":{"Action":"issue","Account":"xtb:test2","Token":"xtb:test2","Previous":"","Representative":"","Balance":50,"Link":""}}`
 
 	// Create root server
 	rs := app.NewBlockStore()

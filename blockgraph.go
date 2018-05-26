@@ -1,5 +1,11 @@
 package tradeblocks
 
+import "encoding/json"
+import "crypto/sha256"
+import "io"
+import "bytes"
+import "encoding/base32"
+
 // AccountBlock represents a block in the account blockchain
 type AccountBlock struct {
 	Action         string
@@ -9,10 +15,20 @@ type AccountBlock struct {
 	Representative string
 	Balance        float64
 	Link           string
+}
 
-	// Calculated on local machine
-	Hash          string
-	PreviousBlock *AccountBlock
+// Hash returns the hash of this block
+func (ab *AccountBlock) Hash() string {
+	b, err := json.Marshal(ab)
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
+		panic(err)
+	}
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
+
 }
 
 // NewIssueBlock initializes a new crypto token
@@ -29,25 +45,25 @@ func NewIssueBlock(account string, balance float64) *AccountBlock {
 }
 
 // NewOpenBlock initializes the start of an account blockchain
-func NewOpenBlock(account string, send *AccountBlock) *AccountBlock {
+func NewOpenBlock(account string, send *AccountBlock, balance float64) *AccountBlock {
 	return &AccountBlock{
 		Action:         "open",
 		Account:        account,
 		Token:          send.Token,
 		Previous:       "",
 		Representative: "",
-		Balance:        send.PreviousBlock.Balance - send.Balance,
-		Link:           send.Hash,
+		Balance:        balance,
+		Link:           send.Hash(),
 	}
 }
 
 // NewSendBlock initializes a send to the specified address
-func NewSendBlock(account string, previous *AccountBlock, to string, amount float64) *AccountBlock {
+func NewSendBlock(previous *AccountBlock, to string, amount float64) *AccountBlock {
 	return &AccountBlock{
 		Action:         "send",
-		Account:        account,
+		Account:        previous.Account,
 		Token:          previous.Token,
-		Previous:       previous.Hash,
+		Previous:       previous.Hash(),
 		Representative: previous.Representative,
 		Balance:        previous.Balance - amount,
 		Link:           to,
@@ -55,15 +71,15 @@ func NewSendBlock(account string, previous *AccountBlock, to string, amount floa
 }
 
 // NewReceiveBlock initializes a receive of tokens
-func NewReceiveBlock(account string, previous *AccountBlock, send *AccountBlock, balance float64) *AccountBlock {
+func NewReceiveBlock(previous *AccountBlock, send *AccountBlock, amount float64) *AccountBlock {
 	return &AccountBlock{
 		Action:         "receive",
-		Account:        account,
+		Account:        previous.Account,
 		Token:          previous.Token,
-		Previous:       previous.Hash,
+		Previous:       previous.Hash(),
 		Representative: previous.Representative,
-		Balance:        balance,
-		Link:           send.Hash,
+		Balance:        previous.Balance + amount,
+		Link:           send.Hash(),
 	}
 }
 

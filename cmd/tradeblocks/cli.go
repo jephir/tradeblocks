@@ -5,6 +5,7 @@ import (
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
 	"github.com/jephir/tradeblocks/web"
+	"io"
 	"net/http/httptest"
 	"strconv"
 )
@@ -13,6 +14,7 @@ type cli struct {
 	keySize   int
 	serverURL string
 	dataDir   string
+	out       io.Writer
 }
 
 func (cli *cli) dispatch(args []string) error {
@@ -37,7 +39,7 @@ func (cli *cli) dispatch(args []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println(address)
+			fmt.Fprintln(cli.out, address)
 		} else {
 			cmd.badInputs("register", addInfo)
 		}
@@ -48,7 +50,7 @@ func (cli *cli) dispatch(args []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println(address)
+			fmt.Fprintln(cli.out, address)
 		} else {
 			cmd.badInputs("login", addInfo)
 		}
@@ -77,7 +79,7 @@ func (cli *cli) dispatch(args []string) error {
 	case "open":
 		goodInputs, addInfo := openInputValidation(args)
 		if goodInputs {
-			block, err = cmd.open(args[2])
+			block, err = cmd.open(args[2], 0 /* TODO Calculate amount from chain */)
 			if err != nil {
 				return err
 			}
@@ -87,7 +89,7 @@ func (cli *cli) dispatch(args []string) error {
 	case "receive":
 		goodInputs, addInfo := receiveInputValidation(args)
 		if goodInputs {
-			block, err = cmd.receive(args[2])
+			block, err = cmd.receive(args[2], 0 /* TODO Calculate amount from chain */)
 			if err != nil {
 				return err
 			}
@@ -96,7 +98,7 @@ func (cli *cli) dispatch(args []string) error {
 		}
 	case "trade":
 		// TODO Implement trading
-		fmt.Println("TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
+		fmt.Fprintln(cli.out, "TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
 	}
 
 	if block != nil {
@@ -111,7 +113,7 @@ func (cli *cli) dispatch(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(result.Hash)
+		fmt.Fprintln(cli.out, result.Hash())
 	}
 
 	return cmd.save()

@@ -30,6 +30,9 @@ func (c *Client) NewPostAccountRequest(b *tradeblocks.AccountBlock) (r *http.Req
 		return
 	}
 	r, err = c.newRequest("POST", "/account", &buf)
+	if err != nil {
+		return
+	}
 	r.Header.Set("Content-Type", "application/json")
 	return
 }

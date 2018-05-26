@@ -18,6 +18,7 @@ func TestCLI(t *testing.T) {
 		keySize:   4096,
 		serverURL: "http://localhost:8080",
 		dataDir:   dir,
+		out:       ioutil.Discard,
 	}
 	if err := c.dispatch([]string{"tradeblocks", "register", "test"}); err != nil {
 		t.Fatal(err)
