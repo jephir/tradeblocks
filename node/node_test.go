@@ -2,6 +2,7 @@ package node
 
 import (
 	"github.com/jephir/tradeblocks"
+	"io/ioutil"
 	"net/http/httptest"
 	"testing"
 )
@@ -60,7 +61,12 @@ func TestBootstrapAndSync(t *testing.T) {
 }
 
 func newNode(t *testing.T, bootstrapURL string) (*Node, *httptest.Server) {
-	n, err := NewNode()
+	dir, err := ioutil.TempDir("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := NewNode(dir)
 	if err != nil {
 		t.Fatal(err)
 	}

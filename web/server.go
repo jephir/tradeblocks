@@ -30,11 +30,11 @@ func NewServer(blockstore *app.BlockStore) *Server {
 		var result []event
 
 		for r := range s.service.getBlocks() {
-			ss, err := app.SerializeAccountBlock(r.block)
+			ss, err := accountBlockEvent(r.block)
 			if err != nil {
 				log.Println(err)
 			}
-			result = append(result, event(ss))
+			result = append(result, ss)
 		}
 		return result
 	}
@@ -111,12 +111,22 @@ func (s *Server) handleBlocks() http.HandlerFunc {
 
 // BroadcastAccountBlock sends the specified account block to all event listeners
 func (s *Server) BroadcastAccountBlock(b *tradeblocks.AccountBlock) error {
-	ss, err := app.SerializeAccountBlock(b)
+	e, err := accountBlockEvent(b)
 	if err != nil {
 		return err
 	}
-	s.accountStream.broadcast <- event(ss)
+	s.accountStream.broadcast <- e
 	return nil
+}
+
+func accountBlockEvent(b *tradeblocks.AccountBlock) (event, error) {
+	var res struct {
+		*tradeblocks.AccountBlock
+		Hash string
+	}
+	res.AccountBlock = b
+	res.Hash = b.Hash()
+	return json.Marshal(res)
 }
 
 // service represents concurrency-safe resources that the HTTP handlers can access

@@ -3,6 +3,7 @@ package node
 import (
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/fs"
 	"github.com/jephir/tradeblocks/web"
 	"log"
 	"net/http"
@@ -15,9 +16,10 @@ type blockHashMap map[string]struct{}
 
 // Node represents a node in the TradeBlocks network
 type Node struct {
-	store  *app.BlockStore
-	client *http.Client
-	server *web.Server
+	store   *app.BlockStore
+	storage *fs.BlockStorage
+	client  *http.Client
+	server  *web.Server
 
 	mu                sync.Mutex
 	peers             peerMap
@@ -25,16 +27,22 @@ type Node struct {
 }
 
 // NewNode creates a new node that bootstraps from the specified URL. An error is returned if boostrapping fails.
-func NewNode() (n *Node, err error) {
+func NewNode(dir string) (n *Node, err error) {
 	store := app.NewBlockStore()
+	storage := fs.NewBlockStorage(store, dir)
 	server := web.NewServer(store)
 	c := &http.Client{}
 	n = &Node{
 		store:             store,
+		storage:           storage,
 		client:            c,
 		server:            server,
 		peers:             make(peerMap),
 		seenAccountBlocks: make(blockHashMap),
+	}
+	err = storage.Load()
+	if err != nil {
+		return
 	}
 	store.AccountChangeListener = n.accountChangeHandler()
 	return

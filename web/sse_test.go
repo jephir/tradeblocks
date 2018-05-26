@@ -11,7 +11,7 @@ import (
 )
 
 func TestSSE(t *testing.T) {
-	expect := `data: {"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":""}`
+	expect := `data: {"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"PPD6EMELYLX4VDGQ5GILR3NUZCAEX3XL7ECC2HHEOZAU6Y2AK7LQ"}`
 
 	// Setup test
 	store := app.NewBlockStore()

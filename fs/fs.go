@@ -1,4 +1,4 @@
-package main
+package fs
 
 import (
 	"encoding/json"
@@ -9,19 +9,22 @@ import (
 	"path/filepath"
 )
 
-type blockStorage struct {
+// BlockStorage saves and loads blocks on the filesystem
+type BlockStorage struct {
 	blockstore *app.BlockStore
 	dir        string
 }
 
-func newBlockStorage(blockstore *app.BlockStore, dir string) *blockStorage {
-	return &blockStorage{
+// NewBlockStorage returns a new storage adapter for the specified blockstore and data directory
+func NewBlockStorage(blockstore *app.BlockStore, dir string) *BlockStorage {
+	return &BlockStorage{
 		blockstore: blockstore,
 		dir:        dir,
 	}
 }
 
-func (s *blockStorage) save() error {
+// Save saves all blocks to the filesystem
+func (s *BlockStorage) Save() error {
 	// Create storage directory
 	if err := os.MkdirAll(s.dir, 0700); err != nil {
 		return err
@@ -35,7 +38,7 @@ func (s *blockStorage) save() error {
 	return nil
 }
 
-func (s *blockStorage) saveBlock(hash string, block *tradeblocks.AccountBlock) error {
+func (s *BlockStorage) saveBlock(hash string, block *tradeblocks.AccountBlock) error {
 	p := filepath.Join(s.dir, hash)
 	f, err := os.Create(p)
 	if err != nil {
@@ -48,7 +51,8 @@ func (s *blockStorage) saveBlock(hash string, block *tradeblocks.AccountBlock) e
 	return f.Close()
 }
 
-func (s *blockStorage) load() error {
+// Load loads all blocks from the filesystem
+func (s *BlockStorage) Load() error {
 	files, err := ioutil.ReadDir(s.dir)
 	if err != nil {
 		return err
@@ -61,7 +65,7 @@ func (s *blockStorage) load() error {
 	return nil
 }
 
-func (s *blockStorage) loadBlock(hash string) error {
+func (s *BlockStorage) loadBlock(hash string) error {
 	p := filepath.Join(s.dir, hash)
 	f, err := os.Open(p)
 	if err != nil {

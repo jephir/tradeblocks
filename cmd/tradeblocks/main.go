@@ -12,7 +12,7 @@ const addr = "localhost:8080"
 func main() {
 	var command = os.Args[1]
 	if command == "node" {
-		n, err := node.NewNode()
+		n, err := node.NewNode("data/blocks")
 		if err != nil {
 			panic(err)
 		}

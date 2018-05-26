@@ -10,6 +10,7 @@ import (
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/fs"
 )
 
 type client struct {
@@ -17,7 +18,7 @@ type client struct {
 	keySize int
 
 	store   *app.BlockStore
-	storage *blockStorage
+	storage *fs.BlockStorage
 }
 
 func newClient(store *app.BlockStore, dir string, keySize int) *client {
@@ -26,7 +27,7 @@ func newClient(store *app.BlockStore, dir string, keySize int) *client {
 		keySize: keySize,
 		store:   store,
 	}
-	c.storage = newBlockStorage(store, c.blocksDir())
+	c.storage = fs.NewBlockStorage(store, c.blocksDir())
 	return c
 }
 
@@ -35,11 +36,11 @@ func (c *client) init() error {
 		return err
 	}
 
-	return c.storage.load()
+	return c.storage.Load()
 }
 
 func (c *client) save() error {
-	return c.storage.save()
+	return c.storage.Save()
 }
 
 func (c *client) blocksDir() string {

@@ -1,4 +1,4 @@
-package main
+package fs
 
 import (
 	"github.com/jephir/tradeblocks"
@@ -32,15 +32,15 @@ func TestFS(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs1 := newBlockStorage(store1, dir)
-	if err := bs1.save(); err != nil {
+	bs1 := NewBlockStorage(store1, dir)
+	if err := bs1.Save(); err != nil {
 		t.Error(err)
 		return
 	}
 
 	store2 := app.NewBlockStore()
-	bs2 := newBlockStorage(store2, dir)
-	if err := bs2.load(); err != nil {
+	bs2 := NewBlockStorage(store2, dir)
+	if err := bs2.Load(); err != nil {
 		t.Error(err)
 		return
 	}
