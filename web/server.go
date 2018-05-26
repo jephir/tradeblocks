@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
-	"log"
 	"net/http"
 	"sync"
 )
@@ -68,8 +67,8 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			ss, _ := app.SerializeAccountBlock(&b)
-			log.Printf("web: added block %s: %s", b.Hash(), ss)
+			// ss, _ := app.SerializeAccountBlock(&b)
+			//log.Printf("web: added block %s: %s", b.Hash(), ss)
 		default:
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}

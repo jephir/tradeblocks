@@ -102,8 +102,8 @@ func (n *Node) accountChangeHandler() app.AccountChangeListener {
 					log.Print(err)
 					continue
 				}
-				ss, _ := app.SerializeAccountBlock(b)
-				log.Printf("node: sending %s to %s: %s", hash, address, ss)
+				//ss, _ := app.SerializeAccountBlock(b)
+				//log.Printf("node: sending %s to %s: %s", hash, address, ss)
 				res, err := n.client.Do(r)
 				if err != nil {
 					log.Print(err)
