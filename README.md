@@ -42,6 +42,17 @@ $ tradeblocks trade $XTB_TRADE
 $ go test -v ./...
 ```
 
+To run web service, need the following running
+```
+$ tradeblocks node
+```
+and
+```
+$ cd web
+$ npm start
+```
+
+
 ## Authors
 
 * Julian Hoang
