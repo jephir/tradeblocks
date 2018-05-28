@@ -42,11 +42,13 @@ $ tradeblocks trade $XTB_TRADE
 $ go test -v ./...
 ```
 
-To run web service, need the following running
+## Web Servers
+Need both of the following running:
+1. Blockchain server
 ```
 $ tradeblocks node
 ```
-and
+2. React server
 ```
 $ cd web
 $ npm start
