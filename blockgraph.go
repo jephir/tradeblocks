@@ -1,10 +1,17 @@
 package tradeblocks
 
-import "encoding/json"
-import "crypto/sha256"
-import "io"
-import "bytes"
-import "encoding/base32"
+import (
+	"bytes"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base32"
+	"encoding/json"
+	"io"
+	"io/ioutil"
+)
 
 // AccountBlock represents a block in the account blockchain
 type AccountBlock struct {
@@ -15,6 +22,7 @@ type AccountBlock struct {
 	Representative string
 	Balance        float64
 	Link           string
+	Signature      string
 }
 
 // Hash returns the hash of this block
@@ -28,7 +36,36 @@ func (ab *AccountBlock) Hash() string {
 		panic(err)
 	}
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
+}
 
+// SignBlock signs the block, returns just the error
+func (ab *AccountBlock) SignBlock(privateKey io.Reader) error {
+	rng := rand.Reader
+	hashed := ab.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	keyBytes, err := ioutil.ReadAll(privateKey)
+	if err != nil {
+		return err
+	}
+
+	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(keyBytes)
+	if err != nil {
+		return err
+	}
+
+	signature, err := rsa.SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashedBytes[:])
+	if err != nil {
+		return err
+	}
+
+	ab.Signature = string(signature[:])
+	return nil
 }
 
 // NewIssueBlock initializes a new crypto token
@@ -41,6 +78,7 @@ func NewIssueBlock(account string, balance float64) *AccountBlock {
 		Representative: "",
 		Balance:        balance,
 		Link:           "",
+		Signature:      "",
 	}
 }
 
@@ -54,6 +92,7 @@ func NewOpenBlock(account string, send *AccountBlock, balance float64) *AccountB
 		Representative: "",
 		Balance:        balance,
 		Link:           send.Hash(),
+		Signature:      "",
 	}
 }
 
@@ -67,6 +106,7 @@ func NewSendBlock(previous *AccountBlock, to string, amount float64) *AccountBlo
 		Representative: previous.Representative,
 		Balance:        previous.Balance - amount,
 		Link:           to,
+		Signature:      "",
 	}
 }
 
@@ -80,6 +120,7 @@ func NewReceiveBlock(previous *AccountBlock, send *AccountBlock, amount float64)
 		Representative: previous.Representative,
 		Balance:        previous.Balance + amount,
 		Link:           send.Hash(),
+		Signature:      "",
 	}
 }
 

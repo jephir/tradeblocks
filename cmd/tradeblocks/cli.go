@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"net/http/httptest"
+	"strconv"
+
+	"io"
+
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
 	"github.com/jephir/tradeblocks/web"
-	"io"
-	"net/http/httptest"
-	"strconv"
 )
 
 type cli struct {

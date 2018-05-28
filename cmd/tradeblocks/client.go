@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -95,55 +96,148 @@ func (c *client) login(name string) (address string, err error) {
 }
 
 func (c *client) issue(balance float64) (*tradeblocks.AccountBlock, error) {
-	key, err := c.openPublicKey()
+	// get the keys
+	publicKey, err := c.openPublicKey()
 	if err != nil {
 		return nil, err
 	}
-	defer key.Close()
-	return app.Issue(key, balance)
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// create the Issue block
+	issue, err := app.Issue(publicKey, balance)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	errSign := issue.SignBlock(privateKey)
+	if errSign != nil {
+		return nil, errSign
+	}
+
+	return issue, nil
 }
 
 func (c *client) send(to string, token string, amount float64) (*tradeblocks.AccountBlock, error) {
-	key, err := c.openPublicKey()
+	// get the keys
+	publicKey, err := c.openPublicKey()
 	if err != nil {
 		return nil, err
 	}
-	defer key.Close()
-	previous, err := c.getHeadBlock(key, token)
+	privateKey, err := c.openPrivateKey()
 	if err != nil {
 		return nil, err
 	}
-	return app.Send(key, previous, to, amount)
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	previous, err := c.getHeadBlock(publicKey, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// create the send block
+	send, err := app.Send(publicKey, previous, to, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	errSign := send.SignBlock(privateKey)
+	if errSign != nil {
+		return nil, errSign
+	}
+
+	return send, nil
 }
 
 func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, error) {
-	key, err := c.openPublicKey()
+	// get the keys
+	publicKey, err := c.openPublicKey()
 	if err != nil {
 		return nil, err
 	}
-	defer key.Close()
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// Check if we've already created a receive for the linked send, true if
+	if c.isDuplicate(link) {
+		return nil, errors.New("open with the specified send already exists")
+	}
+
+	// get the linked send
 	send, err := c.getBlock(link)
 	if err != nil {
 		return nil, err
 	}
-	return app.Open(key, send, balance)
+
+	// create the Open
+	open, err := app.Open(publicKey, send, balance)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	errSign := open.SignBlock(privateKey)
+	if errSign != nil {
+		return nil, errSign
+	}
+
+	return open, nil
 }
 
 func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock, error) {
-	key, err := c.openPublicKey()
+	// get the keys
+	publicKey, err := c.openPublicKey()
 	if err != nil {
 		return nil, err
 	}
-	defer key.Close()
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// Check if we've already created a receive for the linked send, true if
+	if c.isDuplicate(link) {
+		return nil, errors.New("receive with the specified send already exists")
+	}
+
+	// get the linked send
 	send, err := c.getBlock(link)
 	if err != nil {
 		return nil, err
 	}
-	previous, err := c.getHeadBlock(key, send.Token)
+
+	// get the previous block on this chain
+	previous, err := c.getHeadBlock(publicKey, send.Token)
 	if err != nil {
 		return nil, err
 	}
-	return app.Receive(key, previous, send, amount)
+
+	// create the receive
+	receive, err := app.Receive(publicKey, previous, send, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	errSign := receive.SignBlock(privateKey)
+	if errSign != nil {
+		return nil, errSign
+	}
+
+	return receive, nil
 }
 
 func (c *client) openPublicKey() (*os.File, error) {
@@ -154,6 +248,32 @@ func (c *client) openPublicKey() (*os.File, error) {
 	}
 	p := filepath.Join(c.dir, string(user)+".pub")
 	return os.Open(p)
+}
+
+func (c *client) openPrivateKey() (*os.File, error) {
+	userPath := filepath.Join(c.dir, "user")
+	user, err := ioutil.ReadFile(userPath)
+	if err != nil {
+		return nil, err
+	}
+	p := filepath.Join(c.dir, string(user)+".pem")
+	return os.Open(p)
+}
+
+func openPublicKey() (*os.File, error) {
+	user, err := ioutil.ReadFile("user")
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(string(user) + ".pub")
+}
+
+func openPrivateKey() (*os.File, error) {
+	user, err := ioutil.ReadFile("user")
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(string(user) + ".pem")
 }
 
 func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.AccountBlock, error) {
@@ -184,4 +304,15 @@ func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 		Balance:        100,
 		Link:           "",
 	}, nil
+}
+
+// check if the given hash has already been claimed by a block on this chain
+func (c *client) isDuplicate(hash string) bool {
+	// (Probably) Only scan the link field
+	// Works for: Open, Receive
+	// Does not work for: Send (link is to account)
+	// For Swaps, if origination swap, check if there's another swap with Left equal to hash
+	// If counterswap, check if swap with Right equal to hash
+	// TODO
+	return true
 }

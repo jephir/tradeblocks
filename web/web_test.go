@@ -2,16 +2,17 @@ package web
 
 import (
 	"encoding/json"
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 )
 
 const base = "http://localhost:8080"
 
 func TestWeb(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":""}`
+	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""}`
 
 	// Setup test
 	store := app.NewBlockStore()
@@ -46,7 +47,7 @@ func TestWeb(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
-	expect := `{"7XUGVPQ2EEDUK4AHUUQQMVHHOJSTXHZUTRNCZHSVGQ3IDCBUZKSA":{"Action":"issue","Account":"xtb:test1","Token":"xtb:test1","Previous":"","Representative":"","Balance":100,"Link":""},"PGFQ6WR7ZRJDKCXW4N5DHKK4Q2YUTINGD7ETFDO2BKYV2S4V2OBA":{"Action":"issue","Account":"xtb:test2","Token":"xtb:test2","Previous":"","Representative":"","Balance":50,"Link":""}}`
+	expect := `{"MPXTEF4DFI5KNJCZXBAJJDV66DC2C25DTM3F4SHZVWYYMPY4QILA":{"Action":"issue","Account":"xtb:test1","Token":"xtb:test1","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""},"NEPH2XTQ7MOMCE7437REFC5R3LCOOXCNUNKQULYN6LRVBAHX5PJQ":{"Action":"issue","Account":"xtb:test2","Token":"xtb:test2","Previous":"","Representative":"","Balance":50,"Link":"","Signature":""}}`
 
 	// Create root server
 	rs := app.NewBlockStore()

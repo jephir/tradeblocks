@@ -1,17 +1,18 @@
 package web
 
 import (
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 )
 
 func TestSSE(t *testing.T) {
-	expect := `data: {"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Hash":"PPD6EMELYLX4VDGQ5GILR3NUZCAEX3XL7ECC2HHEOZAU6Y2AK7LQ"}`
+	expect := `data: {"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"","Hash":"VXF6FV3YI4MDD6T7AYHSD3JAUQ4GUXRTPVESHTDXUCFESS4BZGIA"}`
 
 	// Setup test
 	store := app.NewBlockStore()

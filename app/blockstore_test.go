@@ -8,7 +8,7 @@ import (
 )
 
 func TestBlockStore(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":""}`
+	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""}`
 	s := NewBlockStore()
 	b := tradeblocks.NewIssueBlock("xtb:test", 100)
 	if _, err := s.AddBlock(b); err != nil {
