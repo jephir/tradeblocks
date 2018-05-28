@@ -9,7 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/base32"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -23,7 +22,7 @@ type AccountBlock struct {
 	Representative string
 	Balance        float64
 	Link           string
-	Signature      []byte
+	Signature      string
 }
 
 // Hash returns the hash of this block
@@ -44,7 +43,6 @@ func (ab *AccountBlock) SignBlock(privateKey io.Reader) error {
 	rng := rand.Reader
 	hashed := ab.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
-	fmt.Printf("hash two is %v \n", decoded)
 	if err != nil {
 		return err
 	}
@@ -66,9 +64,7 @@ func (ab *AccountBlock) SignBlock(privateKey io.Reader) error {
 		return err
 	}
 
-	fmt.Printf("sig return is %x \n", signature)
-
-	ab.Signature = signature
+	ab.Signature = string(signature[:])
 	return nil
 }
 
@@ -82,7 +78,7 @@ func NewIssueBlock(account string, balance float64) *AccountBlock {
 		Representative: "",
 		Balance:        balance,
 		Link:           "",
-		Signature:      nil,
+		Signature:      "",
 	}
 }
 
@@ -96,7 +92,7 @@ func NewOpenBlock(account string, send *AccountBlock, balance float64) *AccountB
 		Representative: "",
 		Balance:        balance,
 		Link:           send.Hash(),
-		Signature:      nil,
+		Signature:      "",
 	}
 }
 
@@ -110,7 +106,7 @@ func NewSendBlock(previous *AccountBlock, to string, amount float64) *AccountBlo
 		Representative: previous.Representative,
 		Balance:        previous.Balance - amount,
 		Link:           to,
-		Signature:      nil,
+		Signature:      "",
 	}
 }
 
@@ -124,7 +120,7 @@ func NewReceiveBlock(previous *AccountBlock, send *AccountBlock, amount float64)
 		Representative: previous.Representative,
 		Balance:        previous.Balance + amount,
 		Link:           send.Hash(),
-		Signature:      nil,
+		Signature:      "",
 	}
 }
 

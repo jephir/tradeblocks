@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@material-ui/core": "^1.1.0",
+    "@material-ui/icons": "^1.1.0",
     "react": "^16.4.0",
     "react-dom": "^16.4.0",
+    "react-json-view": "^1.16.6",
     "react-scripts": "1.1.4"
   },
   "scripts": {

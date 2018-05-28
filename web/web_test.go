@@ -12,7 +12,7 @@ import (
 const base = "http://localhost:8080"
 
 func TestWeb(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":null}`
+	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""}`
 
 	// Setup test
 	store := app.NewBlockStore()
@@ -47,7 +47,7 @@ func TestWeb(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
-	expect := `{"NUOPXEVRVJQ5OCCK5HHEKKHWMJWRTNUI5YR2KND4PATWXY3UEPBA":{"Action":"issue","Account":"xtb:test1","Token":"xtb:test1","Previous":"","Representative":"","Balance":100,"Link":"","Signature":null},"Q5PF7QU2YNHUT4VVKXXWO2GNRYKVJE43BDAJHU4YD6UHKJL2I6IA":{"Action":"issue","Account":"xtb:test2","Token":"xtb:test2","Previous":"","Representative":"","Balance":50,"Link":"","Signature":null}}`
+	expect := `{"MPXTEF4DFI5KNJCZXBAJJDV66DC2C25DTM3F4SHZVWYYMPY4QILA":{"Action":"issue","Account":"xtb:test1","Token":"xtb:test1","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""},"NEPH2XTQ7MOMCE7437REFC5R3LCOOXCNUNKQULYN6LRVBAHX5PJQ":{"Action":"issue","Account":"xtb:test2","Token":"xtb:test2","Previous":"","Representative":"","Balance":50,"Link":"","Signature":""}}`
 
 	// Create root server
 	rs := app.NewBlockStore()

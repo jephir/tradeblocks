@@ -7,12 +7,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base32"
-	"fmt"
 	"testing"
 )
 
 func TestHash(t *testing.T) {
-	expect := "GM6XD5BX4IYD5Z2RP5YMO457M7QLNRU4HDFCDUNTZ647PFA3YG5A,"
+	expect := "VXF6FV3YI4MDD6T7AYHSD3JAUQ4GUXRTPVESHTDXUCFESS4BZGIA"
 	b := NewIssueBlock("xtb:test", 100)
 	h := b.Hash()
 	if h != expect {
@@ -22,7 +21,7 @@ func TestHash(t *testing.T) {
 
 func TestSignBlock(t *testing.T) {
 	issueBlock := NewIssueBlock("xtb:test", 100)
-	if issueBlock.Signature != nil {
+	if issueBlock.Signature != "" {
 		t.Fatal("Signature was not empty string on new block")
 	}
 
@@ -30,8 +29,6 @@ func TestSignBlock(t *testing.T) {
 	issueHash := issueBlock.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(issueHash)
 	hashedBytes := []byte(decoded)
-
-	fmt.Printf("hash one is %v \n", decoded)
 
 	key, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
@@ -50,7 +47,9 @@ func TestSignBlock(t *testing.T) {
 		t.Fatalf("Hash length was incorrect, got: %v, want: %v", len(issueBlock.Signature), 64)
 	}
 
-	errVerify := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashedBytes[:], issueBlock.Signature)
+	decodedSig := []byte(issueBlock.Signature)
+
+	errVerify := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		t.Fatalf("verify failed with: %v", errVerify)
 	}

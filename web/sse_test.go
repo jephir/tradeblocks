@@ -12,7 +12,7 @@ import (
 )
 
 func TestSSE(t *testing.T) {
-	expect := `data: {"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":null,"Hash":"GM6XD5BX4IYD5Z2RP5YMO457M7QLNRU4HDFCDUNTZ647PFA3YG5A"}`
+	expect := `data: {"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"","Hash":"VXF6FV3YI4MDD6T7AYHSD3JAUQ4GUXRTPVESHTDXUCFESS4BZGIA"}`
 
 	// Setup test
 	store := app.NewBlockStore()
