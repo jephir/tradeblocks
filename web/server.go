@@ -2,11 +2,12 @@ package web
 
 import (
 	"encoding/json"
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	"log"
 	"net/http"
 	"sync"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 )
 
 // Server implements a TradeBlocks node
@@ -49,6 +50,7 @@ func (s *Server) routes() {
 	s.mux.Handle("/accounts", s.accountStream)
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
+	s.mux.Handle("/", http.FileServer(http.Dir("../frontend/public")))
 }
 
 func (s *Server) handleAccountBlock() http.HandlerFunc {

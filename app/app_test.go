@@ -18,6 +18,8 @@ var publicKey = strings.NewReader(`-----BEGIN RSA PUBLIC KEY-----
 	-----END RSA PUBLIC KEY-----
 	`)
 
+var accountAddress = "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCglNSUdmTUEwR0NTcUdTSWIzRFFFQkFRVUFBNEdOQURDQmlRS0JnUURWbGVZUStNT0doSFZ2a216Q2tKcmpJNUNMCgk0Tk1Id05SbDdTUm5FbEZJMituV2pZTUV3U09scDVwVGNIQnpqUmhKT3gxU2JMdGlLUktGZzFROXdVZXZOZVdTCglQTWpCMWwrTFdtVVRScU5UY0FQUWMwVmRldW1qcXMxUCtlSEVSZms5TXdxTnNyUHl0dkd3dk5RSjA1UGtnTFNrCglYdTU4a3I1aVh4TUFCSXVrYlFJREFRQUIKCS0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0KCQ"
+
 func TestRegister(t *testing.T) {
 	if _, err := Register(ioutil.Discard, ioutil.Discard, "testuser", 1024); err != nil {
 		t.Fatal(err)
@@ -25,7 +27,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestIssue(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Previous":"","Representative":"","Balance":100,"Link":""}`
+	expect := `{"Action":"issue","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":null}`
 	publicKey.Seek(0, io.SeekStart)
 	issue, err := Issue(publicKey, 100)
 	if err != nil {
@@ -37,12 +39,12 @@ func TestIssue(t *testing.T) {
 	}
 	got := string(s)
 	if got != expect {
-		t.Fatalf("Issue was incorrect, got: %s, want: %s", got, expect)
+		t.Fatalf("Issue was incorrect, got: %s,\nwant: %s", got, expect)
 	}
 }
 
 func TestSend(t *testing.T) {
-	expect := `{"Action":"send","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Previous":"R2W4NU4TXEPL76D7VTLXC5OMMGQWMBIFYCIYSJ3OK5T4CDDQJLDQ","Representative":"","Balance":50,"Link":"xtb:testreceiver"}`
+	expect := `{"Action":"send","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"OAPTOUS6G3HJ4YLRG7WNSZ6CH26R5HPD2PMRTJ7ABYNHBET5NSIA","Representative":"","Balance":50,"Link":"xtb:testreceiver","Signature":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -60,12 +62,12 @@ func TestSend(t *testing.T) {
 	}
 	got := string(s)
 	if got != expect {
-		t.Fatalf("Issue was incorrect, got: %s, want: %s", got, expect)
+		t.Fatalf("Issue was incorrect, got: %s,\nwant: %s", got, expect)
 	}
 }
 
 func TestOpen(t *testing.T) {
-	expect := `{"Action":"open","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"QVZSXSRJFSK23EZTG5NZF3AH3XXVEA5QDH65HNVSXDLIEBZ64Z3Q"}`
+	expect := `{"Action":"open","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"KX4ZH6X3RALXWNJ4ULS2D64DUOQRWMSGUTRCP3B3M2GJUDS633SA","Signature":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -84,12 +86,12 @@ func TestOpen(t *testing.T) {
 	}
 	got := string(s)
 	if got != expect {
-		t.Fatalf("Issue was incorrect, got: %s, want: %s", got, expect)
+		t.Fatalf("Issue was incorrect, got: %s,\nwant: %s", got, expect)
 	}
 }
 
 func TestReceive(t *testing.T) {
-	expect := `{"Action":"receive","Account":"xtb:GxcKrfJUyh10qZQd07mytbs0VP2CUlP6ixwl-_PhDyg","Token":"xtb:sender","Previous":"WZKWLP6XX5HOC7PXAA5XTP5V3R6DRAD3GKREUMJ2O35G6HHV5PZQ","Representative":"","Balance":75,"Link":"QVZSXSRJFSK23EZTG5NZF3AH3XXVEA5QDH65HNVSXDLIEBZ64Z3Q"}`
+	expect := `{"Action":"receive","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"TJA6K3SXZURF76HGIULJZRDWAZ7PL62GAXCWEFVCNAXWKRL4K2JQ","Representative":"","Balance":75,"Link":"KX4ZH6X3RALXWNJ4ULS2D64DUOQRWMSGUTRCP3B3M2GJUDS633SA","Signature":null}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -110,6 +112,6 @@ func TestReceive(t *testing.T) {
 	}
 	got := string(s)
 	if got != expect {
-		t.Fatalf("Issue was incorrect, got: %s, want: %s", got, expect)
+		t.Fatalf("Issue was incorrect, got: %s,\nwant: %s", got, expect)
 	}
 }
