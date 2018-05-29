@@ -22,3 +22,5 @@ web/node_modules
 /web/npm-debug.log*
 /web/yarn-debug.log*
 /web/yarn-error.log*
+
+*.exe
