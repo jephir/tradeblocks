@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"net/http/httptest"
-	"strconv"
-
 	"io"
+	"net/http"
+	"strconv"
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
@@ -25,7 +24,6 @@ func (cli *cli) dispatch(args []string) error {
 	var err error
 
 	store := app.NewBlockStore()
-	srv := web.NewServer(store)
 	c := web.NewClient(cli.serverURL)
 	cmd := newClient(store, cli.dataDir, cli.keySize)
 
@@ -108,9 +106,13 @@ func (cli *cli) dispatch(args []string) error {
 		if err != nil {
 			return err
 		}
-		w := httptest.NewRecorder()
-		srv.ServeHTTP(w, req)
-		res := w.Result()
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+
 		result, err := c.DecodeAccountResponse(res)
 		if err != nil {
 			return err

@@ -1,11 +1,9 @@
 package tradeblocks
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base32"
 	"testing"
 )
@@ -35,10 +33,7 @@ func TestSignBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	keyBytes := x509.MarshalPKCS1PrivateKey(key)
-	r := bytes.NewReader(keyBytes)
-
-	errSign := issueBlock.SignBlock(r)
+	errSign := issueBlock.SignBlock(key)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
