@@ -194,18 +194,17 @@ type SwapBlockValidator struct {
 	orderChain   OrderBlockchain
 }
 
-/* WORK IN PROGRESS
 // ValidateAccountBlock Validates that an SwapBlocks is correctly formatted
 func (issue SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error {
 	//get the chain
 	accountChain := issue.accountChain
 	swapChain := issue.swapChain
 
-	// check if the previous block doesn't exist
+	// check if the previous block exists
 	prevBlock, errPrev := swapChain.GetBlock(block.Account, block.ID)
 
-	// if right is null this is the initializing swap
-	if block.Right == "" {
+	// originating block of swap
+	if block.Action == "offer" {
 		if errPrev == nil {
 			return errors.New("prev and right must be null together")
 		}
@@ -215,16 +214,14 @@ func (issue SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error 
 		if errLeft != nil {
 			return errors.New("link field references invalid block")
 		}
-	} else { // non null right means this is the follow up, prevBlock points to the original
+	} else if block.Action == "commit" { //counterparty block
 		if errPrev != nil || errPrev == nil {
 			return errors.New("previous must be not null")
 		}
 
 		// check if swaps line up
-		if prevBlock.ID != block.ID || prevBlock.Account != block.Account ||
-			prevBlock.Left != block.Left || prevBlock.Counterparty != block.Counterparty ||
-			prevBlock.Want != block.Want || prevBlock.Quantity != block.Quantity {
-			return errors.New("swaps do not match")
+		if swapAlignment(block, prevBlock) {
+			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
 		}
 
 		// check if the send for the original swap exists
@@ -256,4 +253,14 @@ func (issue SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error 
 
 	return nil
 }
-*/
+
+// check if all fields beside right and previous lign up
+// block is the counterparty, prevBlock is the originating
+func swapAlignment(block *tb.SwapBlock, prevBlock *tb.SwapBlock) bool {
+	return prevBlock.Account != block.Account || prevBlock.Token != block.Token ||
+		prevBlock.ID != block.ID || prevBlock.Left != block.Left || prevBlock.Right != block.Right ||
+		prevBlock.RefundLeft != block.RefundLeft || prevBlock.RefundRight != block.RefundRight ||
+		prevBlock.Counterparty != block.Counterparty || prevBlock.Want != block.Want ||
+		prevBlock.Quantity != block.Quantity || prevBlock.Executor != block.Executor ||
+		prevBlock.Fee != block.Fee
+}

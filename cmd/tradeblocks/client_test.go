@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/jephir/tradeblocks/app"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/jephir/tradeblocks/app"
 )
 
 func TestClient(t *testing.T) {

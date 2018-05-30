@@ -7,6 +7,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base32"
+	"encoding/base64"
+	"fmt"
 	"testing"
 )
 
@@ -43,14 +45,45 @@ func TestSignBlock(t *testing.T) {
 		t.Fatal(errSign)
 	}
 
-	if len(issueBlock.Signature) != 64 {
-		t.Fatalf("Hash length was incorrect, got: %v, want: %v", len(issueBlock.Signature), 64)
+	decodedSig, err := base64.StdEncoding.DecodeString(issueBlock.Signature)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	decodedSig := []byte(issueBlock.Signature)
+	fmt.Printf("the stringify %v \n", decodedSig)
 
 	errVerify := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		t.Fatalf("verify failed with: %v", errVerify)
+	}
+
+}
+
+func TestVerifyBlock(t *testing.T) {
+	//make a block
+	issueBlock := NewIssueBlock("xtb:test", 100)
+	if issueBlock.Signature != "" {
+		t.Fatal("Signature was not empty string on new block")
+	}
+
+	key, err := rsa.GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(key)
+	privateReader := bytes.NewReader(privateKeyBytes)
+
+	// sign it
+	errSign := issueBlock.SignBlock(privateReader)
+	if errSign != nil {
+		t.Fatal(errSign)
+	}
+
+	publicKeyBytes := x509.MarshalPKCS1PublicKey(&key.PublicKey)
+	publicReader := bytes.NewReader(publicKeyBytes)
+
+	errVerify := issueBlock.VerifyBlock(publicReader)
+	if errVerify != nil {
+		t.Fatal(errVerify)
 	}
 }

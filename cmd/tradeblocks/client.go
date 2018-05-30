@@ -170,7 +170,7 @@ func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, 
 	defer privateKey.Close()
 
 	// Check if we've already created a receive for the linked send, true if
-	if c.isDuplicate(link) {
+	if c.alreadyLinked(link) {
 		return nil, errors.New("open with the specified send already exists")
 	}
 
@@ -209,7 +209,7 @@ func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock
 	defer privateKey.Close()
 
 	// Check if we've already created a receive for the linked send, true if
-	if c.isDuplicate(link) {
+	if c.alreadyLinked(link) {
 		return nil, errors.New("receive with the specified send already exists")
 	}
 
@@ -306,13 +306,14 @@ func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	}, nil
 }
 
-// check if the given hash has already been claimed by a block on this chain
-func (c *client) isDuplicate(hash string) bool {
-	// (Probably) Only scan the link field
-	// Works for: Open, Receive
-	// Does not work for: Send (link is to account)
-	// For Swaps, if origination swap, check if there's another swap with Left equal to hash
-	// If counterswap, check if swap with Right equal to hash
-	// TODO
-	return true
+// in that case, you can add a param for your validator factory that receives the BlockStore
+// move it to the validator
+func (c *client) alreadyLinked(hash string) bool {
+	// Todo, get the blockstore from the client
+	fmt.Printf("the blockstore is %v \n", c.store)
+	block, err := c.store.GetBlock(hash)
+	if err != nil || block == nil {
+		return true
+	}
+	return false
 }

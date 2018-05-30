@@ -128,13 +128,18 @@ func NewReceiveBlock(previous *AccountBlock, send *AccountBlock, amount float64)
 type SwapBlock struct {
 	Action       string
 	Account      string
+	Token        string
 	ID           string
 	Previous     string
 	Left         string
 	Right        string
+	RefundLeft   string
+	RefundRight  string
 	Counterparty string
 	Want         string
 	Quantity     float64
+	executor     string
+	Fee          float64
 }
 
 // OrderBlock represents a block in the order blockchain
