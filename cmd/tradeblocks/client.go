@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -83,7 +86,7 @@ func (c *client) register(name string) (address string, err error) {
 }
 
 func (c *client) login(name string) (address string, err error) {
-	if err := ioutil.WriteFile("user", []byte(name), 0644); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(c.dir, "user"), []byte(name), 0644); err != nil {
 		return "", err
 	}
 	f, err := c.openPublicKey()
@@ -115,9 +118,8 @@ func (c *client) issue(balance float64) (*tradeblocks.AccountBlock, error) {
 	}
 
 	// add the signature
-	errSign := issue.SignBlock(privateKey)
-	if errSign != nil {
-		return nil, errSign
+	if err := sign(privateKey, issue); err != nil {
+		return nil, err
 	}
 
 	return issue, nil
@@ -148,9 +150,8 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 	}
 
 	// add the signature
-	errSign := send.SignBlock(privateKey)
-	if errSign != nil {
-		return nil, errSign
+	if err := sign(privateKey, send); err != nil {
+		return nil, err
 	}
 
 	return send, nil
@@ -187,9 +188,8 @@ func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, 
 	}
 
 	// add the signature
-	errSign := open.SignBlock(privateKey)
-	if errSign != nil {
-		return nil, errSign
+	if err := sign(privateKey, open); err != nil {
+		return nil, err
 	}
 
 	return open, nil
@@ -232,9 +232,8 @@ func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock
 	}
 
 	// add the signature
-	errSign := receive.SignBlock(privateKey)
-	if errSign != nil {
-		return nil, errSign
+	if err := sign(privateKey, receive); err != nil {
+		return nil, err
 	}
 
 	return receive, nil
@@ -316,4 +315,26 @@ func (c *client) alreadyLinked(hash string) bool {
 		return true
 	}
 	return false
+}
+
+func parsePrivateKey(r io.Reader) (*rsa.PrivateKey, error) {
+	keyBytes, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	p, _ := pem.Decode(keyBytes)
+	if p == nil {
+		return nil, errors.New("client: no PEM data found")
+	}
+
+	return x509.ParsePKCS1PrivateKey(p.Bytes)
+}
+
+func sign(privateKey io.Reader, b *tradeblocks.AccountBlock) error {
+	priv, err := parsePrivateKey(privateKey)
+	if err != nil {
+		return err
+	}
+	return b.SignBlock(priv)
 }
