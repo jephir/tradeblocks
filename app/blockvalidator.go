@@ -6,6 +6,22 @@ import (
 	tb "github.com/jephir/tradeblocks"
 )
 
+// ValidateAccountBlock returns an error if validation fails for the specified account block
+func ValidateAccountBlock(c AccountBlockchain, b *tb.AccountBlock) error {
+	var v AccountBlockValidator
+	switch b.Action {
+	case "open":
+		v = NewOpenValidator(c)
+	case "issue":
+		v = NewIssueValidator(c)
+	case "send":
+		v = NewSendValidator(c)
+	case "receive":
+		v = NewReceiveValidator(c)
+	}
+	return v.ValidateAccountBlock(b)
+}
+
 // AccountBlockValidator to do server validation of each AccountBlock sent in
 // see ../blockgraph.go for details on AccountBlock types
 type AccountBlockValidator interface {

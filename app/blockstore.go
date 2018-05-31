@@ -25,9 +25,7 @@ func NewBlockStore() *BlockStore {
 
 // AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
 func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
-	// TODO Validate block
-	// err := s.validator.ValidateAccountBlock(b)
-	var err error
+	err := ValidateAccountBlock(s, b)
 	if err != nil {
 		return "", err
 	}
