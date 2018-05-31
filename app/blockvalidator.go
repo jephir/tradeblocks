@@ -1,9 +1,10 @@
 package app
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
-	"io"
-	"strings"
 
 	tb "github.com/jephir/tradeblocks"
 )
@@ -12,7 +13,7 @@ import (
 // see ../blockgraph.go for details on AccountBlock types
 type AccountBlockValidator interface {
 	// validates the given AccountBlock
-	ValidateAccountBlock(block *tb.AccountBlock) error
+	ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error
 }
 
 func validatePrevious(block *tb.AccountBlock, chain AccountBlockchain) (*tb.AccountBlock, error) {
@@ -40,13 +41,11 @@ func NewOpenValidator(chain AccountBlockchain) *OpenBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an OpenBlock is correctly formatted
-func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
+func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
 	//get the chain
 	accountChain := validator.accountChain
 
-	// check the signature
-	err := block.VerifyBlock(publicKey)
-	if err != nil {
+	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
 	}
 
@@ -99,14 +98,11 @@ func NewIssueValidator(chain AccountBlockchain) *IssueBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an IssueBlock is correctly formatted
-func (validator IssueBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
+func (validator IssueBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
 	// I don't think we need to validate this after creation, this should be spawned
 	// by an account creation, most fields are generated there
 	// No actionable fields to check on, besides signature
-
-	// check the signature
-	err := block.VerifyBlock(publicKey)
-	if err != nil {
+	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
 	}
 
@@ -130,13 +126,11 @@ func NewSendValidator(chain AccountBlockchain) *SendBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an SendBlocks is correctly formatted
-func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
+func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
 	//get the chain
 	accountChain := validator.accountChain
 
-	// check the signature
-	err := block.VerifyBlock(publicKey)
-	if err != nil {
+	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
 	}
 
@@ -170,13 +164,11 @@ func NewReceiveValidator(chain AccountBlockchain) *ReceiveBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an ReceiveBlocks is correctly formatted
-func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
+func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
 	//get the chain
 	accountChain := validator.accountChain
 
-	// check the signature
-	err := block.VerifyBlock(publicKey)
-	if err != nil {
+	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
 	}
 
@@ -221,7 +213,7 @@ type SwapBlockValidator struct {
 }
 
 // ValidateAccountBlock Validates that an SwapBlocks is correctly formatted
-func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock, publicKey io.Reader) error {
+func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock, publicKey *rsa.PublicKey) error {
 	//get the chain
 	accountChain := validator.accountChain
 	swapChain := validator.swapChain
@@ -234,14 +226,20 @@ func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock, pu
 			return err
 		}
 
-		errVerify := block.VerifyBlock(strings.NewReader(executorKey))
+		pemBlock, _ := pem.Decode([]byte(executorKey))
+
+		pubKey, err := x509.ParsePKCS1PublicKey(pemBlock.Bytes)
+		if err != nil {
+			return err
+		}
+
+		errVerify := block.VerifyBlock(pubKey)
 		if errVerify != nil {
 			return errVerify
 		}
 	} else {
-		errVerify := block.VerifyBlock(publicKey)
-		if errVerify != nil {
-			return errVerify
+		if err := block.VerifyBlock(publicKey); err != nil {
+			return err
 		}
 	}
 
@@ -362,7 +360,7 @@ type OrderBlockValidator struct {
 }
 
 // ValidateAccountBlock Validates that an OrderBlocks is correctly formatted
-func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock, publicKey io.Reader) error {
+func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock, publicKey *rsa.PublicKey) error {
 	//get the chain
 	accountChain := validator.accountChain
 	orderChain := validator.orderChain
@@ -374,13 +372,19 @@ func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock, 
 			return err
 		}
 
-		errVerify := block.VerifyBlock(strings.NewReader(executorKey))
+		pemBlock, _ := pem.Decode([]byte(executorKey))
+
+		pubKey, err := x509.ParsePKCS1PublicKey(pemBlock.Bytes)
+		if err != nil {
+			return err
+		}
+
+		errVerify := block.VerifyBlock(pubKey)
 		if errVerify != nil {
 			return errVerify
 		}
 	} else {
-		err := block.VerifyBlock(publicKey)
-		if err != nil {
+		if err := block.VerifyBlock(publicKey); err != nil {
 			return err
 		}
 	}

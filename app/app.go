@@ -69,12 +69,6 @@ func Open(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64) 
 		return nil, err
 	}
 
-	// check if the send block is already claimed
-	// sendhash := send.Hash()
-	// if AlreadyLinked(sendhash) {
-	// 	return nil, errors.New("Block on chain already claimed the given send")
-	// }
-
 	return tradeblocks.NewOpenBlock(address, send, balance), nil
 }
 

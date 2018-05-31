@@ -1,11 +1,35 @@
 package app
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/jephir/tradeblocks"
 )
+
+func parseKey() (*rsa.PublicKey, error) {
+	pubData, err := ioutil.ReadAll(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	pemData, _ := pem.Decode(pubData)
+
+	if pemData == nil || pemData.Type != "PUBLIC KEY" {
+		return nil, errors.New("invalid public key")
+	}
+
+	rsaKey, err := x509.ParsePKCS1PublicKey(pemData.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return rsaKey, nil
+}
 
 func openSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
 	publicKey.Seek(0, io.SeekStart)
@@ -39,9 +63,14 @@ func TestOpenBlockValidator(t *testing.T) {
 		t.Error(errSetup)
 	}
 
-	err := validator.ValidateAccountBlock(open)
+	rsaKey, err := parseKey()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+
+	errValidate := validator.ValidateAccountBlock(open, rsaKey)
+	if errValidate != nil {
+		t.Error(errValidate)
 	}
 
 	// test for previous not null
@@ -51,7 +80,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 	open.Previous = open.Link
 
-	err = validator.ValidateAccountBlock(open)
+	err = validator.ValidateAccountBlock(open, rsaKey)
 	expectedError := "previous field was not null"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -63,7 +92,7 @@ func TestOpenBlockValidator(t *testing.T) {
 		t.Error(errSendNull)
 	}
 	open.Link = ""
-	err = validator.ValidateAccountBlock(open)
+	err = validator.ValidateAccountBlock(open, rsaKey)
 	expectedError = "link field references invalid block"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -76,7 +105,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 	send.Previous = ""
 
-	err = validator.ValidateAccountBlock(open)
+	err = validator.ValidateAccountBlock(open, rsaKey)
 	expectedError = "send has no previous"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -89,7 +118,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 	send.Balance = 51
 
-	err = validator.ValidateAccountBlock(open)
+	err = validator.ValidateAccountBlock(open, rsaKey)
 	expectedError = "balance does not match"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -102,7 +131,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 	send.Link = "WRONG_ACCOUNT"
 
-	err = validator.ValidateAccountBlock(open)
+	err = validator.ValidateAccountBlock(open, rsaKey)
 	expectedError = "send block does not reference this account"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -125,6 +154,10 @@ func issueSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 }
 
 func TestIssueBlockValidator(t *testing.T) {
+	rsaKey, err := parseKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// test for success
 	issue, validator, errSetup := issueSetup()
@@ -132,9 +165,9 @@ func TestIssueBlockValidator(t *testing.T) {
 		t.Error(errSetup)
 	}
 
-	err := validator.ValidateAccountBlock(issue)
-	if err != nil {
-		t.Error(err)
+	errValidate := validator.ValidateAccountBlock(issue, rsaKey)
+	if errValidate != nil {
+		t.Error(errValidate)
 	}
 }
 
@@ -156,6 +189,10 @@ func sendSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 }
 
 func TestSendBlockValidator(t *testing.T) {
+	rsaKey, err := parseKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// test for success
 	send, validator, errSetup := sendSetup()
@@ -163,9 +200,9 @@ func TestSendBlockValidator(t *testing.T) {
 		t.Error(errSetup)
 	}
 
-	err := validator.ValidateAccountBlock(send)
-	if err != nil {
-		t.Error(err)
+	errValidate := validator.ValidateAccountBlock(send, rsaKey)
+	if errValidate != nil {
+		t.Error(errValidate)
 	}
 
 	// test for previous not null
@@ -175,7 +212,7 @@ func TestSendBlockValidator(t *testing.T) {
 	}
 	send.Previous = ""
 
-	err = validator.ValidateAccountBlock(send)
+	err = validator.ValidateAccountBlock(send, rsaKey)
 	expectedError := "previous field was invalid"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -202,15 +239,20 @@ func receiveSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, Accou
 }
 
 func TestReceiveBlockValidator(t *testing.T) {
+	rsaKey, err := parseKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// test for success
 	receive, _, validator, errSetup := receiveSetup()
 	if errSetup != nil {
 		t.Error(errSetup)
 	}
 
-	err := validator.ValidateAccountBlock(receive)
-	if err != nil {
-		t.Error(err)
+	errValidate := validator.ValidateAccountBlock(receive, rsaKey)
+	if errValidate != nil {
+		t.Error(errValidate)
 	}
 
 	// test for previous not null
@@ -220,7 +262,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 	receive.Previous = ""
 
-	err = validator.ValidateAccountBlock(receive)
+	err = validator.ValidateAccountBlock(receive, rsaKey)
 	expectedError := "previous field was invalid"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -233,7 +275,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 	receive.Link = ""
 
-	err = validator.ValidateAccountBlock(receive)
+	err = validator.ValidateAccountBlock(receive, rsaKey)
 	expectedError = "link field references invalid block"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -246,7 +288,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 	send.Previous = ""
 
-	err = validator.ValidateAccountBlock(receive)
+	err = validator.ValidateAccountBlock(receive, rsaKey)
 	expectedError = "link field's previous references invalid block"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
@@ -259,7 +301,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 	send.Previous = ""
 
-	err = validator.ValidateAccountBlock(receive)
+	err = validator.ValidateAccountBlock(receive, rsaKey)
 	expectedError = "link field's previous references invalid block"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)

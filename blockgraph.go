@@ -6,12 +6,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 )
 
 // AccountBlock represents a block in the account blockchain
@@ -70,7 +68,7 @@ func (ab *AccountBlock) SignBlock(priv *rsa.PrivateKey) error {
 }
 
 // VerifyBlock signs the block, returns just the error
-func (ab *AccountBlock) VerifyBlock(publicKey *rsa.PublicKey) error {
+func (ab *AccountBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 	hashed := ab.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
 	if err != nil {
@@ -84,7 +82,7 @@ func (ab *AccountBlock) VerifyBlock(publicKey *rsa.PublicKey) error {
 		return err
 	}
 
-	errVerify := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hashedBytes[:], decodedSig)
+	errVerify := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		return errVerify
 	}
@@ -197,7 +195,7 @@ func (ab *SwapBlock) Hash() string {
 }
 
 // SignBlock signs the block, returns just the error
-func (ab *SwapBlock) SignBlock(privateKey io.Reader) error {
+func (ab *SwapBlock) SignBlock(priv *rsa.PrivateKey) error {
 	rng := rand.Reader
 	hashed := ab.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
@@ -207,17 +205,7 @@ func (ab *SwapBlock) SignBlock(privateKey io.Reader) error {
 
 	hashedBytes := []byte(decoded)
 
-	keyBytes, err := ioutil.ReadAll(privateKey)
-	if err != nil {
-		return err
-	}
-
-	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(keyBytes)
-	if err != nil {
-		return err
-	}
-
-	signature, err := rsa.SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashedBytes[:])
+	signature, err := rsa.SignPKCS1v15(rng, priv, crypto.SHA256, hashedBytes[:])
 	if err != nil {
 		return err
 	}
@@ -227,7 +215,7 @@ func (ab *SwapBlock) SignBlock(privateKey io.Reader) error {
 }
 
 // VerifyBlock signs the block, returns just the error
-func (ab *SwapBlock) VerifyBlock(publicKey io.Reader) error {
+func (ab *SwapBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 	hashed := ab.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
 	if err != nil {
@@ -236,22 +224,12 @@ func (ab *SwapBlock) VerifyBlock(publicKey io.Reader) error {
 
 	hashedBytes := []byte(decoded)
 
-	keyBytes, err := ioutil.ReadAll(publicKey)
-	if err != nil {
-		return err
-	}
-
-	key, err := x509.ParsePKCS1PublicKey(keyBytes)
-	if err != nil {
-		return err
-	}
-
 	decodedSig, err := base64.StdEncoding.DecodeString(ab.Signature)
 	if err != nil {
 		return err
 	}
 
-	errVerify := rsa.VerifyPKCS1v15(key, crypto.SHA256, hashedBytes[:], decodedSig)
+	errVerify := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		return errVerify
 	}
@@ -302,7 +280,7 @@ func (ab *OrderBlock) Hash() string {
 }
 
 // SignBlock signs the block, returns just the error
-func (ab *OrderBlock) SignBlock(privateKey io.Reader) error {
+func (ab *OrderBlock) SignBlock(priv *rsa.PrivateKey) error {
 	rng := rand.Reader
 	hashed := ab.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
@@ -312,17 +290,7 @@ func (ab *OrderBlock) SignBlock(privateKey io.Reader) error {
 
 	hashedBytes := []byte(decoded)
 
-	keyBytes, err := ioutil.ReadAll(privateKey)
-	if err != nil {
-		return err
-	}
-
-	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(keyBytes)
-	if err != nil {
-		return err
-	}
-
-	signature, err := rsa.SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashedBytes[:])
+	signature, err := rsa.SignPKCS1v15(rng, priv, crypto.SHA256, hashedBytes[:])
 	if err != nil {
 		return err
 	}
@@ -332,7 +300,7 @@ func (ab *OrderBlock) SignBlock(privateKey io.Reader) error {
 }
 
 // VerifyBlock signs the block, returns just the error
-func (ab *OrderBlock) VerifyBlock(publicKey io.Reader) error {
+func (ab *OrderBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 	hashed := ab.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
 	if err != nil {
@@ -341,22 +309,12 @@ func (ab *OrderBlock) VerifyBlock(publicKey io.Reader) error {
 
 	hashedBytes := []byte(decoded)
 
-	keyBytes, err := ioutil.ReadAll(publicKey)
-	if err != nil {
-		return err
-	}
-
-	key, err := x509.ParsePKCS1PublicKey(keyBytes)
-	if err != nil {
-		return err
-	}
-
 	decodedSig, err := base64.StdEncoding.DecodeString(ab.Signature)
 	if err != nil {
 		return err
 	}
 
-	errVerify := rsa.VerifyPKCS1v15(key, crypto.SHA256, hashedBytes[:], decodedSig)
+	errVerify := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		return errVerify
 	}
