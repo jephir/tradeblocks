@@ -1,2 +1,0 @@
-TODO: replace all the garbage addresses with
-PublicKeyToAddress

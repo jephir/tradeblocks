@@ -391,3 +391,10 @@ func TestReceiveBlockValidator(t *testing.T) {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 }
+
+func TestUnkownAction(t *testing.T) {
+	err := ValidateAccountBlock(nil, &tradeblocks.AccountBlock{})
+	if err.Error() != "blockvalidator: unknown action ''" {
+		t.Fatalf("expected an error but got %s", err.Error())
+	}
+}
