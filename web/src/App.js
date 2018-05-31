@@ -6,6 +6,7 @@ class App extends Component {
   state = {
     blocks: []
   }
+  // inline blocks maybe
 
   componentDidMount() {
     fetch('http://localhost:8080/blocks', {'mode': 'no-cors'})

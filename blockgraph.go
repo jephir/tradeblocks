@@ -6,10 +6,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 )
 
 // AccountBlock represents a block in the account blockchain
@@ -68,7 +70,7 @@ func (ab *AccountBlock) SignBlock(priv *rsa.PrivateKey) error {
 }
 
 // VerifyBlock signs the block, returns just the error
-func (ab *AccountBlock) VerifyBlock(publicKey io.Reader) error {
+func (ab *AccountBlock) VerifyBlock(publicKey *rsa.PublicKey) error {
 	hashed := ab.Hash()
 	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
 	if err != nil {
@@ -77,22 +79,12 @@ func (ab *AccountBlock) VerifyBlock(publicKey io.Reader) error {
 
 	hashedBytes := []byte(decoded)
 
-	keyBytes, err := ioutil.ReadAll(publicKey)
-	if err != nil {
-		return err
-	}
-
-	key, err := x509.ParsePKCS1PublicKey(keyBytes)
-	if err != nil {
-		return err
-	}
-
 	decodedSig, err := base64.StdEncoding.DecodeString(ab.Signature)
 	if err != nil {
 		return err
 	}
 
-	errVerify := rsa.VerifyPKCS1v15(key, crypto.SHA256, hashedBytes[:], decodedSig)
+	errVerify := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		return errVerify
 	}

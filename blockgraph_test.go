@@ -63,19 +63,13 @@ func TestVerifyBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	privateKeyBytes := x509.MarshalPKCS1PrivateKey(key)
-	privateReader := bytes.NewReader(privateKeyBytes)
-
 	// sign it
-	errSign := issueBlock.SignBlock(privateReader)
+	errSign := issueBlock.SignBlock(key)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
 
-	publicKeyBytes := x509.MarshalPKCS1PublicKey(&key.PublicKey)
-	publicReader := bytes.NewReader(publicKeyBytes)
-
-	errVerify := issueBlock.VerifyBlock(publicReader)
+	errVerify := issueBlock.VerifyBlock(&key.PublicKey)
 	if errVerify != nil {
 		t.Fatal(errVerify)
 	}
