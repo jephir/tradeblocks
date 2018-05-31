@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 
 	tb "github.com/jephir/tradeblocks"
 )
@@ -18,6 +19,8 @@ func ValidateAccountBlock(c AccountBlockchain, b *tb.AccountBlock) error {
 		v = NewSendValidator(c)
 	case "receive":
 		v = NewReceiveValidator(c)
+	default:
+		return fmt.Errorf("blockvalidator: unknown action '%s'", b.Action)
 	}
 	return v.ValidateAccountBlock(b)
 }
