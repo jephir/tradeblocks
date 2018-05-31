@@ -222,14 +222,12 @@ func (ab *SwapBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 		return err
 	}
 
-	hashedBytes := []byte(decoded)
-
 	decodedSig, err := base64.StdEncoding.DecodeString(ab.Signature)
 	if err != nil {
 		return err
 	}
 
-	errVerify := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hashedBytes[:], decodedSig)
+	errVerify := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, decoded[:], decodedSig)
 	if errVerify != nil {
 		return errVerify
 	}

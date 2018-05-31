@@ -10,15 +10,16 @@ import (
 	"github.com/jephir/tradeblocks"
 )
 
-var publicKey = strings.NewReader(`-----BEGIN RSA PUBLIC KEY-----
-	MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVleYQ+MOGhHVvkmzCkJrjI5CL
-	4NMHwNRl7SRnElFI2+nWjYMEwSOlp5pTcHBzjRhJOx1SbLtiKRKFg1Q9wUevNeWS
-	PMjB1l+LWmUTRqNTcAPQc0Vdeumjqs1P+eHERfk9MwqNsrPytvGwvNQJ05PkgLSk
-	Xu58kr5iXxMABIukbQIDAQAB
-	-----END RSA PUBLIC KEY-----
-	`)
+var publicKey = strings.NewReader(`
+-----BEGIN RSA PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVleYQ+MOGhHVvkmzCkJrjI5CL
+4NMHwNRl7SRnElFI2+nWjYMEwSOlp5pTcHBzjRhJOx1SbLtiKRKFg1Q9wUevNeWS
+PMjB1l+LWmUTRqNTcAPQc0Vdeumjqs1P+eHERfk9MwqNsrPytvGwvNQJ05PkgLSk
+Xu58kr5iXxMABIukbQIDAQAB
+-----END RSA PUBLIC KEY-----
+`)
 
-var accountAddress = "LS0tLS1CRUdJTiBSU0EgUFVCTElDIEtFWS0tLS0tCglNSUdmTUEwR0NTcUdTSWIzRFFFQkFRVUFBNEdOQURDQmlRS0JnUURWbGVZUStNT0doSFZ2a216Q2tKcmpJNUNMCgk0Tk1Id05SbDdTUm5FbEZJMituV2pZTUV3U09scDVwVGNIQnpqUmhKT3gxU2JMdGlLUktGZzFROXdVZXZOZVdTCglQTWpCMWwrTFdtVVRScU5UY0FQUWMwVmRldW1qcXMxUCtlSEVSZms5TXdxTnNyUHl0dkd3dk5RSjA1UGtnTFNrCglYdTU4a3I1aVh4TUFCSXVrYlFJREFRQUIKCS0tLS0tRU5EIFJTQSBQVUJMSUMgS0VZLS0tLS0KCQ"
+var accountAddress = "Ci0tLS0tQkVHSU4gUlNBIFBVQkxJQyBLRVktLS0tLQpNSUdmTUEwR0NTcUdTSWIzRFFFQkFRVUFBNEdOQURDQmlRS0JnUURWbGVZUStNT0doSFZ2a216Q2tKcmpJNUNMCjROTUh3TlJsN1NSbkVsRkkyK25XallNRXdTT2xwNXBUY0hCempSaEpPeDFTYkx0aUtSS0ZnMVE5d1Vldk5lV1MKUE1qQjFsK0xXbVVUUnFOVGNBUFFjMFZkZXVtanFzMVArZUhFUmZrOU13cU5zclB5dHZHd3ZOUUowNVBrZ0xTawpYdTU4a3I1aVh4TUFCSXVrYlFJREFRQUIKLS0tLS1FTkQgUlNBIFBVQkxJQyBLRVktLS0tLQo"
 
 func TestRegister(t *testing.T) {
 	if _, err := Register(ioutil.Discard, ioutil.Discard, "testuser", 1024); err != nil {
@@ -44,7 +45,8 @@ func TestIssue(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
-	expect := `{"Action":"send","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"HYC4A7ZVRDZW4ZF5UZH2JJKJ7BK6HZYNA6Y2TIGDTZSZAF6OIIRA","Representative":"","Balance":50,"Link":"xtb:testreceiver","Signature":""}`
+	previousText := "4RGSBQSWQKRQXQP2FSLIOGHS6SJ6JNWW4SLKKGUSPRF4CTX7S24Q"
+	expect := `{"Action":"send","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"` + previousText + `","Representative":"","Balance":50,"Link":"xtb:testreceiver","Signature":""}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -67,7 +69,8 @@ func TestSend(t *testing.T) {
 }
 
 func TestOpen(t *testing.T) {
-	expect := `{"Action":"open","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"3P457SSYK7WMMTB3E2BK5RJQIRSHM2N5NDRUZHLL262HGSFXEZNQ","Signature":""}`
+	linkText := "SSKW5XVFSPHSHKLWWBDZ2XZ5TUTUINEOXRHGMXNJJZB6ATZCDUAQ"
+	expect := `{"Action":"open","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"` + linkText + `","Signature":""}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -91,7 +94,9 @@ func TestOpen(t *testing.T) {
 }
 
 func TestReceive(t *testing.T) {
-	expect := `{"Action":"receive","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"MVPIFYTWAK4RR33CEUN4OW6XFYCX3YLS7RCEX2UKOQTBGS6SF5EA","Representative":"","Balance":75,"Link":"3P457SSYK7WMMTB3E2BK5RJQIRSHM2N5NDRUZHLL262HGSFXEZNQ","Signature":""}`
+	previousText := "XNCHOTIUY6O5GUOYVLS2TSD5E2U4R75QWD5AWD6SP2CFYH3G7CNA"
+	linkText := "SSKW5XVFSPHSHKLWWBDZ2XZ5TUTUINEOXRHGMXNJJZB6ATZCDUAQ"
+	expect := `{"Action":"receive","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"` + previousText + `","Representative":"","Balance":75,"Link":"` + linkText + `","Signature":""}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {

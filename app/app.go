@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/jephir/tradeblocks"
 )
@@ -86,12 +87,11 @@ func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	return addressPrefix + base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-// AddressToPublicKey returns the string serialization of the specified public key
-// do the opposite of what the rawurlencoding.DECODE? on the publicKey
-func AddressToPublicKey(address string) (publicKey string, err error) {
-	byteKey, err := base64.RawURLEncoding.DecodeString(address)
-	publicKey = string(byteKey[:])
-	return addressPrefix + publicKey, err
+// AddressToPublicKey returns the byte array of the specified address
+func AddressToPublicKey(address string) (publicKey []byte, err error) {
+	addressNoPrefix := strings.TrimPrefix(address, addressPrefix)
+	byteKey, err := base64.RawURLEncoding.DecodeString(addressNoPrefix)
+	return byteKey, err
 }
 
 // AccountBlockHash returns the hash of the specified account block

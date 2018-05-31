@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/dsa"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -13,7 +15,7 @@ import (
 // see ../blockgraph.go for details on AccountBlock types
 type AccountBlockValidator interface {
 	// validates the given AccountBlock
-	ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error
+	ValidateAccountBlock(block *tb.AccountBlock) error
 }
 
 func validatePrevious(block *tb.AccountBlock, chain AccountBlockchain) (*tb.AccountBlock, error) {
@@ -41,9 +43,13 @@ func NewOpenValidator(chain AccountBlockchain) *OpenBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an OpenBlock is correctly formatted
-func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
+func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
+	publicKey, err := addressToRsaKey(block.Account)
+	if err != nil {
+		return err
+	}
 
 	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
@@ -98,10 +104,15 @@ func NewIssueValidator(chain AccountBlockchain) *IssueBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an IssueBlock is correctly formatted
-func (validator IssueBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
+func (validator IssueBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
 	// I don't think we need to validate this after creation, this should be spawned
 	// by an account creation, most fields are generated there
 	// No actionable fields to check on, besides signature
+	publicKey, err := addressToRsaKey(block.Account)
+	if err != nil {
+		return err
+	}
+
 	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
 	}
@@ -126,9 +137,14 @@ func NewSendValidator(chain AccountBlockchain) *SendBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an SendBlocks is correctly formatted
-func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
+func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
+
+	publicKey, err := addressToRsaKey(block.Account)
+	if err != nil {
+		return err
+	}
 
 	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
@@ -164,9 +180,14 @@ func NewReceiveValidator(chain AccountBlockchain) *ReceiveBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an ReceiveBlocks is correctly formatted
-func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey *rsa.PublicKey) error {
+func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
+
+	publicKey, err := addressToRsaKey(block.Account)
+	if err != nil {
+		return err
+	}
 
 	if err := block.VerifyBlock(publicKey); err != nil {
 		return err
@@ -213,7 +234,7 @@ type SwapBlockValidator struct {
 }
 
 // ValidateAccountBlock Validates that an SwapBlocks is correctly formatted
-func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock, publicKey *rsa.PublicKey) error {
+func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
 	swapChain := validator.swapChain
@@ -221,23 +242,21 @@ func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock, pu
 
 	// check the signature, non executor case
 	if block.Executor != "" && (action == "commit" || action == "refund-right") {
-		executorKey, err := AddressToPublicKey(block.Executor)
+		executorKey, err := addressToRsaKey(block.Executor)
 		if err != nil {
 			return err
 		}
 
-		pemBlock, _ := pem.Decode([]byte(executorKey))
-
-		pubKey, err := x509.ParsePKCS1PublicKey(pemBlock.Bytes)
-		if err != nil {
-			return err
-		}
-
-		errVerify := block.VerifyBlock(pubKey)
+		errVerify := block.VerifyBlock(executorKey)
 		if errVerify != nil {
 			return errVerify
 		}
 	} else {
+		publicKey, err := addressToRsaKey(block.Account)
+		if err != nil {
+			return err
+		}
+
 		if err := block.VerifyBlock(publicKey); err != nil {
 			return err
 		}
@@ -360,30 +379,28 @@ type OrderBlockValidator struct {
 }
 
 // ValidateAccountBlock Validates that an OrderBlocks is correctly formatted
-func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock, publicKey *rsa.PublicKey) error {
+func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
 	orderChain := validator.orderChain
 
 	// check the signature
 	if block.Executor != "" {
-		executorKey, err := AddressToPublicKey(block.Executor)
+		executorKey, err := addressToRsaKey(block.Executor)
 		if err != nil {
 			return err
 		}
 
-		pemBlock, _ := pem.Decode([]byte(executorKey))
-
-		pubKey, err := x509.ParsePKCS1PublicKey(pemBlock.Bytes)
-		if err != nil {
-			return err
-		}
-
-		errVerify := block.VerifyBlock(pubKey)
+		errVerify := block.VerifyBlock(executorKey)
 		if errVerify != nil {
 			return errVerify
 		}
 	} else {
+		publicKey, err := addressToRsaKey(block.Account)
+		if err != nil {
+			return err
+		}
+
 		if err := block.VerifyBlock(publicKey); err != nil {
 			return err
 		}
@@ -403,4 +420,30 @@ func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock, 
 
 	// the rest of the checks are done when an actual swap offer is started
 	return nil
+}
+
+func addressToRsaKey(hash string) (*rsa.PublicKey, error) {
+	publicKeyBytes, err := AddressToPublicKey(hash)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(publicKeyBytes)
+	if block == nil {
+		panic("failed to parse PEM block containing the public key")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		panic("failed to parse DER encoded public key: " + err.Error())
+	}
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		return pub, nil
+	case *dsa.PublicKey:
+		return nil, errors.New("wrong public key type, have dsa, want rsa")
+	case *ecdsa.PublicKey:
+		return nil, errors.New("wrong public key type, have ecdsa, want rsa")
+	default:
+		return nil, errors.New("wrong public key type, have unknown, want rsa")
+	}
 }
