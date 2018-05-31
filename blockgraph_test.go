@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
-	"fmt"
 	"testing"
 )
 
@@ -49,7 +48,6 @@ func TestSignBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("the stringify %v \n", decodedSig)
 
 	errVerify := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {

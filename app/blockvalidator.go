@@ -2,6 +2,8 @@ package app
 
 import (
 	"errors"
+	"io"
+	"strings"
 
 	tb "github.com/jephir/tradeblocks"
 )
@@ -37,14 +39,20 @@ func NewOpenValidator(chain AccountBlockchain) *OpenBlockValidator {
 	}
 }
 
-// ValidateAccountBlock Validates that an OoenBlock is correctly formatted
-func (issue OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
+// ValidateAccountBlock Validates that an OpenBlock is correctly formatted
+func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
 	//get the chain
-	accountChain := issue.accountChain
+	accountChain := validator.accountChain
+
+	// check the signature
+	err := block.VerifyBlock(publicKey)
+	if err != nil {
+		return err
+	}
 
 	// check if the previous exists, don't care if it does
-	_, err := validatePrevious(block, accountChain)
-	if err == nil {
+	_, errPrev := validatePrevious(block, accountChain)
+	if errPrev == nil {
 		return errors.New("previous field was not null")
 	}
 
@@ -91,10 +99,16 @@ func NewIssueValidator(chain AccountBlockchain) *IssueBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an IssueBlock is correctly formatted
-func (issue IssueBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
+func (validator IssueBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
 	// I don't think we need to validate this after creation, this should be spawned
 	// by an account creation, most fields are generated there
-	// No actionable fields to check on
+	// No actionable fields to check on, besides signature
+
+	// check the signature
+	err := block.VerifyBlock(publicKey)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -116,9 +130,15 @@ func NewSendValidator(chain AccountBlockchain) *SendBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an SendBlocks is correctly formatted
-func (issue SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
+func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
 	//get the chain
-	accountChain := issue.accountChain
+	accountChain := validator.accountChain
+
+	// check the signature
+	err := block.VerifyBlock(publicKey)
+	if err != nil {
+		return err
+	}
 
 	// check if the previous exists, get it if it does
 	prevBlock, err := validatePrevious(block, accountChain)
@@ -150,9 +170,15 @@ func NewReceiveValidator(chain AccountBlockchain) *ReceiveBlockValidator {
 }
 
 // ValidateAccountBlock Validates that an ReceiveBlocks is correctly formatted
-func (issue ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
+func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock, publicKey io.Reader) error {
 	//get the chain
-	accountChain := issue.accountChain
+	accountChain := validator.accountChain
+
+	// check the signature
+	err := block.VerifyBlock(publicKey)
+	if err != nil {
+		return err
+	}
 
 	// check if the previous block exists, get it if it does
 	prevBlock, err := validatePrevious(block, accountChain)
@@ -195,16 +221,35 @@ type SwapBlockValidator struct {
 }
 
 // ValidateAccountBlock Validates that an SwapBlocks is correctly formatted
-func (issue SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error {
+func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock, publicKey io.Reader) error {
 	//get the chain
-	accountChain := issue.accountChain
-	swapChain := issue.swapChain
+	accountChain := validator.accountChain
+	swapChain := validator.swapChain
+	action := block.Action
+
+	// check the signature, non executor case
+	if block.Executor != "" && (action == "commit" || action == "refund-right") {
+		executorKey, err := AddressToPublicKey(block.Executor)
+		if err != nil {
+			return err
+		}
+
+		errVerify := block.VerifyBlock(strings.NewReader(executorKey))
+		if errVerify != nil {
+			return errVerify
+		}
+	} else {
+		errVerify := block.VerifyBlock(publicKey)
+		if errVerify != nil {
+			return errVerify
+		}
+	}
 
 	// check if the previous block exists
 	prevBlock, errPrev := swapChain.GetBlock(block.Account, block.ID)
 
 	// originating block of swap
-	if block.Action == "offer" {
+	if action == "offer" {
 		if errPrev == nil {
 			return errors.New("prev and right must be null together")
 		}
@@ -214,7 +259,7 @@ func (issue SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error 
 		if errLeft != nil {
 			return errors.New("link field references invalid block")
 		}
-	} else if block.Action == "commit" { //counterparty block
+	} else if action == "commit" { //counterparty block
 		if errPrev != nil || errPrev == nil {
 			return errors.New("previous must be not null")
 		}
@@ -249,6 +294,50 @@ func (issue SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error 
 		if requestedWant != sendCounter.Token || requestedQty != counterQuantity {
 			return errors.New("amount requested not sent")
 		}
+	} else if action == "refund-left" {
+		if errPrev != nil || errPrev == nil {
+			return errors.New("previous must be not null")
+		}
+
+		// check if swaps line up
+		if swapAlignment(block, prevBlock) {
+			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
+		}
+
+		// make sure RefundLeft is the initiator's account
+		if block.RefundLeft != prevBlock.Account {
+			return errors.New("Refund must be to initiator's account")
+		}
+
+	} else if action == "refund-right" {
+		if errPrev != nil || errPrev == nil {
+			return errors.New("previous must be not null")
+		}
+
+		// make sure the previous is actually a refund-left
+		if prevBlock.Action != "refund-left" {
+			return errors.New("Previous must be a refund-left")
+		}
+
+		// check if swaps line up
+		if swapAlignment(block, prevBlock) {
+			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
+		}
+
+		// get the originating send
+		send, err := accountChain.GetBlock(block.Right)
+		if err != nil {
+			return err
+		}
+
+		// check if the refund is going to right place
+		if send.Account != block.Account {
+			return errors.New("Account for refund must be same as original send account")
+		}
+
+		if block.Account != block.RefundRight {
+			return errors.New("Refund right field must be the account to refund")
+		}
 	}
 
 	return nil
@@ -263,4 +352,51 @@ func swapAlignment(block *tb.SwapBlock, prevBlock *tb.SwapBlock) bool {
 		prevBlock.Counterparty != block.Counterparty || prevBlock.Want != block.Want ||
 		prevBlock.Quantity != block.Quantity || prevBlock.Executor != block.Executor ||
 		prevBlock.Fee != block.Fee
+}
+
+// OrderBlockValidator is a validator for SwapBlocks
+type OrderBlockValidator struct {
+	accountChain AccountBlockchain
+	swapChain    SwapBlockchain
+	orderChain   OrderBlockchain
+}
+
+// ValidateAccountBlock Validates that an OrderBlocks is correctly formatted
+func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock, publicKey io.Reader) error {
+	//get the chain
+	accountChain := validator.accountChain
+	orderChain := validator.orderChain
+
+	// check the signature
+	if block.Executor != "" {
+		executorKey, err := AddressToPublicKey(block.Executor)
+		if err != nil {
+			return err
+		}
+
+		errVerify := block.VerifyBlock(strings.NewReader(executorKey))
+		if errVerify != nil {
+			return errVerify
+		}
+	} else {
+		err := block.VerifyBlock(publicKey)
+		if err != nil {
+			return err
+		}
+	}
+
+	// check if the previous block exists
+	_, errPrev := orderChain.GetBlock(block.Account, block.ID)
+	if errPrev != nil {
+		return errPrev
+	}
+
+	// check if the originating send exists
+	_, errSend := accountChain.GetBlock(block.Link)
+	if errSend != nil {
+		return errSend
+	}
+
+	// the rest of the checks are done when an actual swap offer is started
+	return nil
 }

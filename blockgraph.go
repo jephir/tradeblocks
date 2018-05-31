@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base32"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -27,7 +28,17 @@ type AccountBlock struct {
 
 // Hash returns the hash of this block
 func (ab *AccountBlock) Hash() string {
-	b, err := json.Marshal(ab)
+	withoutSig := &AccountBlock{
+		Action:         ab.Action,
+		Account:        ab.Account,
+		Token:          ab.Token,
+		Previous:       ab.Previous,
+		Representative: ab.Representative,
+		Balance:        ab.Balance,
+		Link:           ab.Link,
+		Signature:      "",
+	}
+	b, err := json.Marshal(withoutSig)
 	if err != nil {
 		panic(err)
 	}
@@ -64,7 +75,39 @@ func (ab *AccountBlock) SignBlock(privateKey io.Reader) error {
 		return err
 	}
 
-	ab.Signature = string(signature[:])
+	ab.Signature = base64.StdEncoding.EncodeToString(signature)
+	return nil
+}
+
+// VerifyBlock signs the block, returns just the error
+func (ab *AccountBlock) VerifyBlock(publicKey io.Reader) error {
+	hashed := ab.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	keyBytes, err := ioutil.ReadAll(publicKey)
+	if err != nil {
+		return err
+	}
+
+	key, err := x509.ParsePKCS1PublicKey(keyBytes)
+	if err != nil {
+		return err
+	}
+
+	decodedSig, err := base64.StdEncoding.DecodeString(ab.Signature)
+	if err != nil {
+		return err
+	}
+
+	errVerify := rsa.VerifyPKCS1v15(key, crypto.SHA256, hashedBytes[:], decodedSig)
+	if errVerify != nil {
+		return errVerify
+	}
 	return nil
 }
 
@@ -138,20 +181,204 @@ type SwapBlock struct {
 	Counterparty string
 	Want         string
 	Quantity     float64
-	executor     string
+	Executor     string
 	Fee          float64
+	Signature    string
+}
+
+// Hash returns the hash of this block
+func (ab *SwapBlock) Hash() string {
+	withoutSig := &SwapBlock{
+		Action:       ab.Action,
+		Account:      ab.Account,
+		Token:        ab.Token,
+		ID:           ab.ID,
+		Previous:     ab.Previous,
+		Left:         ab.Left,
+		Right:        ab.Right,
+		RefundLeft:   ab.RefundLeft,
+		RefundRight:  ab.RefundRight,
+		Counterparty: ab.Counterparty,
+		Want:         ab.Want,
+		Quantity:     ab.Quantity,
+		Executor:     ab.Executor,
+		Fee:          ab.Fee,
+		Signature:    "",
+	}
+	b, err := json.Marshal(withoutSig)
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
+		panic(err)
+	}
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
+}
+
+// SignBlock signs the block, returns just the error
+func (ab *SwapBlock) SignBlock(privateKey io.Reader) error {
+	rng := rand.Reader
+	hashed := ab.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	keyBytes, err := ioutil.ReadAll(privateKey)
+	if err != nil {
+		return err
+	}
+
+	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(keyBytes)
+	if err != nil {
+		return err
+	}
+
+	signature, err := rsa.SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashedBytes[:])
+	if err != nil {
+		return err
+	}
+
+	ab.Signature = base64.StdEncoding.EncodeToString(signature)
+	return nil
+}
+
+// VerifyBlock signs the block, returns just the error
+func (ab *SwapBlock) VerifyBlock(publicKey io.Reader) error {
+	hashed := ab.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	keyBytes, err := ioutil.ReadAll(publicKey)
+	if err != nil {
+		return err
+	}
+
+	key, err := x509.ParsePKCS1PublicKey(keyBytes)
+	if err != nil {
+		return err
+	}
+
+	decodedSig, err := base64.StdEncoding.DecodeString(ab.Signature)
+	if err != nil {
+		return err
+	}
+
+	errVerify := rsa.VerifyPKCS1v15(key, crypto.SHA256, hashedBytes[:], decodedSig)
+	if errVerify != nil {
+		return errVerify
+	}
+	return nil
 }
 
 // OrderBlock represents a block in the order blockchain
 type OrderBlock struct {
-	Action   string
-	Account  string
-	Token    string
-	ID       string
-	Previous string
-	Balance  float64
-	Quote    string
-	Price    float64
-	Link     string
-	Partial  bool
+	Action    string
+	Account   string
+	Token     string
+	ID        string
+	Previous  string
+	Balance   float64
+	Quote     string
+	Price     float64
+	Link      string
+	Partial   bool
+	Executor  string
+	Signature string
+}
+
+// Hash returns the hash of this block
+func (ab *OrderBlock) Hash() string {
+	withoutSig := &OrderBlock{
+		Action:    ab.Action,
+		Account:   ab.Account,
+		Token:     ab.Token,
+		ID:        ab.ID,
+		Previous:  ab.Previous,
+		Balance:   ab.Balance,
+		Quote:     ab.Quote,
+		Price:     ab.Price,
+		Link:      ab.Link,
+		Partial:   ab.Partial,
+		Executor:  ab.Executor,
+		Signature: "",
+	}
+	b, err := json.Marshal(withoutSig)
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
+		panic(err)
+	}
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
+}
+
+// SignBlock signs the block, returns just the error
+func (ab *OrderBlock) SignBlock(privateKey io.Reader) error {
+	rng := rand.Reader
+	hashed := ab.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	keyBytes, err := ioutil.ReadAll(privateKey)
+	if err != nil {
+		return err
+	}
+
+	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(keyBytes)
+	if err != nil {
+		return err
+	}
+
+	signature, err := rsa.SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashedBytes[:])
+	if err != nil {
+		return err
+	}
+
+	ab.Signature = base64.StdEncoding.EncodeToString(signature)
+	return nil
+}
+
+// VerifyBlock signs the block, returns just the error
+func (ab *OrderBlock) VerifyBlock(publicKey io.Reader) error {
+	hashed := ab.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	keyBytes, err := ioutil.ReadAll(publicKey)
+	if err != nil {
+		return err
+	}
+
+	key, err := x509.ParsePKCS1PublicKey(keyBytes)
+	if err != nil {
+		return err
+	}
+
+	decodedSig, err := base64.StdEncoding.DecodeString(ab.Signature)
+	if err != nil {
+		return err
+	}
+
+	errVerify := rsa.VerifyPKCS1v15(key, crypto.SHA256, hashedBytes[:], decodedSig)
+	if errVerify != nil {
+		return errVerify
+	}
+	return nil
 }

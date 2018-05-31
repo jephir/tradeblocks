@@ -80,13 +80,7 @@ func Open(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64) 
 
 // Receive receives tokens from a send transaction
 func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *tradeblocks.AccountBlock, amount float64) (*tradeblocks.AccountBlock, error) {
-	// check if the Link field is already claimed
-	sendHash := send.Hash()
-	// if AlreadyLinked(sendHash) {
-	// 	return nil, errors.New("Block on chain already claimed the given send")
-	// }
-
-	return tradeblocks.NewReceiveBlock(previous, sendHash, amount), nil
+	return tradeblocks.NewReceiveBlock(previous, send, amount), nil
 }
 
 // PublicKeyToAddress returns the string serialization of the specified public key
@@ -127,12 +121,3 @@ func SerializeAccountBlock(block *tradeblocks.AccountBlock) (string, error) {
 	}
 	return string(b), nil
 }
-
-// AlreadyLinked checks if there is a block that claims the given hash in Link field
-// Works for: Open, Receive
-// Does not work for: Send (link is to account)
-// For Swaps, if origination swap, check if there's another swap with Left equal to hash
-// If counterswap, check if swap with Right equal to hash
-// func AlreadyLinked(hash string) bool {
-// 	return false
-// }
