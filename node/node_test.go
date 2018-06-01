@@ -1,20 +1,41 @@
 package node
 
 import (
-	"github.com/jephir/tradeblocks"
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"io/ioutil"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 )
 
 func TestBootstrapAndSync(t *testing.T) {
+	key, address, err := GetAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Create seed node
 	seed, s := newNode(t, "")
 	defer s.Close()
 
+	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 50), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Add blocks to seed node
-	h1 := addBlock(t, seed, tradeblocks.NewIssueBlock("xtb:test1", 100))
-	h2 := addBlock(t, seed, tradeblocks.NewIssueBlock("xtb:test2", 50))
+	h1 := addBlock(t, seed, b1)
+	h2 := addBlock(t, seed, b2)
 
 	// Create connecting node 1
 	node1, s1 := newNode(t, s.URL)
@@ -41,7 +62,11 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Add block to seed node
-	h3 := addBlock(t, seed, tradeblocks.NewIssueBlock("xtb:test3", 15))
+	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 15), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h3 := addBlock(t, seed, b3)
 
 	// Check that connecting node 1 has new block
 	if err := seed.Sync(); err != nil {
@@ -98,4 +123,23 @@ func TestMissingParent(t *testing.T) {
 	// Add valid block to node 1
 
 	// Check that node 1 validates and loads required blocks from seed
+}
+
+func GetAddress() (*rsa.PrivateKey, string, error) {
+	var key, err = rsa.GenerateKey(rand.Reader, 512)
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	if err != nil {
+		return nil, "", err
+	}
+	p := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: pubKeyBytes,
+	})
+
+	pubKeyReader := bytes.NewReader(p)
+	address, err := app.PublicKeyToAddress(pubKeyReader)
+	if err != nil {
+		return nil, "", err
+	}
+	return key, address, nil
 }

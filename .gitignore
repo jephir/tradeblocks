@@ -24,3 +24,4 @@ web/node_modules
 /web/yarn-error.log*
 
 *.exe
+*.bin

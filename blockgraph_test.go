@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base32"
+	"encoding/base64"
 	"testing"
 )
 
@@ -38,14 +39,38 @@ func TestSignBlock(t *testing.T) {
 		t.Fatal(errSign)
 	}
 
-	if len(issueBlock.Signature) != 64 {
-		t.Fatalf("Hash length was incorrect, got: %v, want: %v", len(issueBlock.Signature), 64)
+	decodedSig, err := base64.StdEncoding.DecodeString(issueBlock.Signature)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	decodedSig := []byte(issueBlock.Signature)
 
 	errVerify := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		t.Fatalf("verify failed with: %v", errVerify)
+	}
+
+}
+
+func TestVerifyBlock(t *testing.T) {
+	//make a block
+	issueBlock := NewIssueBlock("xtb:test", 100)
+	if issueBlock.Signature != "" {
+		t.Fatal("Signature was not empty string on new block")
+	}
+
+	key, err := rsa.GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// sign it
+	errSign := issueBlock.SignBlock(key)
+	if errSign != nil {
+		t.Fatal(errSign)
+	}
+
+	errVerify := issueBlock.VerifyBlock(&key.PublicKey)
+	if errVerify != nil {
+		t.Fatal(errVerify)
 	}
 }

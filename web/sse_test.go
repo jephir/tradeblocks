@@ -1,6 +1,11 @@
 package web
 
 import (
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,11 +17,18 @@ import (
 )
 
 func TestSSE(t *testing.T) {
-	expect := `data: {"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"","Hash":"VXF6FV3YI4MDD6T7AYHSD3JAUQ4GUXRTPVESHTDXUCFESS4BZGIA"}`
+	key, address, err := GetAddress()
 
 	// Setup test
 	store := app.NewBlockStore()
-	store.AddBlock(tradeblocks.NewIssueBlock("xtb:test", 100))
+	issue, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expect := `data: {"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + issue.Signature + `","Hash":"` + issue.Hash() + `"}`
+
+	store.AddBlock(issue)
 	srv := NewServer(store)
 
 	// Send request
@@ -44,4 +56,23 @@ func TestSSE(t *testing.T) {
 	if got != expect {
 		t.Fatalf("Response was incorrect, got: %s, want: %s", got, expect)
 	}
+}
+
+func GetAddress() (*rsa.PrivateKey, string, error) {
+	var key, err = rsa.GenerateKey(rand.Reader, 512)
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	if err != nil {
+		return nil, "", err
+	}
+	p := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: pubKeyBytes,
+	})
+
+	pubKeyReader := bytes.NewReader(p)
+	address, err := app.PublicKeyToAddress(pubKeyReader)
+	if err != nil {
+		return nil, "", err
+	}
+	return key, address, nil
 }
