@@ -9,6 +9,7 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 )
 
@@ -85,6 +86,35 @@ func (ab *AccountBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 	errVerify := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hashedBytes[:], decodedSig)
 	if errVerify != nil {
 		return errVerify
+	}
+	return nil
+}
+
+// Equals returns an error if this block doesn't equal the specified block
+func (ab *AccountBlock) Equals(o *AccountBlock) error {
+	if o.Action != ab.Action {
+		return fmt.Errorf("blockgraph: action '%s' doesn't equal '%s'", o.Action, ab.Action)
+	}
+	if o.Account != ab.Account {
+		return fmt.Errorf("blockgraph: account '%s' doesn't equal '%s'", o.Account, ab.Account)
+	}
+	if o.Token != ab.Token {
+		return fmt.Errorf("blockgraph: token '%s' doesn't equal '%s'", o.Token, ab.Token)
+	}
+	if o.Previous != ab.Previous {
+		return fmt.Errorf("blockgraph: previous '%s' doesn't equal '%s'", o.Previous, ab.Previous)
+	}
+	if o.Representative != ab.Representative {
+		return fmt.Errorf("blockgraph: representative '%s' doesn't equal '%s'", o.Representative, ab.Representative)
+	}
+	if o.Balance != ab.Balance {
+		return fmt.Errorf("blockgraph: balance '%f' doesn't equal '%f'", o.Balance, ab.Balance)
+	}
+	if o.Link != ab.Link {
+		return fmt.Errorf("blockgraph: link '%s' doesn't equal '%s'", o.Link, ab.Link)
+	}
+	if o.Signature != ab.Signature {
+		return fmt.Errorf("blockgraph: signature '%s' doesn't equal '%s'", o.Signature, ab.Signature)
 	}
 	return nil
 }

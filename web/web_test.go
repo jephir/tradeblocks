@@ -78,8 +78,6 @@ func TestBootstrap(t *testing.T) {
 		t.Error(errSign)
 	}
 
-	expect := `{"` + b1.Hash() + `":{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b1.Signature + `"},"` + b2.Hash() + `":{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":50,"Link":"","Signature":"` + b2.Signature + `"}}`
-
 	rs.AddBlock(b1)
 	rs.AddBlock(b2)
 	srv := NewServer(rs)
@@ -101,12 +99,18 @@ func TestBootstrap(t *testing.T) {
 	}
 
 	// Check result
-	s, err := json.Marshal(result)
-	if err != nil {
+	r1, ok := result[b1.Hash()]
+	if !ok {
+		t.Fatalf("missing block b1 '%s'", b1.Hash())
+	}
+	if err := r1.Equals(b1); err != nil {
 		t.Fatal(err)
 	}
-	got := string(s)
-	if got != expect {
-		t.Fatalf("Response was incorrect, got: %s, want: %s", got, expect)
+	r2, ok := result[b2.Hash()]
+	if !ok {
+		t.Fatalf("missing block b2 '%s'", b2.Hash())
+	}
+	if err := r2.Equals(b2); err != nil {
+		t.Fatal(err)
 	}
 }
