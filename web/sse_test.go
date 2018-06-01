@@ -21,10 +21,9 @@ func TestSSE(t *testing.T) {
 
 	// Setup test
 	store := app.NewBlockStore()
-	issue := tradeblocks.NewIssueBlock(address, 100)
-	errSign := issue.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	issue, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	expect := `data: {"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + issue.Signature + `","Hash":"` + issue.Hash() + `"}`

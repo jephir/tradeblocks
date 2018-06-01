@@ -19,7 +19,7 @@ func TestWeb(t *testing.T) {
 	// Setup keys
 	key, address, err := GetAddress()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	// Setup test
 	store := app.NewBlockStore()
@@ -27,10 +27,9 @@ func TestWeb(t *testing.T) {
 	client := NewClient(base)
 
 	// Create request
-	b := tradeblocks.NewIssueBlock(address, 100)
-	errSign := b.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	b, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 	expect := `{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
 
@@ -67,15 +66,13 @@ func TestBootstrap(t *testing.T) {
 
 	// Create root server
 	rs := app.NewBlockStore()
-	b1 := tradeblocks.NewIssueBlock(address, 100)
-	errSign := b1.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
 	}
-	b2 := tradeblocks.NewIssueBlock(address, 50)
-	errSign = b2.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 50), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	rs.AddBlock(b1)

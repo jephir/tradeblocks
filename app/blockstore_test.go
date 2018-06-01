@@ -9,69 +9,67 @@ import (
 	"encoding/pem"
 	"testing"
 
-	"github.com/jephir/tradeblocks"
+	tb "github.com/jephir/tradeblocks"
 )
 
 func TestBlockStore(t *testing.T) {
 	key, address, err := GetAddress()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	s := NewBlockStore()
-	b := tradeblocks.NewIssueBlock(address, 100)
-	errSign := b.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	b, err := tb.SignedAccountBlock(tb.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 	expect := `{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
 
 	if _, err := s.AddBlock(b); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	res, _ := s.GetBlock(b.Hash())
 	ss, err := json.Marshal(res)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	got := string(ss)
 	if got != expect {
-		t.Errorf("Issue was incorrect, got: %s, want: %s", got, expect)
+		t.Fatalf("Issue was incorrect, got: %s, want: %s", got, expect)
 	}
 }
 
 func TestDoubleSpend(t *testing.T) {
 	key, address, err := GetAddress()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	s := NewBlockStore()
-	b := tradeblocks.NewIssueBlock(address, 100)
-	errSign := b.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+
+	b, err := tb.SignedAccountBlock(tb.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	if _, err := s.AddBlock(b); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	b1 := tradeblocks.NewSendBlock(b, address, 10)
-	errSign = b1.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+
+	b1, err := tb.SignedAccountBlock(tb.NewSendBlock(b, address, 10), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	if _, err := s.AddBlock(b1); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	b2 := tradeblocks.NewSendBlock(b, address, 10)
-	errSign = b2.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	b2, err := tb.SignedAccountBlock(tb.NewSendBlock(b, address, 10), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	_, err = s.AddBlock(b2)
 	if _, ok := err.(*blockConflictError); !ok {
-		t.Errorf("expected block conflict error, got '%s'", err.Error())
+		t.Fatalf("expected block conflict error, got '%s'", err.Error())
 	}
 }
 

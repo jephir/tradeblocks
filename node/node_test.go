@@ -17,21 +17,20 @@ import (
 func TestBootstrapAndSync(t *testing.T) {
 	key, address, err := GetAddress()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	// Create seed node
 	seed, s := newNode(t, "")
 	defer s.Close()
 
-	b1 := tradeblocks.NewIssueBlock(address, 100)
-	b2 := tradeblocks.NewIssueBlock(address, 50)
-	errSign := b1.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	if err != nil {
+		t.Fatal(err)
 	}
-	errSign = b2.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+
+	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 50), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Add blocks to seed node
@@ -63,10 +62,9 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Add block to seed node
-	b3 := tradeblocks.NewIssueBlock(address, 15)
-	errSign = b3.SignBlock(key)
-	if errSign != nil {
-		t.Error(errSign)
+	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 15), key)
+	if err != nil {
+		t.Fatal(err)
 	}
 	h3 := addBlock(t, seed, b3)
 

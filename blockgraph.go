@@ -432,3 +432,27 @@ func (ab *OrderBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 	}
 	return nil
 }
+
+// SignedAccountBlock returns a signed version of the specified block with the specified private key
+func SignedAccountBlock(b *AccountBlock, priv *rsa.PrivateKey) (*AccountBlock, error) {
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// SignedSwapBlock returns a signed version of the specified block with the specified private key
+func SignedSwapBlock(b *SwapBlock, priv *rsa.PrivateKey) (*SwapBlock, error) {
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// SignedOrderBlock returns a signed version of the specified block with the specified private key
+func SignedOrderBlock(b *OrderBlock, priv *rsa.PrivateKey) (*OrderBlock, error) {
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
