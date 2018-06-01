@@ -24,3 +24,20 @@ func TestBlockStore(t *testing.T) {
 		t.Errorf("Issue was incorrect, got: %s, want: %s", got, expect)
 	}
 }
+
+func TestDoubleSpend(t *testing.T) {
+	s := NewBlockStore()
+	b := tradeblocks.NewIssueBlock("xtb:test", 100)
+	if _, err := s.AddBlock(b); err != nil {
+		t.Error(err)
+	}
+	b1 := tradeblocks.NewSendBlock(b, "xtb:test1", 10)
+	if _, err := s.AddBlock(b1); err != nil {
+		t.Error(err)
+	}
+	b2 := tradeblocks.NewSendBlock(b, "xtb:test2", 10)
+	_, err := s.AddBlock(b2)
+	if _, ok := err.(*blockConflictError); !ok {
+		t.Errorf("expected block conflict error, got '%s'", err.Error())
+	}
+}
