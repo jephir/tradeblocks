@@ -1,6 +1,8 @@
 package web
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
@@ -11,16 +13,27 @@ import (
 
 const base = "http://localhost:8080"
 
-func TestWeb(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:test","Token":"xtb:test","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""}`
+var key, err = rsa.GenerateKey(rand.Reader, 512)
 
+func TestWeb(t *testing.T) {
+	// Setup keys
+	key, address, err := GetAddress()
+	if err != nil {
+		t.Error(err)
+	}
 	// Setup test
 	store := app.NewBlockStore()
 	srv := NewServer(store)
 	client := NewClient(base)
 
 	// Create request
-	b := tradeblocks.NewIssueBlock("xtb:test", 100)
+	b := tradeblocks.NewIssueBlock(address, 100)
+	errSign := b.SignBlock(key)
+	if errSign != nil {
+		t.Error(errSign)
+	}
+	expect := `{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
+
 	req, err := client.NewPostAccountRequest(b)
 	if err != nil {
 		t.Fatal(err)
@@ -47,12 +60,26 @@ func TestWeb(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
-	expect := `{"MPXTEF4DFI5KNJCZXBAJJDV66DC2C25DTM3F4SHZVWYYMPY4QILA":{"Action":"issue","Account":"xtb:test1","Token":"xtb:test1","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""},"NEPH2XTQ7MOMCE7437REFC5R3LCOOXCNUNKQULYN6LRVBAHX5PJQ":{"Action":"issue","Account":"xtb:test2","Token":"xtb:test2","Previous":"","Representative":"","Balance":50,"Link":"","Signature":""}}`
+	key, address, err := GetAddress()
+	if err != nil {
+		t.Error(err)
+	}
 
 	// Create root server
 	rs := app.NewBlockStore()
-	b1 := tradeblocks.NewIssueBlock("xtb:test1", 100)
-	b2 := tradeblocks.NewIssueBlock("xtb:test2", 50)
+	b1 := tradeblocks.NewIssueBlock(address, 100)
+	errSign := b1.SignBlock(key)
+	if errSign != nil {
+		t.Error(errSign)
+	}
+	b2 := tradeblocks.NewIssueBlock(address, 50)
+	errSign = b2.SignBlock(key)
+	if errSign != nil {
+		t.Error(errSign)
+	}
+
+	expect := `{"` + b1.Hash() + `":{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b1.Signature + `"},"` + b2.Hash() + `":{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":50,"Link":"","Signature":"` + b2.Signature + `"}}`
+
 	rs.AddBlock(b1)
 	rs.AddBlock(b2)
 	srv := NewServer(rs)
