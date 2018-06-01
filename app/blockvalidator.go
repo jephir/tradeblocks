@@ -307,7 +307,6 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 
 	// originating block of swap
 	if action == "offer" {
-		fmt.Printf("the prevBlock %v \n", prevBlock)
 		if prevBlock != nil {
 			return errors.New("prev and right must be null together")
 		}

@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/jephir/tradeblocks"
 )
 
@@ -25,8 +27,10 @@ func NewBlockStore() *BlockStore {
 
 // AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
 func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
-	err := ValidateAccountBlock(s, b)
-	if err != nil {
+	if err := ValidateAccountBlock(s, b); err != nil {
+		return "", err
+	}
+	if err := s.checkConflict(b); err != nil {
 		return "", err
 	}
 	h := b.Hash()
@@ -35,6 +39,18 @@ func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
 		s.AccountChangeListener(h, b)
 	}
 	return h, nil
+}
+
+func (s *BlockStore) checkConflict(b *tradeblocks.AccountBlock) error {
+	if b.Previous == "" {
+		return nil
+	}
+	for _, block := range s.AccountBlocks {
+		if block.Previous == b.Previous {
+			return &blockConflictError{block}
+		}
+	}
+	return nil
 }
 
 // GetBlock returns the account block with the specified hash, or nil if it doesn't exist
@@ -64,8 +80,10 @@ func NewSwapBlockStore() *SwapBlockStore {
 
 // AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
 func (s *SwapBlockStore) AddBlock(b *tradeblocks.SwapBlock, c AccountBlockchain) (string, error) {
-	err := ValidateSwapBlock(c, s, b)
-	if err != nil {
+	if err := ValidateSwapBlock(c, s, b); err != nil {
+		return "", err
+	}
+	if err := s.checkConflict(b); err != nil {
 		return "", err
 	}
 	h := b.Hash()
@@ -74,6 +92,18 @@ func (s *SwapBlockStore) AddBlock(b *tradeblocks.SwapBlock, c AccountBlockchain)
 		s.SwapChangeListener(h, b)
 	}
 	return h, nil
+}
+
+func (s *SwapBlockStore) checkConflict(b *tradeblocks.SwapBlock) error {
+	if b.Previous == "" {
+		return nil
+	}
+	for _, block := range s.SwapBlocks {
+		if block.Previous == b.Previous {
+			return &swapConflictError{block}
+		}
+	}
+	return nil
 }
 
 // GetSwapBlock returns the Swap block with the specified hash, or nil if it doesn't exist
@@ -103,8 +133,10 @@ func NewOrderBlockStore() *OrderBlockStore {
 
 // AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
 func (s *OrderBlockStore) AddBlock(b *tradeblocks.OrderBlock, c AccountBlockchain) (string, error) {
-	err := ValidateOrderBlock(c, s, b)
-	if err != nil {
+	if err := ValidateOrderBlock(c, s, b); err != nil {
+		return "", err
+	}
+	if err := s.checkConflict(b); err != nil {
 		return "", err
 	}
 	h := b.Hash()
@@ -115,8 +147,44 @@ func (s *OrderBlockStore) AddBlock(b *tradeblocks.OrderBlock, c AccountBlockchai
 	return h, nil
 }
 
+func (s *OrderBlockStore) checkConflict(b *tradeblocks.OrderBlock) error {
+	if b.Previous == "" {
+		return nil
+	}
+	for _, block := range s.OrderBlocks {
+		if block.Previous == b.Previous {
+			return &orderConflictError{block}
+		}
+	}
+	return nil
+}
+
 // GetOrderBlock returns the Order block with the specified hash, or nil if it doesn't exist
 // error return added for future proofing
 func (s *OrderBlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
 	return s.OrderBlocks[hash], nil
+}
+
+type blockConflictError struct {
+	existing *tradeblocks.AccountBlock
+}
+
+func (e *blockConflictError) Error() string {
+	return fmt.Sprintf("blockstore: conflict with existing block '%s'", e.existing.Hash())
+}
+
+type swapConflictError struct {
+	existing *tradeblocks.SwapBlock
+}
+
+func (e *swapConflictError) Error() string {
+	return fmt.Sprintf("blockstore: conflict with existing block '%s'", e.existing.Hash())
+}
+
+type orderConflictError struct {
+	existing *tradeblocks.OrderBlock
+}
+
+func (e *orderConflictError) Error() string {
+	return fmt.Sprintf("blockstore: conflict with existing block '%s'", e.existing.Hash())
 }

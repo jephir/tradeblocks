@@ -36,9 +36,13 @@ func openSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountB
 
 	s := NewBlockStore()
 	i := tradeblocks.NewIssueBlock(address, 100.0)
-	s.AddBlock(i)
+	if _, err := s.AddBlock(i); err != nil {
+		return nil, nil, nil, err
+	}
 	send := tradeblocks.NewSendBlock(i, address, 100.0)
-	s.AddBlock(send)
+	if _, err := s.AddBlock(send); err != nil {
+		return nil, nil, nil, err
+	}
 
 	pubKeyReader = bytes.NewReader(p)
 	open, errOpen := Open(pubKeyReader, send, 100.0)
@@ -168,7 +172,9 @@ func issueSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 
 	issue, errIssue := Issue(pubKeyReader, 100)
 	s := NewBlockStore()
-	s.AddBlock(issue)
+	if _, err := s.AddBlock(issue); err != nil {
+		return nil, nil, err
+	}
 
 	if errIssue != nil {
 		return new(tradeblocks.AccountBlock), *new(AccountBlockValidator), errIssue
@@ -216,9 +222,13 @@ func sendSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 
 	s := NewBlockStore()
 	i := tradeblocks.NewIssueBlock(address, 100.0)
-	s.AddBlock(i)
+	if _, err := s.AddBlock(i); err != nil {
+		return nil, nil, err
+	}
 	send := tradeblocks.NewSendBlock(i, address, 100.0)
-	s.AddBlock(send)
+	if _, err := s.AddBlock(send); err != nil {
+		return nil, nil, err
+	}
 
 	validator := NewSendValidator(s)
 
@@ -280,12 +290,17 @@ func receiveSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, Accou
 	s := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address, 100.0)
-	s.AddBlock(i)
+	if _, err := s.AddBlock(i); err != nil {
+		return nil, nil, nil, err
+	}
 	send := tradeblocks.NewSendBlock(i, address, 50.0)
-	s.AddBlock(send)
+	if _, err := s.AddBlock(send); err != nil {
+		return nil, nil, nil, err
+	}
 
 	i2 := tradeblocks.NewIssueBlock(address, 100.0)
-	s.AddBlock(i2)
+	if _, err := s.AddBlock(i2); err != nil {
+	}
 
 	receive := tradeblocks.NewReceiveBlock(i2, send, 50)
 
