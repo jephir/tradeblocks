@@ -30,6 +30,18 @@ func ValidateAccountBlock(c AccountBlockchain, b *tb.AccountBlock) error {
 	return v.ValidateAccountBlock(b)
 }
 
+// ValidateSwapBlock returns an error if validation fails for the specified swap block
+func ValidateSwapBlock(c AccountBlockchain, s SwapBlockchain, b *tb.SwapBlock) error {
+	v := NewSwapValidator(c, s)
+	return v.ValidateSwapBlock(b)
+}
+
+// ValidateOrderBlock returns an error if validation fails for the specified Order block
+func ValidateOrderBlock(c AccountBlockchain, o OrderBlockchain, b *tb.OrderBlock) error {
+	v := NewOrderValidator(c, o)
+	return v.ValidateOrderBlock(b)
+}
+
 // AccountBlockValidator to do server validation of each AccountBlock sent in
 // see ../blockgraph.go for details on AccountBlock types
 type AccountBlockValidator interface {
@@ -198,7 +210,7 @@ func NewReceiveValidator(chain AccountBlockchain) *ReceiveBlockValidator {
 	}
 }
 
-// ValidateAccountBlock Validates that an ReceiveBlocks is correctly formatted
+// ValidateAccountBlock Validates that a ReceiveBlock is correctly formatted
 func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
@@ -252,8 +264,17 @@ type SwapBlockValidator struct {
 	orderChain   OrderBlockchain
 }
 
-// ValidateAccountBlock Validates that an SwapBlocks is correctly formatted
-func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) error {
+// NewSwapValidator returns a new validator with the given chain
+func NewSwapValidator(chain AccountBlockchain, swapChain SwapBlockchain) *SwapBlockValidator {
+	return &SwapBlockValidator{
+		accountChain: chain,
+		swapChain:    swapChain,
+		orderChain:   nil,
+	}
+}
+
+// ValidateSwapBlock Validates that a SwapBlocks is correctly formatted
+func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
 	swapChain := validator.swapChain
@@ -282,33 +303,34 @@ func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) er
 	}
 
 	// check if the previous block exists
-	prevBlock, errPrev := swapChain.GetBlock(block.Account, block.ID)
+	prevBlock, errPrev := swapChain.GetSwapBlock(block.Previous)
 
 	// originating block of swap
 	if action == "offer" {
-		if errPrev == nil {
+		fmt.Printf("the prevBlock %v \n", prevBlock)
+		if prevBlock != nil {
 			return errors.New("prev and right must be null together")
 		}
 
 		// check if the send block referenced exists, don't get it if it does
-		_, errLeft := accountChain.GetBlock(block.Left)
-		if errLeft != nil {
+		left, errLeft := accountChain.GetBlock(block.Left)
+		if errLeft != nil || left == nil || left.Action != "send" {
 			return errors.New("link field references invalid block")
 		}
 	} else if action == "commit" { //counterparty block
-		if errPrev != nil || errPrev == nil {
+		if errPrev != nil || prevBlock == nil {
 			return errors.New("previous must be not null")
 		}
 
 		// check if swaps line up
-		if swapAlignment(block, prevBlock) {
+		if swapCommitAlignment(block, prevBlock) {
 			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
 		}
 
 		// check if the send for the original swap exists
-		_, errSendOriginal := accountChain.GetBlock(prevBlock.Left)
-		if errSendOriginal != nil {
-			return errors.New("original send not found")
+		ogSend, errSendOriginal := accountChain.GetBlock(prevBlock.Left)
+		if errSendOriginal != nil || ogSend == nil {
+			return errors.New("originating send not found")
 		}
 
 		// get the send for the second swap
@@ -318,8 +340,8 @@ func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) er
 		}
 
 		// get the sendCounter's prev to determine quantity sent
-		sendCounterPrev, errSendCounterPrev := accountChain.GetBlock(block.Right)
-		if errSendCounterPrev != nil {
+		sendCounterPrev, errSendCounterPrev := accountChain.GetBlock(sendCounter.Previous)
+		if errSendCounterPrev != nil || sendCounterPrev == nil {
 			return errors.New("counter send prev not found")
 		}
 
@@ -328,25 +350,30 @@ func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) er
 		requestedWant := prevBlock.Want
 		counterQuantity := sendCounterPrev.Balance - sendCounter.Balance
 		if requestedWant != sendCounter.Token || requestedQty != counterQuantity {
-			return errors.New("amount requested not sent")
+			return errors.New("amount/token requested not sent")
 		}
 	} else if action == "refund-left" {
-		if errPrev != nil || errPrev == nil {
+		if errPrev != nil || prevBlock == nil {
 			return errors.New("previous must be not null")
 		}
 
 		// check if swaps line up
-		if swapAlignment(block, prevBlock) {
+		if swapRefundLeftAlignment(block, prevBlock) {
 			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
 		}
 
+		sendBlock, errSend := accountChain.GetBlock(prevBlock.Left)
+		if errSend != nil || sendBlock == nil {
+			return errors.New("Originating send is invalid or not found")
+		}
+
 		// make sure RefundLeft is the initiator's account
-		if block.RefundLeft != prevBlock.Account {
+		if block.RefundLeft != sendBlock.Account {
 			return errors.New("Refund must be to initiator's account")
 		}
 
 	} else if action == "refund-right" {
-		if errPrev != nil || errPrev == nil {
+		if errPrev != nil || prevBlock == nil {
 			return errors.New("previous must be not null")
 		}
 
@@ -356,35 +383,53 @@ func (validator SwapBlockValidator) ValidateAccountBlock(block *tb.SwapBlock) er
 		}
 
 		// check if swaps line up
-		if swapAlignment(block, prevBlock) {
+		if swapRefundRightAlignment(block, prevBlock) {
 			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
 		}
 
-		// get the originating send
+		// get the counterparty send
 		send, err := accountChain.GetBlock(block.Right)
-		if err != nil {
-			return err
+		if err != nil || send == nil {
+			return errors.New("counterparty send not found/invalid")
 		}
 
 		// check if the refund is going to right place
-		if send.Account != block.Account {
+		if send.Account != block.RefundRight {
 			return errors.New("Account for refund must be same as original send account")
-		}
-
-		if block.Account != block.RefundRight {
-			return errors.New("Refund right field must be the account to refund")
 		}
 	}
 
 	return nil
 }
 
-// check if all fields beside right and previous lign up
+// check if all fields beside right and previous line up
 // block is the counterparty, prevBlock is the originating
-func swapAlignment(block *tb.SwapBlock, prevBlock *tb.SwapBlock) bool {
+func swapCommitAlignment(block *tb.SwapBlock, prevBlock *tb.SwapBlock) bool {
+	return prevBlock.Account != block.Account || prevBlock.Token != block.Token ||
+		prevBlock.ID != block.ID || prevBlock.Left != block.Left ||
+		prevBlock.RefundLeft != block.RefundLeft || prevBlock.RefundRight != block.RefundRight ||
+		prevBlock.Counterparty != block.Counterparty || prevBlock.Want != block.Want ||
+		prevBlock.Quantity != block.Quantity || prevBlock.Executor != block.Executor ||
+		prevBlock.Fee != block.Fee
+}
+
+// check if all fields beside right and previous line up
+// block is the refund left, prevBlock is the originating
+func swapRefundLeftAlignment(block *tb.SwapBlock, prevBlock *tb.SwapBlock) bool {
 	return prevBlock.Account != block.Account || prevBlock.Token != block.Token ||
 		prevBlock.ID != block.ID || prevBlock.Left != block.Left || prevBlock.Right != block.Right ||
-		prevBlock.RefundLeft != block.RefundLeft || prevBlock.RefundRight != block.RefundRight ||
+		prevBlock.RefundRight != block.RefundRight ||
+		prevBlock.Counterparty != block.Counterparty || prevBlock.Want != block.Want ||
+		prevBlock.Quantity != block.Quantity || prevBlock.Executor != block.Executor ||
+		prevBlock.Fee != block.Fee
+}
+
+// check if all fields beside right and previous line up
+// block is the refund right, prevBlock is the refund left
+func swapRefundRightAlignment(block *tb.SwapBlock, prevBlock *tb.SwapBlock) bool {
+	return prevBlock.Account != block.Account || prevBlock.Token != block.Token ||
+		prevBlock.ID != block.ID || prevBlock.Left != block.Left ||
+		prevBlock.RefundLeft != block.RefundLeft ||
 		prevBlock.Counterparty != block.Counterparty || prevBlock.Want != block.Want ||
 		prevBlock.Quantity != block.Quantity || prevBlock.Executor != block.Executor ||
 		prevBlock.Fee != block.Fee
@@ -397,8 +442,17 @@ type OrderBlockValidator struct {
 	orderChain   OrderBlockchain
 }
 
-// ValidateAccountBlock Validates that an OrderBlocks is correctly formatted
-func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock) error {
+// NewOrderValidator returns a new validator with the given chain
+func NewOrderValidator(chain AccountBlockchain, orderChain OrderBlockchain) *OrderBlockValidator {
+	return &OrderBlockValidator{
+		accountChain: chain,
+		swapChain:    nil,
+		orderChain:   orderChain,
+	}
+}
+
+// ValidateOrderBlock Validates that an OrderBlocks is correctly formatted
+func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
 	orderChain := validator.orderChain
@@ -426,14 +480,15 @@ func (validator OrderBlockValidator) ValidateAccountBlock(block *tb.OrderBlock) 
 	}
 
 	// check if the previous block exists
-	_, errPrev := orderChain.GetBlock(block.Account, block.ID)
+	addressPair := addressPrefix + block.Account + ":" + block.ID
+	_, errPrev := orderChain.GetOrderBlock(addressPair)
 	if errPrev != nil {
 		return errPrev
 	}
 
 	// check if the originating send exists
-	_, errSend := accountChain.GetBlock(block.Link)
-	if errSend != nil {
+	ogSend, errSend := accountChain.GetBlock(block.Link)
+	if errSend != nil || ogSend == nil {
 		return errSend
 	}
 
@@ -448,12 +503,12 @@ func addressToRsaKey(hash string) (*rsa.PublicKey, error) {
 	}
 	block, _ := pem.Decode(publicKeyBytes)
 	if block == nil {
-		panic("failed to parse PEM block containing the public key")
+		return nil, errors.New("failed to parse PEM block containing the public key")
 	}
 
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		panic("failed to parse DER encoded public key: " + err.Error())
+		return nil, errors.New("failed to parse DER encoded public key: " + err.Error())
 	}
 	switch pub := pub.(type) {
 	case *rsa.PublicKey:

@@ -234,6 +234,90 @@ func (ab *SwapBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 	return nil
 }
 
+// NewOfferBlock is the originating swap
+func NewOfferBlock(account string, send *AccountBlock, ID string, counterparty string, want string, quantity float64, executor string, fee float64) *SwapBlock {
+	return &SwapBlock{
+		Action:       "offer",
+		Account:      account,
+		Token:        send.Token,
+		ID:           ID,
+		Previous:     "",
+		Left:         send.Hash(),
+		Right:        "",
+		RefundLeft:   "",
+		RefundRight:  "",
+		Counterparty: counterparty,
+		Want:         want,
+		Quantity:     quantity,
+		Executor:     executor,
+		Fee:          fee,
+		Signature:    "",
+	}
+}
+
+// NewCommitBlock is the committing swap
+func NewCommitBlock(send *AccountBlock, previous *SwapBlock) *SwapBlock {
+	return &SwapBlock{
+		Action:       "commit",
+		Account:      previous.Account,
+		Token:        previous.Token,
+		ID:           previous.ID,
+		Previous:     previous.Hash(),
+		Left:         previous.Left,
+		Right:        send.Hash(),
+		RefundLeft:   "",
+		RefundRight:  "",
+		Counterparty: previous.Counterparty,
+		Want:         previous.Want,
+		Quantity:     previous.Quantity,
+		Executor:     previous.Executor,
+		Fee:          previous.Fee,
+		Signature:    "",
+	}
+}
+
+// NewRefundLeftBlock refunds the left. Previous should be the offer block
+func NewRefundLeftBlock(previous *SwapBlock, refundTo string) *SwapBlock {
+	return &SwapBlock{
+		Action:       "refund-left",
+		Account:      previous.Account,
+		Token:        previous.Token,
+		ID:           previous.ID,
+		Previous:     previous.Hash(),
+		Left:         previous.Left,
+		Right:        "",
+		RefundLeft:   refundTo,
+		RefundRight:  previous.RefundRight,
+		Counterparty: previous.Counterparty,
+		Want:         previous.Want,
+		Quantity:     previous.Quantity,
+		Executor:     previous.Executor,
+		Fee:          previous.Fee,
+		Signature:    "",
+	}
+}
+
+// NewRefundRightBlock refunds the left. Previous should be the commit block
+func NewRefundRightBlock(refundLeft *SwapBlock, counterSend *AccountBlock, refundTo string) *SwapBlock {
+	return &SwapBlock{
+		Action:       "refund-right",
+		Account:      refundLeft.Account,
+		Token:        refundLeft.Token,
+		ID:           refundLeft.ID,
+		Previous:     refundLeft.Hash(),
+		Left:         refundLeft.Left,
+		Right:        counterSend.Hash(),
+		RefundLeft:   refundLeft.Account,
+		RefundRight:  refundTo,
+		Counterparty: refundLeft.Counterparty,
+		Want:         refundLeft.Want,
+		Quantity:     refundLeft.Quantity,
+		Executor:     refundLeft.Executor,
+		Fee:          refundLeft.Fee,
+		Signature:    "",
+	}
+}
+
 // OrderBlock represents a block in the order blockchain
 type OrderBlock struct {
 	Action    string
