@@ -50,7 +50,6 @@ func (s *Server) routes() {
 	s.mux.Handle("/accounts", s.accountStream)
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
-	s.mux.Handle("/ui", http.StripPrefix("/ui/", http.FileServer(http.Dir("web/public"))))
 }
 
 func (s *Server) handleAccountBlock() http.HandlerFunc {

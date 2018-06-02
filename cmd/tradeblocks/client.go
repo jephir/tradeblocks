@@ -170,11 +170,6 @@ func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, 
 	defer publicKey.Close()
 	defer privateKey.Close()
 
-	// Check if we've already created a receive for the linked send, true if
-	if c.alreadyLinked(link) {
-		return nil, errors.New("open with the specified send already exists")
-	}
-
 	// get the linked send
 	send, err := c.getBlock(link)
 	if err != nil {
@@ -207,11 +202,6 @@ func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock
 	}
 	defer publicKey.Close()
 	defer privateKey.Close()
-
-	// Check if we've already created a receive for the linked send, true if
-	if c.alreadyLinked(link) {
-		return nil, errors.New("receive with the specified send already exists")
-	}
 
 	// get the linked send
 	send, err := c.getBlock(link)
@@ -303,18 +293,6 @@ func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 		Balance:        100,
 		Link:           "",
 	}, nil
-}
-
-// in that case, you can add a param for your validator factory that receives the BlockStore
-// move it to the validator
-func (c *client) alreadyLinked(hash string) bool {
-	// Todo, get the blockstore from the client
-	fmt.Printf("the blockstore is %v \n", c.store)
-	block, err := c.store.GetBlock(hash)
-	if err != nil || block == nil {
-		return true
-	}
-	return false
 }
 
 func parsePrivateKey(r io.Reader) (*rsa.PrivateKey, error) {

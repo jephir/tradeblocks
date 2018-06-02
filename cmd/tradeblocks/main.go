@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/jephir/tradeblocks/node"
 	"net/http"
 	"os"
+
+	"github.com/jephir/tradeblocks/node"
 )
 
 const addr = "localhost:8080"
