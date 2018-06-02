@@ -11,7 +11,7 @@ export default function DrawBlocks(props) {
 
     const blockText = blocks.map((block) => {
         return (
-            <div key={block.Previous}>
+            <div key={block.Hash}>
                 <ReactJson src={block} />
             </div>
         )

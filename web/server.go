@@ -59,34 +59,43 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 			hash := r.FormValue("hash")
 			block, err := s.service.getBlock(hash)
 			if err != nil {
+				log.Printf("error in handleAccountBlock GET1: %v Couldn't get block. \n")
 				http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
 				return
 			}
 			if block == nil {
+				log.Printf("error in handleAccountBlock GET2: No block found. \n")
 				http.Error(w, "No block found.", http.StatusBadRequest)
 				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
+				log.Printf("error in handleAccountBlock GET3: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		case "POST":
+			log.Printf("received a new block to add!\n")
 			var b tradeblocks.AccountBlock
 			if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+				log.Printf("error in handleAccountBlock POST1: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			log.Printf("block is %v\n", &b)
 			if _, err := s.service.addBlock(&b); err != nil {
+				log.Printf("error in handleAccountBlock POST2: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			if err := json.NewEncoder(w).Encode(b); err != nil {
+				log.Printf("error in handleAccountBlock POST3: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			// ss, _ := app.SerializeAccountBlock(&b)
 			//log.Printf("web: added block %s: %s", b.Hash(), ss)
 		default:
+			log.Printf("error in handleAccountBlock default \n")
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
 	}
@@ -101,10 +110,12 @@ func (s *Server) handleBlocks() http.HandlerFunc {
 				result[r.hash] = r.block
 			}
 			if err := json.NewEncoder(w).Encode(result); err != nil {
+				log.Printf("error in handleBlocks get: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		default:
+			log.Printf("error in handleBlocks default\n")
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
 	}

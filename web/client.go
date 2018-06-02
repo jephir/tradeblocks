@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/jephir/tradeblocks/app"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+
+	"github.com/jephir/tradeblocks/app"
 
 	"github.com/jephir/tradeblocks"
 )
@@ -75,7 +77,8 @@ func (c *Client) newRequest(method, path string, body io.Reader) (r *http.Reques
 
 func (c *Client) checkResponse(res *http.Response) error {
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d", res.StatusCode)
+		errBody, _ := ioutil.ReadAll(res.Body)
+		return fmt.Errorf("unexpected status code %d\nError is:\n %s", res.StatusCode, errBody)
 	}
 	return nil
 }
