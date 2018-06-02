@@ -8,6 +8,8 @@ import (
 	"encoding/pem"
 	"io/ioutil"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/jephir/tradeblocks"
@@ -82,6 +84,12 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 	if node2.store.AccountBlocks[h3] == nil {
 		t.Fatalf("N2 missing new block %s", h3)
+	}
+
+	// Ensure that the new block is persisted
+	dir := node2.storage.Dir()
+	if _, err := os.Stat(filepath.Join(dir, h3)); os.IsNotExist(err) {
+		t.Fatalf("N2 didn't persist block %s", h3)
 	}
 }
 

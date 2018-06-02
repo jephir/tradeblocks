@@ -100,6 +100,10 @@ func (n *Node) accountChangeHandler() app.AccountChangeListener {
 		n.mu.Lock()
 		defer n.mu.Unlock()
 
+		if err := n.storage.SaveBlock(hash, b); err != nil {
+			log.Printf("node: couldn't save block '%s': %s", hash, err.Error())
+		}
+
 		// Send block to account listeners
 		if err := n.server.BroadcastAccountBlock(b); err != nil {
 			log.Printf("node: couldn't broadcast account block: %s", err.Error())

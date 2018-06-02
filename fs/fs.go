@@ -31,14 +31,15 @@ func (s *BlockStorage) Save() error {
 	}
 	// Serialize each block and write it to the directory
 	for hash, block := range s.blockstore.AccountBlocks {
-		if err := s.saveBlock(hash, block); err != nil {
+		if err := s.SaveBlock(hash, block); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *BlockStorage) saveBlock(hash string, block *tradeblocks.AccountBlock) error {
+// SaveBlock saves the specified block with the specified hash to the filesystem
+func (s *BlockStorage) SaveBlock(hash string, block *tradeblocks.AccountBlock) error {
 	p := filepath.Join(s.dir, hash)
 	f, err := os.Create(p)
 	if err != nil {
@@ -78,4 +79,9 @@ func (s *BlockStorage) loadBlock(hash string) error {
 	}
 	s.blockstore.AccountBlocks[hash] = &b
 	return nil
+}
+
+// Dir returns the working directory of this storage
+func (s *BlockStorage) Dir() string {
+	return s.dir
 }
