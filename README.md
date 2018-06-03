@@ -10,7 +10,13 @@ $ go install -i github.com/jephir/tradeblocks/cmd/tradeblocks
 
 ## Demo
 
-1.  Create a user `alice` and a new token `apple-coin` with 1000 tokens.
+1.  Start the node server.
+
+```sh
+$ tradeblocks node
+```
+
+2.  Create a user `alice` and a new token `apple-coin` with 1000 tokens.
 
 ```sh
 $ XTB_ALICE="$(tradeblocks register alice)"
@@ -19,7 +25,7 @@ $ tradeblocks login apple-coin
 $ tradeblocks issue 1000
 ```
 
-2.  Send 50 `apple-coin` tokens to `alice`.
+3.  Send 50 `apple-coin` tokens to `alice`.
 
 ```sh
 $ XTB_SEND="$(tradeblocks send $XTB_ALICE $XTB_APPLE_COIN 50)"
@@ -27,7 +33,7 @@ $ tradeblocks login alice
 $ tradeblocks receive $XTB_SEND
 ```
 
-3.  Create a new token `banana-coin` with 2000 tokens. Then, offer to trade 25 `banana-coin` for 50 `apple-coin` with `alice`. Finally, accept the trade as `alice`.
+4.  Create a new token `banana-coin` with 2000 tokens. Then, offer to trade 25 `banana-coin` for 50 `apple-coin` with `alice`. Finally, accept the trade as `alice`.
 
 ```sh
 $ XTB_BANANA_COIN="$(tradeblocks register banana-coin)"
@@ -43,17 +49,21 @@ $ go test -v ./...
 ```
 
 ## Web Servers
+
 Need both of the following running:
-1. Blockchain server
+
+1.  Blockchain server
+
 ```
 $ tradeblocks node
 ```
-2. React server
+
+2.  React server
+
 ```
 $ cd web
 $ npm start
 ```
-
 
 ## Authors
 
