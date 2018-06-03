@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -168,5 +169,19 @@ func (s *service) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 func (s *service) addBlock(block *tradeblocks.AccountBlock) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.blockstore.AddBlock(block)
+	hash, err := s.blockstore.AddBlock(block)
+	if _, ok := err.(*app.BlockConflictError); ok {
+		var highest int
+		var hash string
+		for _, vote := range s.blockstore.VoteBlocks {
+			if vote.Order > highest {
+				highest = vote.Order
+				hash = vote.Link
+			}
+		}
+		if hash != block.Hash() {
+			return "", fmt.Errorf("server: specified block '%s' is purged", block.Hash())
+		}
+	}
+	return hash, err
 }

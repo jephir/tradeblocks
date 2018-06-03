@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
 	"github.com/jephir/tradeblocks/fs"
@@ -113,26 +114,40 @@ func (n *Node) accountChangeHandler() app.AccountChangeListener {
 		if _, found := n.seenAccountBlocks[hash]; !found {
 			n.seenAccountBlocks[hash] = struct{}{}
 			for address := range n.peers {
-				c := web.NewClient(address)
-				r, err := c.NewPostAccountRequest(b)
-				if err != nil {
-					log.Print(err)
-					continue
-				}
-				//ss, _ := app.SerializeAccountBlock(b)
-				//log.Printf("node: sending %s to %s: %s", hash, address, ss)
-				res, err := n.client.Do(r)
-				if err != nil {
-					log.Print(err)
-					continue
-				}
-				if res.StatusCode != http.StatusOK {
-					log.Printf("node: unexpected status code %d", res.StatusCode)
-					continue
+				if err := n.broadcastAccountBlock(address, b); err != nil {
+					log.Println(err.Error())
 				}
 			}
 		}
 	}
+}
+
+func (n *Node) broadcastAccountBlock(address string, b *tradeblocks.AccountBlock) error {
+	c := web.NewClient(address)
+	r, err := c.NewPostAccountRequest(b)
+	if err != nil {
+		return err
+	}
+	//ss, _ := app.SerializeAccountBlock(b)
+	//log.Printf("node: sending %s to %s: %s", hash, address, ss)
+	res, err := n.client.Do(r)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("node: unexpected status code %d", res.StatusCode)
+	}
+	return nil
+}
+
+func (n *Node) broadcastVote(address string, b *tradeblocks.AccountBlock) error {
+	// v := &tradeblocks.VoteBlock{
+	// 	Account: b.Account,
+	// 	Link: b.Hash(),
+	// 	Order: 0,
+	// 	Signature: "",
+	// }
+	return nil
 }
 
 // Sync flushes all unbroadcasted blocks to known peers

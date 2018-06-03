@@ -12,10 +12,14 @@ type AccountBlocksMap map[string]*tradeblocks.AccountBlock
 // AccountChangeListener is called whenever an account block is added or changed
 type AccountChangeListener func(hash string, b *tradeblocks.AccountBlock)
 
+// VoteBlocksMap maps block hashes to vote blocks
+type VoteBlocksMap map[string]*tradeblocks.VoteBlock
+
 // BlockStore stores all of the local blockchains
 type BlockStore struct {
 	AccountChangeListener AccountChangeListener
 	AccountBlocks         AccountBlocksMap
+	VoteBlocks            VoteBlocksMap
 }
 
 // NewBlockStore allocates and returns a new BlockStore
@@ -47,7 +51,7 @@ func (s *BlockStore) checkConflict(b *tradeblocks.AccountBlock) error {
 	}
 	for _, block := range s.AccountBlocks {
 		if block.Previous == b.Previous {
-			return &blockConflictError{block}
+			return &BlockConflictError{block}
 		}
 	}
 	return nil
@@ -165,11 +169,11 @@ func (s *OrderBlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, e
 	return s.OrderBlocks[hash], nil
 }
 
-type blockConflictError struct {
+type BlockConflictError struct {
 	existing *tradeblocks.AccountBlock
 }
 
-func (e *blockConflictError) Error() string {
+func (e *BlockConflictError) Error() string {
 	return fmt.Sprintf("blockstore: conflict with existing block '%s'", e.existing.Hash())
 }
 
