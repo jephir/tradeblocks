@@ -107,7 +107,8 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	// check if the balances match
 	sendBalance := sendBlockPrev.Balance - sendBlock.Balance
 	if sendBalance != block.Balance {
-		return errors.New("balance does not match")
+		//return errors.New("balance does not match")
+		return fmt.Errorf("balance expected %f; got %f", block.Balance, sendBalance)
 	}
 
 	// check the send block references the right key pair

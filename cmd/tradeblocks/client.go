@@ -148,7 +148,7 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 	return send, nil
 }
 
-func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, error) {
+func (c *client) open(link string) (*tradeblocks.AccountBlock, error) {
 	// get the keys
 	publicKey, err := c.openPublicKey()
 	if err != nil {
@@ -171,6 +171,11 @@ func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, 
 	if err != nil {
 		return nil, err
 	}
+	sendParent, err := c.getBlock(send.Previous)
+	if err != nil {
+		return nil, err
+	}
+	balance := sendParent.Balance - send.Balance
 
 	// create the Open
 	open, err := app.Open(publicKey, send, balance)
@@ -190,7 +195,7 @@ func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, 
 	return open, nil
 }
 
-func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock, error) {
+func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 	// get the keys
 	publicKey, err := c.openPublicKey()
 	if err != nil {
@@ -213,6 +218,11 @@ func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock
 	if err != nil {
 		return nil, err
 	}
+	sendParent, err := c.getBlock(send.Previous)
+	if err != nil {
+		return nil, err
+	}
+	balance := sendParent.Balance - send.Balance
 
 	// get the previous block on this chain
 	previous, err := c.getHeadBlock(publicKey, send.Token)
@@ -221,7 +231,7 @@ func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock
 	}
 
 	// create the receive
-	receive, err := app.Receive(publicKey, previous, send, amount)
+	receive, err := app.Receive(publicKey, previous, send, balance)
 	if err != nil {
 		return nil, err
 	}
@@ -331,10 +341,14 @@ func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
 // in that case, you can add a param for your validator factory that receives the BlockStore
 // move it to the validator
 func (c *client) alreadyLinked(hash string) bool {
-	block, err := c.getBlock(hash)
-	if err != nil || block == nil {
-		return true
-	}
+	// TODO the check needs to be done on the node by iterating over all the existing
+	// blocks. if the block specifies the same
+	// link as the specified hash, then it's already linked
+
+	// block, err := c.getBlock(hash)
+	// if err != nil || block == nil {
+	// 	return true
+	// }
 	return false
 }
 

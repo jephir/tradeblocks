@@ -30,7 +30,7 @@ $ tradeblocks issue 1000
 ```sh
 $ XTB_SEND="$(tradeblocks send $XTB_ALICE $XTB_APPLE_COIN 50)"
 $ tradeblocks login alice
-$ tradeblocks receive $XTB_SEND
+$ tradeblocks open $XTB_SEND
 ```
 
 4.  Create a new token `banana-coin` with 2000 tokens. Then, offer to trade 25 `banana-coin` for 50 `apple-coin` with `alice`. Finally, accept the trade as `alice`.

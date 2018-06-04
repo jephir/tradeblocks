@@ -69,7 +69,7 @@ func (cli *cli) dispatch(args []string) error {
 	case "open":
 		goodInputs, addInfo := openInputValidation(args)
 		if goodInputs {
-			block, err = cmd.open(args[2], 0 /* TODO Calculate amount from chain */)
+			block, err = cmd.open(args[2])
 			if err != nil {
 				return err
 			}
@@ -79,7 +79,7 @@ func (cli *cli) dispatch(args []string) error {
 	case "receive":
 		goodInputs, addInfo := receiveInputValidation(args)
 		if goodInputs {
-			block, err = cmd.receive(args[2], 0 /* TODO Calculate amount from chain */)
+			block, err = cmd.receive(args[2])
 			if err != nil {
 				return err
 			}

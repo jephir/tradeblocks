@@ -175,6 +175,7 @@ func TestDemo(t *testing.T) {
 		t.Fatal(err)
 	}
 	xtbAppleCoinStr := xtbAppleCoin.String()
+	c.out = ioutil.Discard
 	if err := c.dispatch([]string{"tradeblocks", "login", "apple-coin"}); err != nil {
 		t.Fatal(err)
 	}
@@ -184,13 +185,14 @@ func TestDemo(t *testing.T) {
 
 	xtbSend := &bytes.Buffer{}
 	c.out = xtbSend
-	if err := c.dispatch([]string{"tradeblocks", "send", xtbAliceStr, xtbAppleCoin.String(), "50"}); err != nil {
+	if err := c.dispatch([]string{"tradeblocks", "send", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
 		t.Fatal(err)
 	}
+	c.out = ioutil.Discard
 	if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.dispatch([]string{"tradeblocks", "receive", xtbSend.String()}); err != nil {
+	if err := c.dispatch([]string{"tradeblocks", "open", xtbSend.String()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -204,6 +206,7 @@ func TestDemo(t *testing.T) {
 	if err := c.dispatch([]string{"tradeblocks", "trade", xtbBananaCoin.String(), "25", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
 		t.Fatal(err)
 	}
+	c.out = ioutil.Discard
 	if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
 		t.Fatal(err)
 	}

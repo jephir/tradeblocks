@@ -66,7 +66,7 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 				return
 			}
 			if block == nil {
-				http.Error(w, "No block found.", http.StatusBadRequest)
+				http.Error(w, "No block found for '"+hash+"'", http.StatusBadRequest)
 				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
@@ -99,13 +99,24 @@ func (s *Server) handleAccountHead() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		account := r.FormValue("account")
 		token := r.FormValue("token")
+
+		// fmt.Println("'" + account + ":" + token + "'")
+		// for a := range s.service.blockstore.AccountHeads {
+		// 	fmt.Println("'" + a + "'")
+		// 	if a == account+":"+token {
+		// 		fmt.Println("MATCH")
+		// 	} else {
+		// 		fmt.Println("MISS")
+		// 	}
+		// }
+
 		block, err := s.service.getHeadBlock(account, token)
 		if err != nil {
 			http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
 			return
 		}
 		if block == nil {
-			http.Error(w, "No block found.", http.StatusBadRequest)
+			http.Error(w, "No head found for account '"+account+"' and token '"+token+"'", http.StatusBadRequest)
 		}
 		if err := json.NewEncoder(w).Encode(block); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

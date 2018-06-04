@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"github.com/jephir/tradeblocks/app"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/jephir/tradeblocks"
 )
@@ -65,6 +67,7 @@ func (c *Client) DecodeGetBlocksResponse(res *http.Response) (result app.Account
 
 // NewGetAccountBlockRequest returns an http.Request to get an account block by hash
 func (c *Client) NewGetAccountBlockRequest(hash string) (r *http.Request, err error) {
+	hash = strings.TrimSpace(hash)
 	r, err = c.newRequest("GET", "/account", nil)
 	if err != nil {
 		return
@@ -85,6 +88,8 @@ func (c *Client) DecodeGetAccountBlockResponse(res *http.Response, result *trade
 
 // NewGetAccountHeadRequest returns an http.Request to get the head of an account-token chain
 func (c *Client) NewGetAccountHeadRequest(account, token string) (r *http.Request, err error) {
+	account = strings.TrimSpace(account)
+	token = strings.TrimSpace(token)
 	r, err = c.newRequest("GET", "/head", nil)
 	if err != nil {
 		return
@@ -116,7 +121,11 @@ func (c *Client) newRequest(method, path string, body io.Reader) (r *http.Reques
 
 func (c *Client) checkResponse(res *http.Response) error {
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d", res.StatusCode)
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("client: unexpected status code %d: %s", res.StatusCode, string(b))
 	}
 	return nil
 }

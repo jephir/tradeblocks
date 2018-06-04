@@ -139,7 +139,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	send.Balance = 51
 
 	err = validator.ValidateAccountBlock(open)
-	expectedError = "balance does not match"
+	expectedError = "balance expected 100.000000; got 49.000000"
 	if err == nil || err.Error() != expectedError {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
