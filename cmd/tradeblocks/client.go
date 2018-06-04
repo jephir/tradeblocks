@@ -367,6 +367,7 @@ func parsePrivateKey(r io.Reader) (*rsa.PrivateKey, error) {
 }
 
 func sign(privateKey io.Reader, b *tradeblocks.AccountBlock) error {
+	b.Normalize()
 	priv, err := parsePrivateKey(privateKey)
 	if err != nil {
 		return err

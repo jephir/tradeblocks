@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"strings"
 	"testing"
 
 	"github.com/jephir/tradeblocks"
@@ -152,8 +153,8 @@ func TestOpenBlockValidator(t *testing.T) {
 	send.Link = "WRONG_ACCOUNT"
 
 	err = validator.ValidateAccountBlock(open)
-	expectedError = "send block does not reference this account"
-	if err == nil || err.Error() != expectedError {
+	expectedError = "send link 'WRONG_ACCOUNT' does not reference account"
+	if err == nil || !strings.Contains(err.Error(), expectedError) {
 		t.Errorf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 }

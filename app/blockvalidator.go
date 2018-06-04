@@ -113,7 +113,7 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 
 	// check the send block references the right key pair
 	if sendBlock.Link != block.Account {
-		return errors.New("send block does not reference this account")
+		return fmt.Errorf("send link '%s' does not reference account '%s'", sendBlock.Link, block.Account)
 	}
 
 	return nil
