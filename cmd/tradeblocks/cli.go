@@ -3,12 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"strconv"
 
 	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
-	"github.com/jephir/tradeblocks/web"
 )
 
 type cli struct {
@@ -23,14 +20,7 @@ func (cli *cli) dispatch(args []string) error {
 	var block *tradeblocks.AccountBlock
 	var err error
 
-	store := app.NewBlockStore()
-	c := web.NewClient(cli.serverURL)
-	cmd := newClient(store, cli.dataDir, cli.keySize)
-
-	if err := cmd.init(); err != nil {
-		return err
-	}
-
+	cmd := newClient(cli.dataDir, cli.serverURL, cli.keySize)
 	switch command {
 	case "register":
 		goodInputs, addInfo := registerInputValidation(args)
@@ -102,23 +92,8 @@ func (cli *cli) dispatch(args []string) error {
 	}
 
 	if block != nil {
-		req, err := c.NewPostAccountRequest(block)
-		if err != nil {
-			return err
-		}
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return err
-		}
-
-		result, err := c.DecodeAccountResponse(res)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(cli.out, result.Hash())
+		fmt.Fprintln(cli.out, block.Hash())
 	}
 
-	return cmd.save()
+	return nil
 }

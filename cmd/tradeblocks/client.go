@@ -6,49 +6,32 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/jephir/tradeblocks/web"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
-	"github.com/jephir/tradeblocks/fs"
 )
 
 type client struct {
 	dir     string
 	keySize int
-
-	store   *app.BlockStore
-	storage *fs.BlockStorage
+	api     *web.Client
+	http    *http.Client
 }
 
-func newClient(store *app.BlockStore, dir string, keySize int) *client {
-	c := &client{
+func newClient(dir, host string, keySize int) *client {
+	return &client{
 		dir:     dir,
 		keySize: keySize,
-		store:   store,
+		api:     web.NewClient(host),
+		http:    &http.Client{},
 	}
-	c.storage = fs.NewBlockStorage(store, c.blocksDir())
-	return c
-}
-
-func (c *client) init() error {
-	if err := os.MkdirAll(c.blocksDir(), 0700); err != nil {
-		return err
-	}
-
-	return c.storage.Load()
-}
-
-func (c *client) save() error {
-	return c.storage.Save()
-}
-
-func (c *client) blocksDir() string {
-	return filepath.Join(c.dir, "blocks")
 }
 
 func (c *client) badInputs(funcName string, additionalInfo string) error {
@@ -122,6 +105,10 @@ func (c *client) issue(balance float64) (*tradeblocks.AccountBlock, error) {
 		return nil, err
 	}
 
+	if err := c.postAccountBlock(issue); err != nil {
+		return nil, err
+	}
+
 	return issue, nil
 }
 
@@ -151,6 +138,10 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 
 	// add the signature
 	if err := sign(privateKey, send); err != nil {
+		return nil, err
+	}
+
+	if err := c.postAccountBlock(send); err != nil {
 		return nil, err
 	}
 
@@ -189,6 +180,10 @@ func (c *client) open(link string, balance float64) (*tradeblocks.AccountBlock, 
 
 	// add the signature
 	if err := sign(privateKey, open); err != nil {
+		return nil, err
+	}
+
+	if err := c.postAccountBlock(open); err != nil {
 		return nil, err
 	}
 
@@ -236,6 +231,10 @@ func (c *client) receive(link string, amount float64) (*tradeblocks.AccountBlock
 		return nil, err
 	}
 
+	if err := c.postAccountBlock(receive); err != nil {
+		return nil, err
+	}
+
 	return receive, nil
 }
 
@@ -280,37 +279,59 @@ func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.A
 	if err != nil {
 		return nil, err
 	}
-	// TODO Get the block from the server
-	return &tradeblocks.AccountBlock{
-		Action:         "open",
-		Account:        address,
-		Token:          token,
-		Previous:       "",
-		Representative: "",
-		Balance:        100,
-		Link:           "",
-	}, nil
+	r, err := c.api.NewGetAccountHeadRequest(address, token)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	var result tradeblocks.AccountBlock
+	if err := c.api.DecodeGetAccountHeadResponse(res, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	// TODO Get the block from the server
-	return &tradeblocks.AccountBlock{
-		Action:         "open",
-		Account:        "xtb:test",
-		Token:          "xtb:testtoken",
-		Previous:       "",
-		Representative: "",
-		Balance:        100,
-		Link:           "",
-	}, nil
+	r, err := c.api.NewGetAccountBlockRequest(hash)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	var result tradeblocks.AccountBlock
+	if err := c.api.DecodeGetAccountHeadResponse(res, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
+	req, err := c.api.NewPostAccountRequest(b)
+	if err != nil {
+		return err
+	}
+
+	res, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if _, err := c.api.DecodeAccountResponse(res); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // in that case, you can add a param for your validator factory that receives the BlockStore
 // move it to the validator
 func (c *client) alreadyLinked(hash string) bool {
-	// Todo, get the blockstore from the client
-	fmt.Printf("the blockstore is %v \n", c.store)
-	block, err := c.store.GetBlock(hash)
+	block, err := c.getBlock(hash)
 	if err != nil || block == nil {
 		return true
 	}

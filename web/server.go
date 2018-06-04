@@ -50,6 +50,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.mux.Handle("/accounts", s.accountStream)
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
+	s.mux.HandleFunc("/head", s.handleAccountHead())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
 	s.mux.Handle("/ui", http.StripPrefix("/ui/", http.FileServer(http.Dir("web/public"))))
 }
@@ -90,6 +91,25 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 			//log.Printf("web: added block %s: %s", b.Hash(), ss)
 		default:
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func (s *Server) handleAccountHead() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		account := r.FormValue("account")
+		token := r.FormValue("token")
+		block, err := s.service.getHeadBlock(account, token)
+		if err != nil {
+			http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
+			return
+		}
+		if block == nil {
+			http.Error(w, "No block found.", http.StatusBadRequest)
+		}
+		if err := json.NewEncoder(w).Encode(block); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -164,6 +184,12 @@ func (s *service) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.blockstore.GetBlock(hash)
+}
+
+func (s *service) getHeadBlock(account, token string) (*tradeblocks.AccountBlock, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.blockstore.GetHeadBlock(account, token)
 }
 
 func (s *service) addBlock(block *tradeblocks.AccountBlock) (string, error) {

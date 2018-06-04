@@ -9,6 +9,9 @@ import (
 // AccountBlocksMap maps block hashes to account blocks
 type AccountBlocksMap map[string]*tradeblocks.AccountBlock
 
+// AccountTokenHeadMap maps an 'account:token' string to their head block
+type AccountTokenHeadMap map[string]*tradeblocks.AccountBlock
+
 // AccountChangeListener is called whenever an account block is added or changed
 type AccountChangeListener func(hash string, b *tradeblocks.AccountBlock)
 
@@ -19,6 +22,7 @@ type VoteBlocksMap map[string]*tradeblocks.VoteBlock
 type BlockStore struct {
 	AccountChangeListener AccountChangeListener
 	AccountBlocks         AccountBlocksMap
+	AccountHeads          AccountTokenHeadMap
 	VoteBlocks            VoteBlocksMap
 }
 
@@ -26,6 +30,8 @@ type BlockStore struct {
 func NewBlockStore() *BlockStore {
 	return &BlockStore{
 		AccountBlocks: make(AccountBlocksMap),
+		AccountHeads:  make(AccountTokenHeadMap),
+		VoteBlocks:    make(VoteBlocksMap),
 	}
 }
 
@@ -39,6 +45,7 @@ func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
 	}
 	h := b.Hash()
 	s.AccountBlocks[h] = b
+	s.AccountHeads[s.accountHeadKey(b.Account, b.Token)] = b
 	if s.AccountChangeListener != nil {
 		s.AccountChangeListener(h, b)
 	}
@@ -61,6 +68,15 @@ func (s *BlockStore) checkConflict(b *tradeblocks.AccountBlock) error {
 // error return added for future proofing
 func (s *BlockStore) GetBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	return s.AccountBlocks[hash], nil
+}
+
+// GetHeadBlock returns the head block for the specified account-token blockchain
+func (s *BlockStore) GetHeadBlock(account, token string) (*tradeblocks.AccountBlock, error) {
+	return s.AccountHeads[s.accountHeadKey(account, token)], nil
+}
+
+func (s *BlockStore) accountHeadKey(account, token string) string {
+	return account + ":" + token
 }
 
 // SwapBlocksMap maps block hashes to Swap blocks
@@ -169,6 +185,7 @@ func (s *OrderBlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, e
 	return s.OrderBlocks[hash], nil
 }
 
+// BlockConflictError represents a conflict (multiple parent claim)
 type BlockConflictError struct {
 	existing *tradeblocks.AccountBlock
 }

@@ -63,6 +63,47 @@ func (c *Client) DecodeGetBlocksResponse(res *http.Response) (result app.Account
 	return
 }
 
+// NewGetAccountBlockRequest returns an http.Request to get an account block by hash
+func (c *Client) NewGetAccountBlockRequest(hash string) (r *http.Request, err error) {
+	r, err = c.newRequest("GET", "/account", nil)
+	if err != nil {
+		return
+	}
+	q := r.URL.Query()
+	q.Add("hash", hash)
+	r.URL.RawQuery = q.Encode()
+	return
+}
+
+// DecodeGetAccountBlockResponse returns the result of a GetAccountHead request
+func (c *Client) DecodeGetAccountBlockResponse(res *http.Response, result *tradeblocks.AccountBlock) error {
+	if err := c.checkResponse(res); err != nil {
+		return err
+	}
+	return json.NewDecoder(res.Body).Decode(result)
+}
+
+// NewGetAccountHeadRequest returns an http.Request to get the head of an account-token chain
+func (c *Client) NewGetAccountHeadRequest(account, token string) (r *http.Request, err error) {
+	r, err = c.newRequest("GET", "/head", nil)
+	if err != nil {
+		return
+	}
+	q := r.URL.Query()
+	q.Add("account", account)
+	q.Add("token", token)
+	r.URL.RawQuery = q.Encode()
+	return
+}
+
+// DecodeGetAccountHeadResponse returns the result of a GetAccountHead request
+func (c *Client) DecodeGetAccountHeadResponse(res *http.Response, result *tradeblocks.AccountBlock) error {
+	if err := c.checkResponse(res); err != nil {
+		return err
+	}
+	return json.NewDecoder(res.Body).Decode(result)
+}
+
 func (c *Client) newRequest(method, path string, body io.Reader) (r *http.Request, err error) {
 	u, err := url.Parse(c.base)
 	if err != nil {
