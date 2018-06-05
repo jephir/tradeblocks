@@ -34,7 +34,7 @@ export default class AccountsController extends Component {
 
     render() {
         return (
-            <AccountsView accounts={this.state.accounts} allBlocks={this.state.demoBlocks}
+            <AccountsView accounts={this.state.accounts} allBlocks={this.props.blocks}
                           activeAccount={this.state.activeAccount}
                           handleClick={this.handleClick.bind(this)}/>
         )
@@ -44,7 +44,7 @@ export default class AccountsController extends Component {
         const demoBlocks = this.getDemoBlocks()
         const accountsDict = {}
         // replace demoBlocks with blocks to undo demo
-        demoBlocks.forEach(function(block) {
+        this.props.blocks.forEach(function(block) {
             const blockList = accountsDict[block.Account] || []
             blockList.push(block)
             accountsDict[block.Account] = blockList
