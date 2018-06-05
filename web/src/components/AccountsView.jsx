@@ -7,6 +7,7 @@ import Typography from '@material-ui/core/Typography'
 import Grid from '@material-ui/core/Grid'
 
 import BlocksController from './BlocksController'
+import BlockDiagram from './BlockDiagram'
 
 const styles = {
     accountHeader: {
@@ -14,7 +15,7 @@ const styles = {
     },
     cardDiv: {
         display: "block",
-        marginLeft: "15px",
+        marginLeft: "px",
         marginRight: "auto",
         textAlign: "center",
         marginTop: "15px",
@@ -28,6 +29,7 @@ const styles = {
 function AccountsView(props) {
     const { 
         accounts,
+        allBlocks,
         activeAccount,
         classes,
         handleClick,
@@ -63,15 +65,17 @@ function AccountsView(props) {
             return Object.assign({}, block)
         })
     }
-
     return (
         <div className={classes.grid}>
             <Grid container spacing={24}>
                 <Grid item xs={2}>
                     {accountsRender}
                 </Grid>
-                <Grid item xs={10}>
-                    <BlocksController blocks={filteredBlocks}/>
+                <Grid item xs={2}>
+                    <BlocksController filteredBlocks={filteredBlocks} allBlocks={allBlocks}/>
+                </Grid>
+                <Grid item xs={8} className={classes.diagram}>
+                    <BlockDiagram allBlocks={allBlocks} accounts={accounts}/>
                 </Grid>
             </Grid>
         </div>

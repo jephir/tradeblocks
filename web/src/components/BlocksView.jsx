@@ -22,21 +22,23 @@ const styles = {
         marginTop: "15px",
         wordBreak: "all",
     },
+    icon: {
+        fontSize: 14,
+    }
 }
 
 function BlocksView(props) {
     const {
-        activeBlock,
-        blocks,
+        allBlocks,
+        filteredBlocks,
         classes,
-        handleClick,
     } = props
 
-    if (blocks === undefined) {
+    if (filteredBlocks === undefined) {
         return <div>No Blocks</div>
     }
 
-    const blockList = blocks.map((block) => {
+    const blockList = filteredBlocks.map((block) => {
         const {
             Account,
             Action,
@@ -61,12 +63,14 @@ function BlocksView(props) {
                 )
             }
             //shorten if too long
-            const shortText = text.length > 15 ? text.substring(0, 15) + "..." : text
+            const isTooLong = text.length > 17
+            const shortText =  isTooLong ? text.substring(0, 15) + "..." : text
             return (
                 <div key={display}>
                     <Typography component="p">
                         <b>{display}:</b> {shortText}
-                    </Typography>
+                        {isTooLong && <ContentCopyIcon className={classes.icon} /> }
+                     </Typography>
                 </div>
             )
         }
@@ -87,7 +91,7 @@ function BlocksView(props) {
         })
 
         return (
-            <div key={Hash} className={classes.cardDiv} onClick={() => handleClick(block)}>
+            <div key={Hash} className={classes.cardDiv}>
                 <Card className={classes.accountCard}>
                     <CardContent>
                         {cardContent}
@@ -98,15 +102,8 @@ function BlocksView(props) {
     })
 
     return (
-        <div className={classes.grid}>
-            <Grid container spacing={24}>
-                <Grid item xs={3}>
-                    {blockList}
-                </Grid>
-                <Grid item xs={9}>
-                    <BlockDiagram block={activeBlock} />
-                </Grid>
-            </Grid>
+        <div>
+            {blockList}
         </div>
     )
 }

@@ -26,3 +26,34 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+.storm-container {
+  height: 100vh;
+  width: 100vw;
+}
+
+.srd-demo-workspace{
+  background: black;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.docs-preview-wrapper{
+  background: rgb(60,60,60);
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.srd-demo-canvas{
+  height: 100%;
+  min-height: 300px;
+  background-color: rgb(60,60,60) !important;
+  color: rgba(white, .05);
+  background-size:50px 50px;
+}
