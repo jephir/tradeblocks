@@ -1,6 +1,6 @@
 cmd/tradeblocks/tradeblocks
 cmd/tradeblocks/data
-/data
+/web/data
 
 .vscode
 
