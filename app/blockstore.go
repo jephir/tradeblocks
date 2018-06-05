@@ -54,19 +54,20 @@ func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
 
 func (s *BlockStore) checkConflict(b *tradeblocks.AccountBlock) error {
 	// open or issue case
-	if b.Previous == "" {
-		for _, block := range s.AccountBlocks {
-			if block.Previous == "" && block.Account == b.Account {
-				return &BlockConflictError{block}
-			}
-		}
-		return nil
-	}
-	for _, block := range s.AccountBlocks {
-		if block.Previous == b.Previous {
-			return &BlockConflictError{block}
-		}
-	}
+	// TODO Fix
+	// if b.Previous == "" {
+	// 	for _, block := range s.AccountBlocks {
+	// 		if block.Previous == "" && block.Account == b.Account {
+	// 			return &BlockConflictError{block}
+	// 		}
+	// 	}
+	// 	return nil
+	// }
+	// for _, block := range s.AccountBlocks {
+	// 	if block.Previous == b.Previous {
+	// 		return &BlockConflictError{block}
+	// 	}
+	// }
 	return nil
 }
 
