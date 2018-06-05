@@ -61,11 +61,7 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 			hash := r.FormValue("hash")
 			block, err := s.service.getBlock(hash)
 			if err != nil {
-<<<<<<< HEAD
-				log.Printf("error in handleAccountBlock GET1: Couldn't get block. \n")
-=======
 				log.Printf("error in handleAccountBlock GET1: %v Couldn't get block. \n", err.Error())
->>>>>>> jephir-master
 				http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
 				return
 			}
