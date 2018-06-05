@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"github.com/jephir/tradeblocks/node"
 	"io/ioutil"
 	"net/http/httptest"
@@ -143,4 +144,93 @@ func TestIssue(t *testing.T) {
 	if err := c.dispatch([]string{"tradeblocks", "issue", "100"}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestDemo(t *testing.T) {
+	_, s := newNode(t, "")
+	defer s.Close()
+
+	dir, err := ioutil.TempDir("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	defer os.RemoveAll(dir)
+
+	c := &cli{
+		keySize:   1024,
+		serverURL: s.URL,
+		dataDir:   dir,
+	}
+
+	xtbAlice := &bytes.Buffer{}
+	c.out = xtbAlice
+	if err := c.dispatch([]string{"tradeblocks", "register", "alice"}); err != nil {
+		t.Fatal(err)
+	}
+	xtbAliceStr := xtbAlice.String()
+	xtbAppleCoin := &bytes.Buffer{}
+	c.out = xtbAppleCoin
+	if err := c.dispatch([]string{"tradeblocks", "register", "apple-coin"}); err != nil {
+		t.Fatal(err)
+	}
+	xtbAppleCoinStr := xtbAppleCoin.String()
+	c.out = ioutil.Discard
+	if err := c.dispatch([]string{"tradeblocks", "login", "apple-coin"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.dispatch([]string{"tradeblocks", "issue", "1000"}); err != nil {
+		t.Fatal(err)
+	}
+
+	xtbSend := &bytes.Buffer{}
+	c.out = xtbSend
+	if err := c.dispatch([]string{"tradeblocks", "send", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
+		t.Fatal(err)
+	}
+	c.out = ioutil.Discard
+	if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.dispatch([]string{"tradeblocks", "open", xtbSend.String()}); err != nil {
+		t.Fatal(err)
+	}
+
+	xtbBananaCoin := &bytes.Buffer{}
+	c.out = xtbBananaCoin
+	if err := c.dispatch([]string{"tradeblocks", "register", "banana-coin"}); err != nil {
+		t.Fatal(err)
+	}
+	xtbTrade := &bytes.Buffer{}
+	c.out = xtbTrade
+	if err := c.dispatch([]string{"tradeblocks", "trade", xtbBananaCoin.String(), "25", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
+		t.Fatal(err)
+	}
+	c.out = ioutil.Discard
+	if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.dispatch([]string{"tradeblocks", "trade", xtbTrade.String()}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
+	dir, err := ioutil.TempDir("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := node.NewNode(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := httptest.NewServer(n)
+	//t.Log(s.URL)
+	if bootstrapURL != "" {
+		if err := n.Bootstrap(s.URL, bootstrapURL); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return n, s
 }

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // AccountBlock represents a block in the account blockchain
@@ -23,6 +24,17 @@ type AccountBlock struct {
 	Balance        float64
 	Link           string
 	Signature      string
+}
+
+// Normalize trims all whitespace in the block
+func (ab *AccountBlock) Normalize() {
+	ab.Action = strings.TrimSpace(ab.Action)
+	ab.Account = strings.TrimSpace(ab.Account)
+	ab.Token = strings.TrimSpace(ab.Token)
+	ab.Previous = strings.TrimSpace(ab.Previous)
+	ab.Representative = strings.TrimSpace(ab.Representative)
+	ab.Link = strings.TrimSpace(ab.Link)
+	ab.Signature = strings.TrimSpace(ab.Signature)
 }
 
 // Hash returns the hash of this block

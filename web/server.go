@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -49,6 +50,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.mux.Handle("/accounts", s.accountStream)
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
+	s.mux.HandleFunc("/head", s.handleAccountHead())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
 }
 
@@ -59,13 +61,16 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 			hash := r.FormValue("hash")
 			block, err := s.service.getBlock(hash)
 			if err != nil {
+<<<<<<< HEAD
 				log.Printf("error in handleAccountBlock GET1: Couldn't get block. \n")
+=======
+				log.Printf("error in handleAccountBlock GET1: %v Couldn't get block. \n", err.Error())
+>>>>>>> jephir-master
 				http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
 				return
 			}
 			if block == nil {
-				log.Printf("error in handleAccountBlock GET2: No block found. \n")
-				http.Error(w, "No block found.", http.StatusBadRequest)
+				http.Error(w, "No block found for '"+hash+"'", http.StatusBadRequest)
 				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
@@ -74,14 +79,14 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 				return
 			}
 		case "POST":
-			log.Printf("received a new block to add!\n")
+			//log.Printf("received a new block to add!\n")
 			var b tradeblocks.AccountBlock
 			if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 				log.Printf("error in handleAccountBlock POST1: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			log.Printf("block is %v\n", &b)
+			//log.Printf("block is %v\n", &b)
 			if _, err := s.service.addBlock(&b); err != nil {
 				log.Printf("error in handleAccountBlock POST2: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -97,6 +102,36 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 		default:
 			log.Printf("error in handleAccountBlock default \n")
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func (s *Server) handleAccountHead() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		account := r.FormValue("account")
+		token := r.FormValue("token")
+
+		// fmt.Println("'" + account + ":" + token + "'")
+		// for a := range s.service.blockstore.AccountHeads {
+		// 	fmt.Println("'" + a + "'")
+		// 	if a == account+":"+token {
+		// 		fmt.Println("MATCH")
+		// 	} else {
+		// 		fmt.Println("MISS")
+		// 	}
+		// }
+
+		block, err := s.service.getHeadBlock(account, token)
+		if err != nil {
+			http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
+			return
+		}
+		if block == nil {
+			http.Error(w, "No head found for account '"+account+"' and token '"+token+"'", http.StatusBadRequest)
+		}
+		if err := json.NewEncoder(w).Encode(block); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -175,8 +210,31 @@ func (s *service) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	return s.blockstore.GetBlock(hash)
 }
 
+func (s *service) getHeadBlock(account, token string) (*tradeblocks.AccountBlock, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.blockstore.GetHeadBlock(account, token)
+}
+
 func (s *service) addBlock(block *tradeblocks.AccountBlock) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.blockstore.AddBlock(block)
+	hash, err := s.blockstore.AddBlock(block)
+	fmt.Println(hash)
+	if err != nil {
+		if _, ok := err.(*app.BlockConflictError); ok {
+			var highest int
+			var hash string
+			for _, vote := range s.blockstore.VoteBlocks {
+				if vote.Order > highest {
+					highest = vote.Order
+					hash = vote.Link
+				}
+			}
+			if hash != block.Hash() {
+				return "", fmt.Errorf("server: specified block '%s' is purged", block.Hash())
+			}
+		}
+	}
+	return hash, err
 }
