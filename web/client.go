@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/jephir/tradeblocks/app"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/jephir/tradeblocks/app"
 
 	"github.com/jephir/tradeblocks"
 )

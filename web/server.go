@@ -52,7 +52,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/account", s.handleAccountBlock())
 	s.mux.HandleFunc("/head", s.handleAccountHead())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
-	s.mux.Handle("/ui", http.StripPrefix("/ui/", http.FileServer(http.Dir("web/public"))))
 }
 
 func (s *Server) handleAccountBlock() http.HandlerFunc {
@@ -62,6 +61,7 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 			hash := r.FormValue("hash")
 			block, err := s.service.getBlock(hash)
 			if err != nil {
+				log.Printf("error in handleAccountBlock GET1: %v Couldn't get block. \n", err.Error())
 				http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
 				return
 			}
@@ -70,26 +70,33 @@ func (s *Server) handleAccountBlock() http.HandlerFunc {
 				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
+				log.Printf("error in handleAccountBlock GET3: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		case "POST":
+			//log.Printf("received a new block to add!\n")
 			var b tradeblocks.AccountBlock
 			if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+				log.Printf("error in handleAccountBlock POST1: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			//log.Printf("block is %v\n", &b)
 			if _, err := s.service.addBlock(&b); err != nil {
+				log.Printf("error in handleAccountBlock POST2: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			if err := json.NewEncoder(w).Encode(b); err != nil {
+				log.Printf("error in handleAccountBlock POST3: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			// ss, _ := app.SerializeAccountBlock(&b)
 			//log.Printf("web: added block %s: %s", b.Hash(), ss)
 		default:
+			log.Printf("error in handleAccountBlock default \n")
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
 	}
@@ -134,10 +141,12 @@ func (s *Server) handleBlocks() http.HandlerFunc {
 				result[r.hash] = r.block
 			}
 			if err := json.NewEncoder(w).Encode(result); err != nil {
+				log.Printf("error in handleBlocks get: %v \n", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		default:
+			log.Printf("error in handleBlocks default\n")
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
 	}
@@ -207,17 +216,20 @@ func (s *service) addBlock(block *tradeblocks.AccountBlock) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	hash, err := s.blockstore.AddBlock(block)
-	if _, ok := err.(*app.BlockConflictError); ok {
-		var highest int
-		var hash string
-		for _, vote := range s.blockstore.VoteBlocks {
-			if vote.Order > highest {
-				highest = vote.Order
-				hash = vote.Link
+	fmt.Println(hash)
+	if err != nil {
+		if _, ok := err.(*app.BlockConflictError); ok {
+			var highest int
+			var hash string
+			for _, vote := range s.blockstore.VoteBlocks {
+				if vote.Order > highest {
+					highest = vote.Order
+					hash = vote.Link
+				}
 			}
-		}
-		if hash != block.Hash() {
-			return "", fmt.Errorf("server: specified block '%s' is purged", block.Hash())
+			if hash != block.Hash() {
+				return "", fmt.Errorf("server: specified block '%s' is purged", block.Hash())
+			}
 		}
 	}
 	return hash, err

@@ -161,11 +161,6 @@ func (c *client) open(link string) (*tradeblocks.AccountBlock, error) {
 	defer publicKey.Close()
 	defer privateKey.Close()
 
-	// Check if we've already created a receive for the linked send, true if
-	if c.alreadyLinked(link) {
-		return nil, errors.New("open with the specified send already exists")
-	}
-
 	// get the linked send
 	send, err := c.getBlock(link)
 	if err != nil {
@@ -207,11 +202,6 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 	}
 	defer publicKey.Close()
 	defer privateKey.Close()
-
-	// Check if we've already created a receive for the linked send, true if
-	if c.alreadyLinked(link) {
-		return nil, errors.New("receive with the specified send already exists")
-	}
 
 	// get the linked send
 	send, err := c.getBlock(link)
