@@ -14,6 +14,12 @@ import (
 	"strings"
 )
 
+// Block represents any block type
+type Block interface {
+	Hash() string
+	SignBlock(*rsa.PrivateKey) error 
+}
+
 // AccountBlock represents a block in the account blockchain
 type AccountBlock struct {
 	Action         string

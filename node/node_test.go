@@ -151,3 +151,69 @@ func GetAddress() (*rsa.PrivateKey, string, error) {
 	}
 	return key, address, nil
 }
+
+func TestSyncAllBlockTypes(t *testing.T) {
+	p1, a1 := createAccount(t)
+	p2, a2 := createAccount(t)
+
+	var allBlocksTest []tradeblocks.Block
+	p1b1 := addAccountTestBlock(t, &allBlocksTest, p1, tradeblocks.NewIssueBlock(a1, 100))
+	p1b2 := addAccountTestBlock(t, &allBlocksTest, p1, tradeblocks.NewSendBlock(p1b1, a2, 50))
+	p2b1 := addAccountTestBlock(t, &allBlocksTest, p2, tradeblocks.NewOpenBlock(a2, p1b2, 50))
+	p2b2 := addAccountTestBlock(t, &allBlocksTest, p2, tradeblocks.NewSendBlock(p2b1, a1, 25))
+	addAccountTestBlock(t, &allBlocksTest, p1, tradeblocks.NewReceiveBlock(p1b2, p2b2, 25))
+
+	n1, s1 := newNode(t, "")
+	defer s1.Close()
+
+	n2, s2 := newNode(t, s1.URL)
+	defer s2.Close()
+
+	n3, s3 := newNode(t, s2.URL)
+	defer s3.Close()
+
+	for _, tt := range allBlocksTest {
+		t.Run(tt.Hash(), func(t *testing.T) {
+			h := tt.Hash()
+			addBlockToNode(t, n1, tt)
+			if n2block := n2.GetAccountBlock(h); n2block == nil {
+				t.Fatalf("node2 missing block %s", h)
+			}
+			if n3block := n3.GetAccountBlock(h); n3block == nil {
+				t.Fatalf("node3 missing block %s", h)
+			}
+		})
+	}
+
+}
+
+func addBlockToNode(t *testing.T, n *Node, b tradeblocks.Block) {
+	if err := n.AddBlock(b); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func addAccountTestBlock(t *testing.T, s *[]tradeblocks.Block, priv *rsa.PrivateKey, b tradeblocks.Block) *tradeblocks.AccountBlock {
+	return addTestBlock(t, s, priv, b).(*tradeblocks.AccountBlock)
+}
+
+func addTestBlock(t *testing.T, s *[]tradeblocks.Block, priv *rsa.PrivateKey, b tradeblocks.Block) tradeblocks.Block {
+	if err := b.SignBlock(priv); err != nil {
+		t.Fatal(err)
+	}
+	*s = append(*s, b)
+	return b
+}
+
+func createAccount(t *testing.T) (priv *rsa.PrivateKey, address string) {
+	var err error
+	priv, err = rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address, err = app.PrivateKeyToAddress(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return
+}

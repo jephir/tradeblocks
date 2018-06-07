@@ -99,6 +99,24 @@ func (n *Node) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	n.server.ServeHTTP(rw, r)
 }
 
+// AddBlock adds the specified block to this node
+func (n *Node) AddBlock(b tradeblocks.Block) error {
+	if b, ok := b.(*tradeblocks.AccountBlock); ok {
+		_, err := n.store.AddBlock(b)
+		return err
+	}
+	return fmt.Errorf("node: unsupported block type")
+}
+
+// GetAccountBlock returns the account block with the specified hash; otherwise nil
+func (n *Node) GetAccountBlock(h string) *tradeblocks.AccountBlock {
+	b, err := n.store.GetBlock(h)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 func (n *Node) addPeer(address string) {
 	n.mu.Lock()
 	defer n.mu.Unlock()

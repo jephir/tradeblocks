@@ -87,6 +87,19 @@ func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	return addressPrefix + base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
+// PrivateKeyToAddress returns the string serialization of the specified private key
+func PrivateKeyToAddress(priv *rsa.PrivateKey) (address string, err error) {
+	b, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	if err != nil {
+		return
+	}
+	r := bytes.NewReader(pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: b,
+	}))
+	return PublicKeyToAddress(r)
+}
+
 // AddressToPublicKey returns the byte array of the specified address
 func AddressToPublicKey(address string) (publicKey []byte, err error) {
 	addressNoPrefix := strings.TrimPrefix(address, addressPrefix)
