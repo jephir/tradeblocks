@@ -17,7 +17,7 @@ import (
 // Block represents any block type
 type Block interface {
 	Hash() string
-	SignBlock(*rsa.PrivateKey) error 
+	SignBlock(*rsa.PrivateKey) error
 }
 
 // AccountBlock represents a block in the account blockchain
@@ -152,17 +152,39 @@ func NewIssueBlock(account string, balance float64) *AccountBlock {
 }
 
 // NewOpenBlock initializes the start of an account blockchain
-func NewOpenBlock(account string, send *AccountBlock, balance float64) *AccountBlock {
-	return &AccountBlock{
-		Action:         "open",
-		Account:        account,
-		Token:          send.Token,
-		Previous:       "",
-		Representative: "",
-		Balance:        balance,
-		Link:           send.Hash(),
-		Signature:      "",
+func NewOpenBlock(account string, send interface{}, balance float64) (openBlock *AccountBlock) {
+	switch sendTyped := send.(type) {
+	case AccountBlock:
+		openBlock = &AccountBlock{
+			Action:         "open",
+			Account:        account,
+			Token:          sendTyped.Token,
+			Previous:       "",
+			Representative: "",
+			Balance:        balance,
+			Link:           sendTyped.Hash(),
+			Signature:      "",
+		}
+	case SwapBlock:
+		if sendTyped.Action == "commit" {
+			openBlock = &AccountBlock{
+				Action:         "open",
+				Account:        account,
+				Token:          sendTyped.Token,
+				Previous:       "",
+				Representative: "",
+				Balance:        balance,
+				Link:           sendTyped.Hash(),
+				Signature:      "",
+			}
+		} else {
+			openBlock = nil
+		}
+
+	default:
+		openBlock = nil
 	}
+	return
 }
 
 // NewSendBlock initializes a send to the specified address
@@ -180,17 +202,39 @@ func NewSendBlock(previous *AccountBlock, to string, amount float64) *AccountBlo
 }
 
 // NewReceiveBlock initializes a receive of tokens
-func NewReceiveBlock(previous *AccountBlock, send *AccountBlock, amount float64) *AccountBlock {
-	return &AccountBlock{
-		Action:         "receive",
-		Account:        previous.Account,
-		Token:          previous.Token,
-		Previous:       previous.Hash(),
-		Representative: previous.Representative,
-		Balance:        previous.Balance + amount,
-		Link:           send.Hash(),
-		Signature:      "",
+func NewReceiveBlock(previous *AccountBlock, send interface{}, amount float64) (receiveBlock *AccountBlock) {
+	switch sendTyped := send.(type) {
+	case AccountBlock:
+		receiveBlock = &AccountBlock{
+			Action:         "receive",
+			Account:        previous.Account,
+			Token:          previous.Token,
+			Previous:       previous.Hash(),
+			Representative: previous.Representative,
+			Balance:        previous.Balance + amount,
+			Link:           sendTyped.Hash(),
+			Signature:      "",
+		}
+	case SwapBlock:
+		if sendTyped.Action == "commit" {
+			receiveBlock = &AccountBlock{
+				Action:         "receive",
+				Account:        previous.Account,
+				Token:          previous.Token,
+				Previous:       previous.Hash(),
+				Representative: previous.Representative,
+				Balance:        previous.Balance + amount,
+				Link:           sendTyped.Hash(),
+				Signature:      "",
+			}
+		} else {
+			receiveBlock = nil
+		}
+
+	default:
+		receiveBlock = nil
 	}
+	return
 }
 
 // SwapBlock represents a block in the swap blockchain
