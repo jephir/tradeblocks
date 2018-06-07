@@ -1,0 +1,80 @@
+package tradeblockstest
+
+import (
+	"crypto/rand"
+	"crypto/rsa"
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
+	"testing"
+)
+
+// BlockTestTable represents a series of block values for testing
+type BlockTestTable struct {
+	t             *testing.T
+	AccountBlocks []*tradeblocks.AccountBlock
+	SwapBlocks    []*tradeblocks.SwapBlock
+	OrderBlocks   []*tradeblocks.OrderBlock
+}
+
+// NewBlockTestTable returns an initialized block test table
+func NewBlockTestTable(t *testing.T) *BlockTestTable {
+	return &BlockTestTable{
+		t: t,
+	}
+}
+
+// AddAccountBlock signs and adds an account block to the test table and returns the block
+func (tt *BlockTestTable) AddAccountBlock(priv *rsa.PrivateKey, b *tradeblocks.AccountBlock) *tradeblocks.AccountBlock {
+	signBlock(tt.t, priv, b)
+	tt.AccountBlocks = append(tt.AccountBlocks, b)
+	return b
+}
+
+// AddSwapBlock signs and adds a swap block to the test table and returns the block
+func (tt *BlockTestTable) AddSwapBlock(priv *rsa.PrivateKey, b *tradeblocks.SwapBlock) *tradeblocks.SwapBlock {
+	signBlock(tt.t, priv, b)
+	tt.SwapBlocks = append(tt.SwapBlocks, b)
+	return b
+}
+
+// AddOrderBlock signs and adds an order block to the test table and returns the block
+func (tt *BlockTestTable) AddOrderBlock(priv *rsa.PrivateKey, b *tradeblocks.OrderBlock) *tradeblocks.OrderBlock {
+	signBlock(tt.t, priv, b)
+	tt.OrderBlocks = append(tt.OrderBlocks, b)
+	return b
+}
+
+// GetAll returns all the blocks in the test table
+func (tt *BlockTestTable) GetAll() []tradeblocks.Block {
+	var result []tradeblocks.Block
+	for _, b := range tt.AccountBlocks {
+		result = append(result, b)
+	}
+	for _, b := range tt.SwapBlocks {
+		result = append(result, b)
+	}
+	for _, b := range tt.OrderBlocks {
+		result = append(result, b)
+	}
+	return result
+}
+
+func signBlock(t *testing.T, priv *rsa.PrivateKey, b tradeblocks.Block) {
+	if err := b.SignBlock(priv); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// CreateAccount returns a private key and address for a new account
+func CreateAccount(t *testing.T) (priv *rsa.PrivateKey, address string) {
+	var err error
+	priv, err = rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address, err = app.PrivateKeyToAddress(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return
+}
