@@ -70,12 +70,12 @@ func Open(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64) 
 		return nil, err
 	}
 
-	return tradeblocks.NewOpenBlock(address, send, balance), nil
+	return tradeblocks.NewOpenBlockFromSend(address, send, balance), nil
 }
 
 // Receive receives tokens from a send transaction
 func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *tradeblocks.AccountBlock, amount float64) (*tradeblocks.AccountBlock, error) {
-	return tradeblocks.NewReceiveBlock(previous, send, amount), nil
+	return tradeblocks.NewReceiveBlockFromSend(previous, send, amount), nil
 }
 
 // PublicKeyToAddress returns the string serialization of the specified public key

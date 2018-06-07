@@ -160,9 +160,9 @@ func TestSyncAllBlockTypes(t *testing.T) {
 	allBlocksTest := tradeblockstest.NewBlockTestTable(t)
 	p1issue := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewIssueBlock(a1, 100))
 	p1send := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1issue, a2, 50))
-	p2open := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewOpenBlock(a2, p1send, 50))
+	p2open := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewOpenBlockFromSend(a2, p1send, 50))
 	p2send := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewSendBlock(p2open, a1, 25))
-	allBlocksTest.AddAccountBlock(p1, tradeblocks.NewReceiveBlock(p1send, p2send, 25))
+	allBlocksTest.AddAccountBlock(p1, tradeblocks.NewReceiveBlockFromSend(p1send, p2send, 25))
 
 	n1, s1 := newNode(t, "")
 	defer s1.Close()

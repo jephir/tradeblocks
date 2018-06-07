@@ -17,7 +17,7 @@ import (
 // Block represents any block type
 type Block interface {
 	Hash() string
-	SignBlock(*rsa.PrivateKey) error 
+	SignBlock(*rsa.PrivateKey) error
 }
 
 // AccountBlock represents a block in the account blockchain
@@ -151,8 +151,22 @@ func NewIssueBlock(account string, balance float64) *AccountBlock {
 	}
 }
 
-// NewOpenBlock initializes the start of an account blockchain
-func NewOpenBlock(account string, send *AccountBlock, balance float64) *AccountBlock {
+// NewOpenBlockFromSend initializes the start of an account blockchain
+func NewOpenBlockFromSend(account string, send *AccountBlock, balance float64) (openBlock *AccountBlock) {
+	return &AccountBlock{
+		Action:         "open",
+		Account:        account,
+		Token:          send.Token,
+		Previous:       "",
+		Representative: "",
+		Balance:        balance,
+		Link:           send.Hash(),
+		Signature:      "",
+	}
+}
+
+// NewOpenBlockFromSwap initializes the start of an account blockchain
+func NewOpenBlockFromSwap(account string, send *SwapBlock, balance float64) (openBlock *AccountBlock) {
 	return &AccountBlock{
 		Action:         "open",
 		Account:        account,
@@ -179,8 +193,22 @@ func NewSendBlock(previous *AccountBlock, to string, amount float64) *AccountBlo
 	}
 }
 
-// NewReceiveBlock initializes a receive of tokens
-func NewReceiveBlock(previous *AccountBlock, send *AccountBlock, amount float64) *AccountBlock {
+// NewReceiveBlockFromSend initializes a receive of tokens from a send
+func NewReceiveBlockFromSend(previous *AccountBlock, send *AccountBlock, amount float64) *AccountBlock {
+	return &AccountBlock{
+		Action:         "receive",
+		Account:        previous.Account,
+		Token:          previous.Token,
+		Previous:       previous.Hash(),
+		Representative: previous.Representative,
+		Balance:        previous.Balance + amount,
+		Link:           send.Hash(),
+		Signature:      "",
+	}
+}
+
+// NewReceiveBlockFromSwap initializes a receive of tokens from a swap commit
+func NewReceiveBlockFromSwap(previous *AccountBlock, send *SwapBlock, amount float64) *AccountBlock {
 	return &AccountBlock{
 		Action:         "receive",
 		Account:        previous.Account,

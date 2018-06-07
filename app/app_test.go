@@ -105,7 +105,7 @@ func TestReceive(t *testing.T) {
 	issue := tradeblocks.NewIssueBlock("xtb:sender", 50.0)
 	send := tradeblocks.NewSendBlock(issue, address, 50.0)
 	send2 := tradeblocks.NewSendBlock(send, address, 25.0)
-	previous := tradeblocks.NewOpenBlock(address, send2, 25.0)
+	previous := tradeblocks.NewOpenBlockFromSend(address, send2, 25.0)
 	publicKey.Seek(0, io.SeekStart)
 	receive, err := Receive(publicKey, previous, send, 50.0)
 	if err != nil {

@@ -306,7 +306,7 @@ func receiveSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, Accou
 
 	i2 := tradeblocks.NewIssueBlock(address, 100.0)
 
-	receive := tradeblocks.NewReceiveBlock(i2, send, 50)
+	receive := tradeblocks.NewReceiveBlockFromSend(i2, send, 50)
 
 	validator := NewReceiveValidator(s)
 
