@@ -384,7 +384,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 
 		// check if swaps line up
 		if swapRefundRightAlignment(block, prevBlock) {
-			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
+			return errors.New("Refund Right must match Refund Left fields")
 		}
 
 		// get the counterparty send

@@ -14,11 +14,12 @@ import (
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
-	"github.com/jephir/tradeblocks/tradeblockstest"
 )
 
 func TestBootstrapAndSync(t *testing.T) {
 	key, address, err := GetAddress()
+	key2, address2, err := GetAddress()
+	key3, address3, err := GetAddress()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +32,7 @@ func TestBootstrapAndSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 50), key)
+	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address2, 50), key2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +66,7 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Add block to seed node
-	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 15), key)
+	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address3, 15), key3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,10 +155,10 @@ func GetAddress() (*rsa.PrivateKey, string, error) {
 }
 
 func TestSyncAllBlockTypes(t *testing.T) {
-	p1, a1 := tradeblockstest.CreateAccount(t)
-	p2, a2 := tradeblockstest.CreateAccount(t)
+	p1, a1 := app.CreateAccount(t)
+	p2, a2 := app.CreateAccount(t)
 
-	allBlocksTest := tradeblockstest.NewBlockTestTable(t)
+	allBlocksTest := app.NewBlockTestTable(t)
 	p1issue := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewIssueBlock(a1, 100))
 	p1send := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1issue, a2, 50))
 	p2open := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewOpenBlockFromSend(a2, p1send, 50))

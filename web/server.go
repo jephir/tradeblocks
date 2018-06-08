@@ -216,7 +216,6 @@ func (s *service) addBlock(block *tradeblocks.AccountBlock) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	hash, err := s.blockstore.AddBlock(block)
-	fmt.Println(hash)
 	if err != nil {
 		if _, ok := err.(*app.BlockConflictError); ok {
 			var highest int

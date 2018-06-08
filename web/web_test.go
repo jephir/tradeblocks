@@ -60,6 +60,7 @@ func TestWeb(t *testing.T) {
 
 func TestBootstrap(t *testing.T) {
 	key, address, err := GetAddress()
+	key2, address2, err := GetAddress()
 	if err != nil {
 		t.Error(err)
 	}
@@ -70,7 +71,7 @@ func TestBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 50), key)
+	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address2, 50), key2)
 	if err != nil {
 		t.Fatal(err)
 	}

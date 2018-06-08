@@ -78,6 +78,31 @@ func Receive(publicKey io.Reader, previous *tradeblocks.AccountBlock, send *trad
 	return tradeblocks.NewReceiveBlockFromSend(previous, send, amount), nil
 }
 
+//Offer creates an offer for a swap
+func Offer(publicKey io.Reader, send *tradeblocks.AccountBlock, ID string, counterparty string, want string, quantity float64, executor string, fee float64) (*tradeblocks.SwapBlock, error) {
+	address, err := PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return tradeblocks.NewOfferBlock(address, send, ID, counterparty, want, quantity, executor, fee), nil
+}
+
+//Commit creates a commit for a swap
+func Commit(publicKey io.Reader, offer *tradeblocks.SwapBlock, right *tradeblocks.AccountBlock) (*tradeblocks.SwapBlock, error) {
+	return tradeblocks.NewCommitBlock(offer, right), nil
+}
+
+//RefundLeft creates a refund-left for a swap
+func RefundLeft(publicKey io.Reader, offer *tradeblocks.SwapBlock, refundTo string) (*tradeblocks.SwapBlock, error) {
+	return tradeblocks.NewRefundLeftBlock(offer, refundTo), nil
+}
+
+//RefundRight creates a refund-left for a swap
+func RefundRight(publicKey io.Reader, refundLeft *tradeblocks.SwapBlock, counterSend *tradeblocks.AccountBlock, refundTo string) (*tradeblocks.SwapBlock, error) {
+	return tradeblocks.NewRefundRightBlock(refundLeft, counterSend, refundTo), nil
+}
+
 // PublicKeyToAddress returns the string serialization of the specified public key
 func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	buf, err := ioutil.ReadAll(publicKey)

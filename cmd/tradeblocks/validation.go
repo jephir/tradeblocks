@@ -62,3 +62,60 @@ func receiveInputValidation(args []string) (goodInputs bool, addInfo string) {
 		"Run this command with $ tradeblocks receive <send_tx>"
 	return
 }
+
+func offerInputValidation(args []string) (goodInputs bool, addInfo string) {
+	addInfo = "CLI args invalid length.\n" +
+		"Run this command with $ tradeblocks offer. Executor and Fee must be present or absent together\n" +
+		"<left: string> <ID: string> <counterparty: string> <want: string> <quantity: float> \n" +
+		"<executor: string, OPTIONAL> <fee: float, OPTIONAL> \n"
+	goodInputs = false
+	if len(args) == 7 {
+		goodInputs = true
+		if _, err := strconv.ParseFloat(args[6], 64); err != nil {
+			goodInputs = false
+			addInfo = "CLI args invalid type for quantity, not including optional executor/fee.\n" +
+				"Run this command with $ tradeblocks offer. Executor and Fee must be present or absent together\n" +
+				"<left: string> <ID: string> <counterparty: string> <want: string> <quantity: float> \n" +
+				"<executor: string, OPTIONAL> <fee: float, OPTIONAL> \n"
+		}
+	}
+	if len(args) == 9 {
+		goodInputs = true
+		if _, err := strconv.ParseFloat(args[6], 64); err != nil {
+			goodInputs = false
+			addInfo = "CLI args invalid type for quantity, including optional executor/fee.\n" +
+				"Run this command with $ tradeblocks offer. Executor and Fee must be present or absent together\n" +
+				"<left: string> <ID: string> <counterparty: string> <want: string> <quantity: float> \n" +
+				"<executor: string, OPTIONAL> <fee: float, OPTIONAL> \n"
+		}
+		if _, err := strconv.ParseFloat(args[8], 64); err != nil {
+			goodInputs = false
+			addInfo = "CLI args invalid type for fee, including optional executor/fee.\n" +
+				"Run this command with $ tradeblocks offer. Executor and Fee must be present or absent together\n" +
+				"<left: string> <ID: string> <counterparty: string> <want: string> <quantity: float> \n" +
+				"<executor: string, OPTIONAL> <fee: float, OPTIONAL> \n"
+		}
+	}
+	return
+}
+
+func commitInputValidation(args []string) (goodInputs bool, addInfo string) {
+	addInfo = "CLI args invalid length.\n" +
+		"Run this command with $ tradeblocks commit <offer: string> <right: string>\n"
+	goodInputs = len(args) == 4
+	return
+}
+
+func refundLeftInputValidation(args []string) (goodInputs bool, addInfo string) {
+	addInfo = "CLI args invalid length.\n" +
+		"Run this command with $ tradeblocks refund-left <offer: string>\n"
+	goodInputs = len(args) == 3
+	return
+}
+
+func refundRightInputValidation(args []string) (goodInputs bool, addInfo string) {
+	addInfo = "CLI args invalid length.\n" +
+		"Run this command with $ tradeblocks refund-right <refund-left: string>\n"
+	goodInputs = len(args) == 3
+	return
+}

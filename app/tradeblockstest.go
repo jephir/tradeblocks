@@ -1,11 +1,11 @@
-package tradeblockstest
+package app
 
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
 )
 
 // BlockTestTable represents a series of block values for testing
@@ -72,7 +72,7 @@ func CreateAccount(t *testing.T) (priv *rsa.PrivateKey, address string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	address, err = app.PrivateKeyToAddress(priv)
+	address, err = PrivateKeyToAddress(priv)
 	if err != nil {
 		t.Fatal(err)
 	}

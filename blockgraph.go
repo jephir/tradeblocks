@@ -240,6 +240,23 @@ type SwapBlock struct {
 	Signature    string
 }
 
+// Normalize trims all whitespace in the block
+func (ab *SwapBlock) Normalize() {
+	ab.Action = strings.TrimSpace(ab.Action)
+	ab.Account = strings.TrimSpace(ab.Account)
+	ab.Token = strings.TrimSpace(ab.Token)
+	ab.ID = strings.TrimSpace(ab.ID)
+	ab.Previous = strings.TrimSpace(ab.Previous)
+	ab.Left = strings.TrimSpace(ab.Left)
+	ab.Right = strings.TrimSpace(ab.Right)
+	ab.RefundLeft = strings.TrimSpace(ab.RefundLeft)
+	ab.RefundRight = strings.TrimSpace(ab.RefundRight)
+	ab.Counterparty = strings.TrimSpace(ab.Counterparty)
+	ab.Want = strings.TrimSpace(ab.Want)
+	ab.Executor = strings.TrimSpace(ab.Executor)
+	ab.Signature = strings.TrimSpace(ab.Signature)
+}
+
 // Hash returns the hash of this block
 func (ab *SwapBlock) Hash() string {
 	withoutSig := &SwapBlock{
@@ -332,22 +349,22 @@ func NewOfferBlock(account string, send *AccountBlock, ID string, counterparty s
 }
 
 // NewCommitBlock is the committing swap
-func NewCommitBlock(send *AccountBlock, previous *SwapBlock) *SwapBlock {
+func NewCommitBlock(offer *SwapBlock, right *AccountBlock) *SwapBlock {
 	return &SwapBlock{
 		Action:       "commit",
-		Account:      previous.Account,
-		Token:        previous.Token,
-		ID:           previous.ID,
-		Previous:     previous.Hash(),
-		Left:         previous.Left,
-		Right:        send.Hash(),
+		Account:      offer.Account,
+		Token:        offer.Token,
+		ID:           offer.ID,
+		Previous:     offer.Hash(),
+		Left:         offer.Left,
+		Right:        right.Hash(),
 		RefundLeft:   "",
 		RefundRight:  "",
-		Counterparty: previous.Counterparty,
-		Want:         previous.Want,
-		Quantity:     previous.Quantity,
-		Executor:     previous.Executor,
-		Fee:          previous.Fee,
+		Counterparty: offer.Counterparty,
+		Want:         offer.Want,
+		Quantity:     offer.Quantity,
+		Executor:     offer.Executor,
+		Fee:          offer.Fee,
 		Signature:    "",
 	}
 }
@@ -383,7 +400,7 @@ func NewRefundRightBlock(refundLeft *SwapBlock, counterSend *AccountBlock, refun
 		Previous:     refundLeft.Hash(),
 		Left:         refundLeft.Left,
 		Right:        counterSend.Hash(),
-		RefundLeft:   refundLeft.Account,
+		RefundLeft:   refundLeft.RefundLeft,
 		RefundRight:  refundTo,
 		Counterparty: refundLeft.Counterparty,
 		Want:         refundLeft.Want,
@@ -408,6 +425,19 @@ type OrderBlock struct {
 	Partial   bool
 	Executor  string
 	Signature string
+}
+
+// Normalize trims all whitespace in the block
+func (ab *OrderBlock) Normalize() {
+	ab.Action = strings.TrimSpace(ab.Action)
+	ab.Account = strings.TrimSpace(ab.Account)
+	ab.Token = strings.TrimSpace(ab.Token)
+	ab.ID = strings.TrimSpace(ab.ID)
+	ab.Previous = strings.TrimSpace(ab.Previous)
+	ab.Quote = strings.TrimSpace(ab.Quote)
+	ab.Link = strings.TrimSpace(ab.Link)
+	ab.Executor = strings.TrimSpace(ab.Executor)
+	ab.Signature = strings.TrimSpace(ab.Signature)
 }
 
 // Hash returns the hash of this block

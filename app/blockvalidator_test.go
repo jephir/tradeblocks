@@ -1,11 +1,7 @@
 package app
 
 import (
-	"bytes"
-	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"strings"
 	"testing"
 
@@ -15,34 +11,12 @@ import (
 // something to use for address that won't break the decrypter
 const badAddress = "Ci0tLS0tQkVHSU4gUlNBIFBVQkxJQyBLRVktLS0tLQpNSUdmTUEwR0NTcUdTSWIzRFFFQkFRVUFBNEdOQURDQmlRS0JnUURWbGVZUStNT0doSFZ2a216Q2tKcmpJNUNMCjROTUh3TlJsN1NSbkVsRkkyK25XallNRXdTT2xwNXBUY0hCempSaEpPeDFTYkx0aUtSS0ZnMVE5d1Vldk5lV1MKUE1qQjFsK0xXbVVUUnFOVGNBUFFjMFZkZXVtanFzMVArZUhFUmZrOU13cU5zclB5dHZHd3ZOUUowNVBrZ0xTawpYdTU4a3I1aVh4TUFCSXVrYlFJREFRQUIKLS0tLS1FTkQgUlNBIFBVQkxJQyBLRVktLS0tLQo"
 
-var key, err = rsa.GenerateKey(rand.Reader, 512)
-
-func openSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
-	// keys
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubKeyBytes,
-	})
-
-	pubKeyReader := bytes.NewReader(p)
-	address, errKey := PublicKeyToAddress(pubKeyReader)
-	if err != nil {
-		return nil, nil, nil, errKey
-	}
-
+func openSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
 	s := NewBlockStore()
 	i := tradeblocks.NewIssueBlock(address, 100.0)
 	send := tradeblocks.NewSendBlock(i, address, 100.0)
 
-	pubKeyReader = bytes.NewReader(p)
-	open, errOpen := Open(pubKeyReader, send, 100.0)
-	if errOpen != nil {
-		return nil, nil, nil, errOpen
-	}
+	open := tradeblocks.NewOpenBlockFromSend(address, send, 100.0)
 
 	validator := NewOpenValidator(s)
 
@@ -72,9 +46,9 @@ func openSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountB
 }
 
 func TestOpenBlockValidator(t *testing.T) {
-
+	key, address := CreateAccount(t)
 	// test for success
-	open, _, validator, errSetup := openSetup()
+	open, _, validator, errSetup := openSetup(key, address)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -85,7 +59,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 
 	// test for previous not null
-	open, _, validator, errPrevNull := openSetup()
+	open, _, validator, errPrevNull := openSetup(key, address)
 	if errPrevNull != nil {
 		t.Fatal(errPrevNull)
 	}
@@ -103,7 +77,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 
 	// test for send not existing
-	open, _, validator, errSendNull := openSetup()
+	open, _, validator, errSendNull := openSetup(key, address)
 	if errSendNull != nil {
 		t.Fatal(errSendNull)
 	}
@@ -120,7 +94,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 
 	// test for send prev not existing
-	open, send, validator, errSendPrevNull := openSetup()
+	open, send, validator, errSendPrevNull := openSetup(key, address)
 	if errSendPrevNull != nil {
 		t.Fatal(errSendPrevNull)
 	}
@@ -133,7 +107,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 
 	// test for send not having necessary balance
-	open, send, validator, errSendBalance := openSetup()
+	open, send, validator, errSendBalance := openSetup(key, address)
 	if errSendBalance != nil {
 		t.Fatal(errSendBalance)
 	}
@@ -146,7 +120,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 
 	// test for send not referencing this open
-	open, send, validator, errSendNoLink := openSetup()
+	open, send, validator, errSendNoLink := openSetup(key, address)
 	if errSendNoLink != nil {
 		t.Fatal(errSendNoLink)
 	}
@@ -159,25 +133,9 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 }
 
-func issueSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
-	// keys
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return nil, nil, err
-	}
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubKeyBytes,
-	})
-
-	pubKeyReader := bytes.NewReader(p)
-
-	issue, errIssue := Issue(pubKeyReader, 100)
+func issueSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
+	issue := tradeblocks.NewIssueBlock(address, 100)
 	s := NewBlockStore()
-
-	if errIssue != nil {
-		return nil, nil, errIssue
-	}
 
 	validator := NewIssueValidator(s)
 
@@ -194,8 +152,9 @@ func issueSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 }
 
 func TestIssueBlockValidator(t *testing.T) {
+	key, address := CreateAccount(t)
 	// test for success
-	issue, validator, errSetup := issueSetup()
+	issue, validator, errSetup := issueSetup(key, address)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -206,23 +165,7 @@ func TestIssueBlockValidator(t *testing.T) {
 	}
 }
 
-func sendSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
-	// keys
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return new(tradeblocks.AccountBlock), *new(AccountBlockValidator), err
-	}
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubKeyBytes,
-	})
-
-	pubKeyReader := bytes.NewReader(p)
-	address, errKey := PublicKeyToAddress(pubKeyReader)
-	if err != nil {
-		return new(tradeblocks.AccountBlock), *new(AccountBlockValidator), errKey
-	}
-
+func sendSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 	s := NewBlockStore()
 	issue := tradeblocks.NewIssueBlock(address, 100.0)
 
@@ -252,8 +195,9 @@ func sendSetup() (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 }
 
 func TestSendBlockValidator(t *testing.T) {
+	key, address := CreateAccount(t)
 	// test for success
-	send, validator, errSetup := sendSetup()
+	send, validator, errSetup := sendSetup(key, address)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -264,7 +208,7 @@ func TestSendBlockValidator(t *testing.T) {
 	}
 
 	// test for previous not null
-	send, validator, errPrevNull := sendSetup()
+	send, validator, errPrevNull := sendSetup(key, address)
 	if errPrevNull != nil {
 		t.Fatal(errPrevNull)
 	}
@@ -281,26 +225,11 @@ func TestSendBlockValidator(t *testing.T) {
 	}
 }
 
-func receiveSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
-	// keys
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubKeyBytes,
-	})
-
-	pubKeyReader := bytes.NewReader(p)
-	address, errKey := PublicKeyToAddress(pubKeyReader)
-	if err != nil {
-		return nil, nil, nil, errKey
-	}
-
+func receiveSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
+	key2, address2 := CreateAccount(t)
 	s := NewBlockStore()
 
-	i := tradeblocks.NewIssueBlock(address, 100.0)
+	i := tradeblocks.NewIssueBlock(address2, 100.0)
 
 	send := tradeblocks.NewSendBlock(i, address, 50.0)
 
@@ -310,45 +239,45 @@ func receiveSetup() (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, Accou
 
 	validator := NewReceiveValidator(s)
 
-	errSignIssue := i.SignBlock(key)
+	errSignIssue := i.SignBlock(key2)
 	if errSignIssue != nil {
-		return nil, nil, nil, errSignIssue
+		t.Fatal(errSignIssue)
 	}
 
 	errSignIssue = i2.SignBlock(key)
 	if errSignIssue != nil {
-		return nil, nil, nil, errSignIssue
+		t.Fatal(errSignIssue)
 	}
 
-	errSignSend := send.SignBlock(key)
+	errSignSend := send.SignBlock(key2)
 	if errSignSend != nil {
-		return nil, nil, nil, errSignSend
+		t.Fatal(errSignSend)
 	}
 
 	errSignReceive := receive.SignBlock(key)
 	if errSignReceive != nil {
-		return nil, nil, nil, errSignReceive
+		t.Fatal(errSignReceive)
 	}
 
 	if _, err := s.AddBlock(i); err != nil {
-		return nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	if _, err := s.AddBlock(send); err != nil {
-		return nil, nil, nil, err
+		t.Fatal(err)
 	}
 	if _, err := s.AddBlock(i2); err != nil {
-		return nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	return receive, send, validator, nil
 }
 
 func TestReceiveBlockValidator(t *testing.T) {
-	t.Skip("TODO Fix block conflict")
+	key, address := CreateAccount(t)
 
 	// test for success
-	receive, _, validator, errSetup := receiveSetup()
+	receive, _, validator, errSetup := receiveSetup(key, address, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -359,7 +288,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 
 	// test for previous not null
-	receive, _, validator, errPrevNull := receiveSetup()
+	receive, _, validator, errPrevNull := receiveSetup(key, address, t)
 	if errPrevNull != nil {
 		t.Fatal(errPrevNull)
 	}
@@ -377,7 +306,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 
 	// test for link invalid
-	receive, _, validator, errLink := receiveSetup()
+	receive, _, validator, errLink := receiveSetup(key, address, t)
 	if errLink != nil {
 		t.Fatal(errLink)
 	}
@@ -394,7 +323,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 
 	// test for link previous invalid
-	receive, send, validator, errLinkPrev := receiveSetup()
+	receive, send, validator, errLinkPrev := receiveSetup(key, address, t)
 	if errLinkPrev != nil {
 		t.Fatal(errLinkPrev)
 	}
@@ -411,7 +340,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 
 	// test for send linked to this
-	receive, send, validator, errSendLink := receiveSetup()
+	receive, send, validator, errSendLink := receiveSetup(key, address, t)
 	if errSendLink != nil {
 		t.Fatal(errSendLink)
 	}
@@ -435,89 +364,75 @@ func TestUnkownAction(t *testing.T) {
 	}
 }
 
-func swapOfferSetup() (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
-	// keys
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubKeyBytes,
-	})
-
-	pubKeyReader := bytes.NewReader(p)
-	address, err := PublicKeyToAddress(pubKeyReader)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
+func swapOfferSetup(keys []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
 	accountStore := NewBlockStore()
 	swapStore := NewSwapBlockStore()
 
-	i := tradeblocks.NewIssueBlock(address, 100.0)
-	send := tradeblocks.NewSendBlock(i, address, 50.0)
-	i2 := tradeblocks.NewIssueBlock(address, 50.0)
-	send2 := tradeblocks.NewSendBlock(i2, address, 10.0)
-	swap := tradeblocks.NewOfferBlock(address, send, "test-ID", "counterparty", address, 10.0, "", 0.0)
-	swap2 := tradeblocks.NewCommitBlock(send2, swap)
+	i := tradeblocks.NewIssueBlock(address[0], 100.0)
+	send := tradeblocks.NewSendBlock(i, address[2], 50.0)
 
-	err = i.SignBlock(key)
+	i2 := tradeblocks.NewIssueBlock(address[1], 50.0)
+	send2 := tradeblocks.NewSendBlock(i2, address[2], 10.0)
+
+	swap := tradeblocks.NewOfferBlock(address[2], send, "test-ID", "counterparty", address[1], 10.0, "", 0.0)
+	swap2 := tradeblocks.NewCommitBlock(swap, send2)
+
+	err := i.SignBlock(keys[0])
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = i2.SignBlock(key)
+	err = i2.SignBlock(keys[1])
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = send.SignBlock(key)
+	err = send.SignBlock(keys[0])
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = send2.SignBlock(key)
+	err = send2.SignBlock(keys[1])
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = swap.SignBlock(key)
+	err = swap.SignBlock(keys[2])
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = swap2.SignBlock(key)
+	err = swap2.SignBlock(keys[2])
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	_, err = accountStore.AddBlock(i)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 	_, err = accountStore.AddBlock(send)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 	_, err = accountStore.AddBlock(i2)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	_, err = accountStore.AddBlock(send2)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	_, err = swapStore.AddBlock(swap, accountStore)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	_, err = swapStore.AddBlock(swap2, accountStore)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	validator := NewSwapValidator(accountStore, swapStore)
@@ -527,9 +442,14 @@ func swapOfferSetup() (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblo
 
 // only for offer, each action has different test
 func TestSwapOfferValidation(t *testing.T) {
-	t.Skip("TODO Fix block conflict")
+	key, address := CreateAccount(t)
+	key2, address2 := CreateAccount(t)
+	key3, address3 := CreateAccount(t)
 
-	swap, _, _, validator, errSetup := swapOfferSetup()
+	keyList := []*rsa.PrivateKey{key, key2, key3}
+	addressList := []string{address, address2, address3}
+
+	swap, _, _, validator, errSetup := swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -542,7 +462,7 @@ func TestSwapOfferValidation(t *testing.T) {
 
 	// signature verifying tests
 	// Note: can't do executors on offers
-	swap, _, _, validator, errSetup = swapOfferSetup()
+	swap, _, _, validator, errSetup = swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -556,15 +476,12 @@ func TestSwapOfferValidation(t *testing.T) {
 	}
 
 	// different key signature
-	swap, _, _, validator, errSetup = swapOfferSetup()
+	swap, _, _, validator, errSetup = swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
-	newKey, err := rsa.GenerateKey(rand.Reader, 512)
-	if err != nil {
-		t.Fatal(err)
-	}
-	errSign := swap.SignBlock(newKey)
+
+	errSign := swap.SignBlock(key)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -575,13 +492,13 @@ func TestSwapOfferValidation(t *testing.T) {
 	}
 
 	// is there a previous? Hint: there shouldn't be
-	swap, swap2, _, validator, errSetup := swapOfferSetup()
-	if errSetup != nil {
-		t.Fatal(errSetup)
+	swap, swap2, _, validator, err := swapOfferSetup(keyList, addressList, t)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	swap.Previous = swap2.Hash()
-	errSign = swap.SignBlock(key)
+	errSign = swap.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -592,14 +509,14 @@ func TestSwapOfferValidation(t *testing.T) {
 	}
 
 	// make sure there's an account block from the left field
-	swap, _, _, validator, errSetup = swapOfferSetup()
+	swap, _, _, validator, errSetup = swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	// no block
 	swap.Left = "not a block"
-	errSign = swap.SignBlock(key)
+	errSign = swap.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -612,7 +529,7 @@ func TestSwapOfferValidation(t *testing.T) {
 	//not a send
 	tempI := tradeblocks.NewIssueBlock("address", 100.0)
 	swap.Left = tempI.Hash()
-	errSign = swap.SignBlock(key)
+	errSign = swap.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -625,9 +542,14 @@ func TestSwapOfferValidation(t *testing.T) {
 
 // only for commit, each action has different test
 func TestSwapCommitValidation(t *testing.T) {
-	t.Skip("TODO Fix block conflict")
+	key, address := CreateAccount(t)
+	key2, address2 := CreateAccount(t)
+	key3, address3 := CreateAccount(t)
 
-	_, swap2, _, validator, errSetup := swapOfferSetup()
+	keyList := []*rsa.PrivateKey{key, key2, key3}
+	addressList := []string{address, address2, address3}
+
+	_, swap2, _, validator, errSetup := swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -640,7 +562,7 @@ func TestSwapCommitValidation(t *testing.T) {
 
 	// signature verifying tests
 	// Note: can't do executors on offers
-	_, swap2, send, validator, errSetup := swapOfferSetup()
+	_, swap2, send, validator, errSetup := swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -654,7 +576,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	swap2.Previous = send.Hash()
-	errSign := swap2.SignBlock(key)
+	errSign := swap2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -666,7 +588,7 @@ func TestSwapCommitValidation(t *testing.T) {
 
 	// bad account decoding
 	swap2.Account = "help"
-	errSign = swap2.SignBlock(key)
+	errSign = swap2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -679,7 +601,7 @@ func TestSwapCommitValidation(t *testing.T) {
 
 	// bad executor
 	swap2.Executor = "help"
-	errSign = swap2.SignBlock(key)
+	errSign = swap2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -691,7 +613,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	// swaps not same fields
-	_, swap2, _, validator, errSetup = swapOfferSetup()
+	_, swap2, _, validator, errSetup = swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -701,7 +623,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	// Note on account: used as address to get publicKey, changing will cause
 	// a pem parsing error
 	swap2.ID = "help"
-	errSign = swap2.SignBlock(key)
+	errSign = swap2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -713,14 +635,14 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	// original send doesn't exist (linked to bad swap)
-	swap, swap2, _, validator, errSetup := swapOfferSetup()
+	swap, swap2, _, validator, errSetup := swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	swap.Left = badAddress
 	swap2.Left = badAddress
-	errSign = swap2.SignBlock(key)
+	errSign = swap2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -732,13 +654,13 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	// counter send doesn't exist
-	swap, swap2, _, validator, errSetup = swapOfferSetup()
+	swap, swap2, _, validator, errSetup = swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	swap2.Right = badAddress
-	errSign = swap2.SignBlock(key)
+	errSign = swap2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -750,7 +672,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	// counter send doesn't exist
-	swap, swap2, _, validator, errSetup = swapOfferSetup()
+	swap, swap2, _, validator, errSetup = swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -760,7 +682,7 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	send2.Previous = badAddress
-	errSign = send2.SignBlock(key)
+	errSign = send2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -772,7 +694,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	// counter send doesn't exist
-	swap, swap2, _, validator, errSetup = swapOfferSetup()
+	swap, swap2, _, validator, errSetup = swapOfferSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -782,7 +704,7 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	send2.Balance = 0
-	errSign = send2.SignBlock(key)
+	errSign = send2.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -794,68 +716,54 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 }
 
-func swapRefundLeftSetup() (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
-	// keys
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubKeyBytes,
-	})
-
-	pubKeyReader := bytes.NewReader(p)
-	address, errKey := PublicKeyToAddress(pubKeyReader)
-	if err != nil {
-		return nil, nil, nil, nil, errKey
-	}
-
+func swapRefundLeftSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
 	accountStore := NewBlockStore()
 	swapStore := NewSwapBlockStore()
 
-	i := tradeblocks.NewIssueBlock(address, 100.0)
-	send := tradeblocks.NewSendBlock(i, address, 50.0)
-	i2 := tradeblocks.NewIssueBlock(address, 50)
-	swap := tradeblocks.NewOfferBlock(address, send, "test-ID", "counterparty", address, 10.0, "", 0.0)
-	refundLeft := tradeblocks.NewRefundLeftBlock(swap, address)
+	i := tradeblocks.NewIssueBlock(address[0], 100.0)
+	send := tradeblocks.NewSendBlock(i, address[2], 50.0)
 
-	errSignIssue := i.SignBlock(key)
+	i2 := tradeblocks.NewIssueBlock(address[1], 50.0)
+	swap := tradeblocks.NewOfferBlock(address[2], send, "test-ID", "counterparty", address[1], 10.0, "", 0.0)
+
+	refundLeft := tradeblocks.NewRefundLeftBlock(swap, address[0])
+
+	errSignIssue := i.SignBlock(key[0])
 	if errSignIssue != nil {
-		return nil, nil, nil, nil, errSignIssue
+		t.Fatal(errSignIssue)
 	}
 
-	errSignIssue = i2.SignBlock(key)
+	errSignIssue = i2.SignBlock(key[1])
 	if errSignIssue != nil {
-		return nil, nil, nil, nil, errSignIssue
+		t.Fatal(errSignIssue)
 	}
 
-	errSignSend := send.SignBlock(key)
+	errSignSend := send.SignBlock(key[0])
 	if errSignSend != nil {
-		return nil, nil, nil, nil, errSignSend
+		t.Fatal(errSignSend)
 	}
 
-	errSignSwap := swap.SignBlock(key)
+	errSignSwap := swap.SignBlock(key[2])
 	if errSignSwap != nil {
-		return nil, nil, nil, nil, errSignSwap
+		t.Fatal(errSignSwap)
 	}
 
-	errSignRefund := refundLeft.SignBlock(key)
+	errSignRefund := refundLeft.SignBlock(key[2])
 	if errSignRefund != nil {
-		return nil, nil, nil, nil, errSignRefund
+		t.Fatal(errSignRefund)
 	}
 
 	accountStore.AddBlock(i)
 	accountStore.AddBlock(send)
 	accountStore.AddBlock(i2)
 
-	_, err = swapStore.AddBlock(swap, accountStore)
+	_, err := swapStore.AddBlock(swap, accountStore)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	_, err = swapStore.AddBlock(refundLeft, accountStore)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	validator := NewSwapValidator(accountStore, swapStore)
@@ -865,7 +773,14 @@ func swapRefundLeftSetup() (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tra
 
 // only for refund-left, each action has different test
 func TestSwapRefundLeftValidation(t *testing.T) {
-	_, refundLeft, _, validator, errSetup := swapRefundLeftSetup()
+	key, address := CreateAccount(t)
+	key2, address2 := CreateAccount(t)
+	key3, address3 := CreateAccount(t)
+
+	keyList := []*rsa.PrivateKey{key, key2, key3}
+	addressList := []string{address, address2, address3}
+
+	_, refundLeft, _, validator, errSetup := swapRefundLeftSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -878,7 +793,7 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 
 	// signature verifying tests
 	// Note: can't do executors on offers
-	_, refundLeft, send, validator, errSetup := swapRefundLeftSetup()
+	_, refundLeft, send, validator, errSetup := swapRefundLeftSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -893,7 +808,7 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 
 	// invalid previous
 	refundLeft.Previous = send.Hash()
-	errSign := refundLeft.SignBlock(key)
+	errSign := refundLeft.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -908,13 +823,13 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 	// Counterparty, Want, Quantity, Executor, Fee
 	// Note on account: used as address to get publicKey, changing will cause
 	// a pem parsing error
-	swap, refundLeft, send, validator, errSetup := swapRefundLeftSetup()
+	swap, refundLeft, send, validator, errSetup := swapRefundLeftSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	refundLeft.Fee = 1.0
-	errSign = refundLeft.SignBlock(key)
+	errSign = refundLeft.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -926,14 +841,14 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 	}
 
 	// originating send invalid
-	swap, refundLeft, send, validator, errSetup = swapRefundLeftSetup()
+	swap, refundLeft, send, validator, errSetup = swapRefundLeftSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	swap.Left = badAddress
 	refundLeft.Left = badAddress
-	errSign = refundLeft.SignBlock(key)
+	errSign = refundLeft.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -945,13 +860,13 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 	}
 
 	// refundleft is not the initiators account
-	swap, refundLeft, send, validator, errSetup = swapRefundLeftSetup()
+	swap, refundLeft, send, validator, errSetup = swapRefundLeftSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	refundLeft.RefundLeft = badAddress
-	errSign = refundLeft.SignBlock(key)
+	errSign = refundLeft.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -963,67 +878,51 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 	}
 }
 
-func swapRefundRightSetup() (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
-	// keys
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubKeyBytes,
-	})
-
-	pubKeyReader := bytes.NewReader(p)
-	address, err := PublicKeyToAddress(pubKeyReader)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-
+func swapRefundRightSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
 	accountStore := NewBlockStore()
 	swapStore := NewSwapBlockStore()
 
-	i := tradeblocks.NewIssueBlock(address, 100.0)
-	send := tradeblocks.NewSendBlock(i, address, 50.0)
-	i2 := tradeblocks.NewIssueBlock(address, 50)
-	send2 := tradeblocks.NewSendBlock(i2, address, 10.0)
-	swap := tradeblocks.NewOfferBlock(address, send, "test-ID", "counterparty", address, 10.0, "", 0.0)
-	refundLeft := tradeblocks.NewRefundLeftBlock(swap, address)
-	refundRight := tradeblocks.NewRefundRightBlock(refundLeft, send2, address)
+	i := tradeblocks.NewIssueBlock(address[0], 100.0)
+	send := tradeblocks.NewSendBlock(i, address[0], 50.0)
+	i2 := tradeblocks.NewIssueBlock(address[1], 50)
+	send2 := tradeblocks.NewSendBlock(i2, address[2], 10.0)
+	swap := tradeblocks.NewOfferBlock(address[2], send, "test-ID", "counterparty", address[1], 10.0, "", 0.0)
+	refundLeft := tradeblocks.NewRefundLeftBlock(swap, address[0])
+	refundRight := tradeblocks.NewRefundRightBlock(refundLeft, send2, address[1])
 
-	err = i.SignBlock(key)
+	err := i.SignBlock(key[0])
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = i2.SignBlock(key)
+	err = i2.SignBlock(key[1])
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = send.SignBlock(key)
+	err = send.SignBlock(key[0])
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = send2.SignBlock(key)
+	err = send2.SignBlock(key[1])
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = swap.SignBlock(key)
+	err = swap.SignBlock(key[2])
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = refundLeft.SignBlock(key)
+	err = refundLeft.SignBlock(key[2])
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
-	err = refundRight.SignBlock(key)
+	err = refundRight.SignBlock(key[2])
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	accountStore.AddBlock(i)
@@ -1033,15 +932,15 @@ func swapRefundRightSetup() (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tr
 
 	_, err = swapStore.AddBlock(swap, accountStore)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 	_, err = swapStore.AddBlock(refundLeft, accountStore)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 	_, err = swapStore.AddBlock(refundRight, accountStore)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		t.Fatal(err)
 	}
 
 	validator := NewSwapValidator(accountStore, swapStore)
@@ -1051,9 +950,14 @@ func swapRefundRightSetup() (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tr
 
 // only for refund-left, each action has different test
 func TestSwapRefundRightValidation(t *testing.T) {
-	t.Skip("TODO Fix setup error")
+	key, address := CreateAccount(t)
+	key2, address2 := CreateAccount(t)
+	key3, address3 := CreateAccount(t)
 
-	_, _, refundRight, send2, validator, errSetup := swapRefundRightSetup()
+	keyList := []*rsa.PrivateKey{key, key2, key3}
+	addressList := []string{address, address2, address3}
+
+	_, _, refundRight, send2, validator, errSetup := swapRefundRightSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -1066,7 +970,7 @@ func TestSwapRefundRightValidation(t *testing.T) {
 
 	// signature verifying tests
 	// Note: can't do executors on offers
-	_, _, refundRight, _, validator, errSetup = swapRefundRightSetup()
+	_, _, refundRight, _, validator, errSetup = swapRefundRightSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
@@ -1081,7 +985,7 @@ func TestSwapRefundRightValidation(t *testing.T) {
 
 	// invalid previous
 	refundRight.Previous = send2.Hash()
-	errSign := refundRight.SignBlock(key)
+	errSign := refundRight.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -1092,13 +996,13 @@ func TestSwapRefundRightValidation(t *testing.T) {
 	}
 
 	// previous must be refund-left
-	_, refundLeft, refundRight, _, validator, errSetup := swapRefundRightSetup()
+	_, refundLeft, refundRight, _, validator, errSetup := swapRefundRightSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	refundLeft.Action = "commit"
-	errSign = refundRight.SignBlock(key)
+	errSign = refundRight.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -1114,31 +1018,31 @@ func TestSwapRefundRightValidation(t *testing.T) {
 	// Counterparty, Want, Quantity, Executor, Fee
 	// Note on account: used as address to get publicKey, changing will cause
 	// a pem parsing error
-	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup()
+	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	refundRight.Fee = 1.0
-	errSign = refundRight.SignBlock(key)
+	errSign = refundRight.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
 
 	errVerify = validator.ValidateSwapBlock(refundRight)
-	expectedError = "Counterparty swap has incorrect fields: must match originating swap"
+	expectedError = "Refund Right must match Refund Left fields"
 	if errVerify == nil || errVerify.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", errVerify, expectedError)
 	}
 
 	// invalid counterparty send
-	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup()
+	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	refundRight.Right = badAddress
-	errSign = refundRight.SignBlock(key)
+	errSign = refundRight.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -1151,13 +1055,13 @@ func TestSwapRefundRightValidation(t *testing.T) {
 
 	// wrong address to refund
 	// changing block.Account will break the decrypter, make the send Account wrong
-	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup()
+	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	send2.Account = badAddress
-	errSign = refundRight.SignBlock(key)
+	errSign = refundRight.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}
@@ -1170,13 +1074,13 @@ func TestSwapRefundRightValidation(t *testing.T) {
 
 	// wrong address to refund
 	// changing block.Account will break the decrypter, make the send Account wrong
-	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup()
+	_, refundLeft, refundRight, send2, validator, errSetup = swapRefundRightSetup(keyList, addressList, t)
 	if errSetup != nil {
 		t.Fatal(errSetup)
 	}
 
 	send2.Account = badAddress
-	errSign = refundRight.SignBlock(key)
+	errSign = refundRight.SignBlock(key3)
 	if errSign != nil {
 		t.Fatal(errSign)
 	}

@@ -18,6 +18,7 @@ type cli struct {
 func (cli *cli) dispatch(args []string) error {
 	var command = args[1]
 	var block *tradeblocks.AccountBlock
+	var swapBlock *tradeblocks.SwapBlock
 	var err error
 
 	cmd := newClient(cli.dataDir, cli.serverURL, cli.keySize)
@@ -86,6 +87,52 @@ func (cli *cli) dispatch(args []string) error {
 		} else {
 			cmd.badInputs("receive", addInfo)
 		}
+	case "offer":
+		goodInputs, addInfo := offerInputValidation(args)
+		if goodInputs {
+			quantity, _ := strconv.ParseFloat(args[6], 64)
+			if len(args) == 7 {
+				swapBlock, err = cmd.offer(args[2], args[3], args[4], args[5], quantity, "", 0.0)
+			} else if len(args) == 9 {
+				fee, _ := strconv.ParseFloat(args[9], 64)
+				swapBlock, err = cmd.offer(args[2], args[3], args[4], args[5], quantity, args[7], fee)
+			}
+			if err != nil {
+				return err
+			}
+		} else {
+			cmd.badInputs("offer", addInfo)
+		}
+	case "commit":
+		goodInputs, addInfo := commitInputValidation(args)
+		if goodInputs {
+			swapBlock, err = cmd.commit(args[2], args[3])
+			if err != nil {
+				return err
+			}
+		} else {
+			cmd.badInputs("commit", addInfo)
+		}
+	case "refund-left":
+		goodInputs, addInfo := refundLeftInputValidation(args)
+		if goodInputs {
+			swapBlock, err = cmd.refundLeft(args[2])
+			if err != nil {
+				return err
+			}
+		} else {
+			cmd.badInputs("refundLeft", addInfo)
+		}
+	case "refund-right":
+		goodInputs, addInfo := refundRightInputValidation(args)
+		if goodInputs {
+			swapBlock, err = cmd.refundLeft(args[2])
+			if err != nil {
+				return err
+			}
+		} else {
+			cmd.badInputs("refundLeft", addInfo)
+		}
 	case "trade":
 		// TODO Implement trading
 		fmt.Fprintln(cli.out, "TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
@@ -93,6 +140,10 @@ func (cli *cli) dispatch(args []string) error {
 
 	if block != nil {
 		fmt.Fprintln(cli.out, block.Hash())
+	}
+
+	if swapBlock != nil {
+		fmt.Fprintln(cli.out, swapBlock.Hash())
 	}
 
 	return nil

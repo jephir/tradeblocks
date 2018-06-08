@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
-	"github.com/jephir/tradeblocks/node"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jephir/tradeblocks/node"
 )
 
 const publicKey = `-----BEGIN RSA PUBLIC KEY-----
