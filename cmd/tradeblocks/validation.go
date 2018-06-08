@@ -122,16 +122,29 @@ func refundRightInputValidation(args []string) (goodInputs bool, addInfo string)
 
 func createOrderInputValidation(args []string) (goodInputs bool, addInfo string) {
 	addInfo = "CLI args invalid length.\n" +
-		"Executor is optional. Run this command with $ tradeblocks create-order\n" +
+		"Executor and Fee must be present or absent together. Run this command with $ tradeblocks create-order\n" +
 		"<send: string> <ID: string> <partial: boolean> <quote: string> <quantity: float> \n" +
-		"<executor: string, OPTIONAL>  \n"
+		"<executor: string, OPTIONAL> <fee: float, OPTIONAL>  \n"
 	goodInputs = true
-	if len(args) == 7 || len(args) == 8 {
+	if len(args) == 7 {
 		if _, err := strconv.ParseBool(args[4]); err != nil {
 			goodInputs = false
 			addInfo += "Invalid partial, must be a boolean\n"
 		}
 		if _, err := strconv.ParseFloat(args[6], 64); err != nil {
+			goodInputs = false
+			addInfo += "Invalid quantity, must be a float64\n"
+		}
+	} else if len(args) == 9 {
+		if _, err := strconv.ParseBool(args[4]); err != nil {
+			goodInputs = false
+			addInfo += "Invalid partial, must be a boolean\n"
+		}
+		if _, err := strconv.ParseFloat(args[6], 64); err != nil {
+			goodInputs = false
+			addInfo += "Invalid quantity, must be a float64\n"
+		}
+		if _, err := strconv.ParseFloat(args[8], 64); err != nil {
 			goodInputs = false
 			addInfo += "Invalid quantity, must be a float64\n"
 		}

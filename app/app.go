@@ -104,13 +104,13 @@ func RefundRight(publicKey io.Reader, refundLeft *tradeblocks.SwapBlock, counter
 }
 
 //CreateOrder creates an order
-func CreateOrder(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64, ID string, partial bool, quote string, price float64, executor string) (*tradeblocks.OrderBlock, error) {
+func CreateOrder(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64, ID string, partial bool, quote string, price float64, executor string, fee float64) (*tradeblocks.OrderBlock, error) {
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return tradeblocks.NewCreateOrderBlock(address, send, balance, ID, partial, quote, price, executor), nil
+	return tradeblocks.NewCreateOrderBlock(address, send, balance, ID, partial, quote, price, executor, fee), nil
 }
 
 //AcceptOrder creates an accept order for an order
@@ -118,7 +118,7 @@ func AcceptOrder(publicKey io.Reader, previous *tradeblocks.OrderBlock, link str
 	return tradeblocks.NewAcceptOrderBlock(previous, link, balance), nil
 }
 
-//RefundtOrder creates an accept order for an order
+//RefundOrder creates an accept order for an order
 func RefundOrder(publicKey io.Reader, previous *tradeblocks.OrderBlock, refundTo string) (*tradeblocks.OrderBlock, error) {
 	return tradeblocks.NewRefundOrderBlock(previous, refundTo), nil
 }

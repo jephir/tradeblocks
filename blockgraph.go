@@ -424,6 +424,7 @@ type OrderBlock struct {
 	Link      string
 	Partial   bool
 	Executor  string
+	Fee       float64
 	Signature string
 }
 
@@ -454,6 +455,7 @@ func (ab *OrderBlock) Hash() string {
 		Link:      ab.Link,
 		Partial:   ab.Partial,
 		Executor:  ab.Executor,
+		Fee:       ab.Fee,
 		Signature: "",
 	}
 	b, err := json.Marshal(withoutSig)
@@ -510,7 +512,7 @@ func (ab *OrderBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 }
 
 // NewOrderBlock creates a new order
-func NewCreateOrderBlock(account string, send *AccountBlock, balance float64, ID string, partial bool, quote string, price float64, executor string) *OrderBlock {
+func NewCreateOrderBlock(account string, send *AccountBlock, balance float64, ID string, partial bool, quote string, price float64, executor string, fee float64) *OrderBlock {
 	return &OrderBlock{
 		Action:    "create-order",
 		Account:   account,
@@ -523,6 +525,7 @@ func NewCreateOrderBlock(account string, send *AccountBlock, balance float64, ID
 		Link:      send.Hash(),
 		Partial:   partial,
 		Executor:  executor,
+		Fee:       fee,
 		Signature: "",
 	}
 }
@@ -541,6 +544,7 @@ func NewAcceptOrderBlock(previous *OrderBlock, link string, balance float64) *Or
 		Link:      link,
 		Partial:   previous.Partial,
 		Executor:  previous.Executor,
+		Fee:       previous.Fee,
 		Signature: "",
 	}
 }
@@ -559,6 +563,7 @@ func NewRefundOrderBlock(previous *OrderBlock, refundTo string) *OrderBlock {
 		Link:      refundTo,
 		Partial:   previous.Partial,
 		Executor:  previous.Executor,
+		Fee:       previous.Fee,
 		Signature: "",
 	}
 }

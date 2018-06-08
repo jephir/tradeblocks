@@ -122,22 +122,22 @@ func TestCreateOrderValidation(t *testing.T) {
 		t.Fatalf("offer failed; expected error")
 	}
 
-	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "10.0", "executor", "extra"})
+	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "10.0", "executor", "not-float"})
 	if ok {
 		t.Fatalf("offer failed; expected error")
 	}
 
-	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "not bool", "quote", "10.0", "executor"})
+	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "not bool", "quote", "10.0", "executor", "10.0", "extra"})
 	if ok {
 		t.Fatalf("offer failed; expected error")
 	}
 
-	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "not float", "executor"})
+	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "not float", "executor", "10.0"})
 	if ok {
 		t.Fatalf("offer failed; expected error")
 	}
 
-	ok, err := createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "10.0", "executor"})
+	ok, err := createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "10.0", "executor", "10.0"})
 	if !ok {
 		fmt.Printf("err %v \n", err)
 		t.Fatalf("offer failed; expected ok")

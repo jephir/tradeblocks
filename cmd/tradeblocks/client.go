@@ -411,7 +411,7 @@ func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) 
 	return refundRight, nil
 }
 
-func (c *client) createOrder(send string, ID string, partial bool, quote string, price float64, executor string) (*tradeblocks.OrderBlock, error) {
+func (c *client) createOrder(send string, ID string, partial bool, quote string, price float64, executor string, fee float64) (*tradeblocks.OrderBlock, error) {
 	// get the keys
 	publicKey, err := c.openPublicKey()
 	if err != nil {
@@ -440,7 +440,7 @@ func (c *client) createOrder(send string, ID string, partial bool, quote string,
 	balance := sendPrevBlock.Balance - sendBlock.Balance
 
 	// create the refund
-	createOrderBlock, err := app.CreateOrder(publicKey, sendBlock, balance, ID, partial, quote, price, executor)
+	createOrderBlock, err := app.CreateOrder(publicKey, sendBlock, balance, ID, partial, quote, price, executor, fee)
 	if err != nil {
 		return nil, err
 	}

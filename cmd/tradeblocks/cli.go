@@ -140,9 +140,10 @@ func (cli *cli) dispatch(args []string) error {
 			partial, _ := strconv.ParseBool(args[4])
 			quantity, _ := strconv.ParseFloat(args[6], 64)
 			if len(args) == 7 {
-				orderBlock, err = cmd.createOrder(args[2], args[3], partial, args[5], quantity, "")
-			} else if len(args) == 8 {
-				orderBlock, err = cmd.createOrder(args[2], args[3], partial, args[5], quantity, args[7])
+				orderBlock, err = cmd.createOrder(args[2], args[3], partial, args[5], quantity, "", 0.0)
+			} else if len(args) == 9 {
+				fee, _ := strconv.ParseFloat(args[8], 64)
+				orderBlock, err = cmd.createOrder(args[2], args[3], partial, args[5], quantity, args[7], fee)
 			}
 			if err != nil {
 				return err

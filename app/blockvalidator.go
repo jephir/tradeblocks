@@ -37,8 +37,8 @@ func ValidateSwapBlock(c AccountBlockchain, s SwapBlockchain, b *tb.SwapBlock) e
 }
 
 // ValidateOrderBlock returns an error if validation fails for the specified Order block
-func ValidateOrderBlock(c AccountBlockchain, o OrderBlockchain, b *tb.OrderBlock) error {
-	v := NewOrderValidator(c, o)
+func ValidateOrderBlock(c AccountBlockchain, s SwapBlockchain, o OrderBlockchain, b *tb.OrderBlock) error {
+	v := NewOrderValidator(c, s, o)
 	return v.ValidateOrderBlock(b)
 }
 
@@ -105,6 +105,9 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	}
 
 	// check if the balances match
+	if block.Balance < 0 {
+		return errors.New("Balance must be positive")
+	}
 	sendBalance := sendBlockPrev.Balance - sendBlock.Balance
 	if sendBalance != block.Balance {
 		//return errors.New("balance does not match")
@@ -189,7 +192,10 @@ func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	}
 
 	// check if the balances are proper
-	if prevBlock.Balance-block.Balance < 0 || block.Balance > prevBlock.Balance {
+	if block.Balance < 0 {
+		return errors.New("Balance must be positive")
+	}
+	if block.Balance > prevBlock.Balance {
 		return errors.New("invalid balance amount")
 	}
 	return nil
@@ -317,6 +323,12 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		if errLeft != nil || left == nil || left.Action != "send" {
 			return errors.New("link field references invalid block")
 		}
+
+		// check to see if the send (left) is pointed at this block
+		if left.Link != block.Account+":"+block.ID {
+			return errors.New("Linked left block does not send to this swap")
+		}
+
 	} else if action == "commit" { //counterparty block
 		if errPrev != nil || prevBlock == nil {
 			return errors.New("previous must be not null")
@@ -333,10 +345,15 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 			return errors.New("originating send not found")
 		}
 
-		// get the send for the second swap
+		// get the send (right) for the second swap
 		sendCounter, errSendCounter := accountChain.GetBlock(block.Right)
 		if errSendCounter != nil || sendCounter == nil {
 			return errors.New("counter send not found")
+		}
+
+		// check to see if the send (left) is pointed at this block
+		if sendCounter.Link != block.Account+":"+block.ID {
+			return errors.New("Linked right block does not send to this swap")
 		}
 
 		// get the sendCounter's prev to determine quantity sent
@@ -443,10 +460,10 @@ type OrderBlockValidator struct {
 }
 
 // NewOrderValidator returns a new validator with the given chain
-func NewOrderValidator(chain AccountBlockchain, orderChain OrderBlockchain) *OrderBlockValidator {
+func NewOrderValidator(chain AccountBlockchain, swapChain SwapBlockchain, orderChain OrderBlockchain) *OrderBlockValidator {
 	return &OrderBlockValidator{
 		accountChain: chain,
-		swapChain:    nil,
+		swapChain:    swapChain,
 		orderChain:   orderChain,
 	}
 }
@@ -455,20 +472,13 @@ func NewOrderValidator(chain AccountBlockchain, orderChain OrderBlockchain) *Ord
 func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) error {
 	//get the chain
 	accountChain := validator.accountChain
+	swapChain := validator.swapChain
 	orderChain := validator.orderChain
+	action := block.Action
 
-	// check the signature
-	if block.Executor != "" {
-		executorKey, err := addressToRsaKey(block.Executor)
-		if err != nil {
-			return err
-		}
-
-		errVerify := block.VerifyBlock(executorKey)
-		if errVerify != nil {
-			return errVerify
-		}
-	} else {
+	switch action {
+	case "create-order":
+		// check the signature
 		publicKey, err := addressToRsaKey(block.Account)
 		if err != nil {
 			return err
@@ -477,23 +487,175 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		if err := block.VerifyBlock(publicKey); err != nil {
 			return err
 		}
+
+		// previous should be null
+		if block.Previous != "" {
+			return errors.New("Previous should be null")
+		}
+
+		// get the originating send
+		ogSend, err := accountChain.GetBlock(block.Link)
+		if err != nil || ogSend == nil {
+			return errors.New("Order linked send not found")
+		}
+
+		// check to see if the send is pointed at this order
+		if ogSend.Link != block.Account+":"+block.ID {
+			return errors.New("Linked send block does not send to this order")
+		}
+
+		// get the previous of the send
+		ogPrevSend, err := accountChain.GetBlock(ogSend.Previous)
+		if err != nil || ogPrevSend == nil {
+			return errors.New("Linked send block does not have a valid previous")
+		}
+
+		// check if the balances line up
+		balanceSent := ogPrevSend.Balance - ogSend.Balance
+		if balanceSent != block.Balance {
+			return errors.New("Balance sent and Balance created do not match up")
+		}
+
+	case "accept-order":
+		// check the signature
+		if block.Executor != "" {
+			executorKey, err := addressToRsaKey(block.Executor)
+			if err != nil {
+				return err
+			}
+
+			errVerify := block.VerifyBlock(executorKey)
+			if errVerify != nil {
+				return errVerify
+			}
+		} else {
+			publicKey, err := addressToRsaKey(block.Account)
+			if err != nil {
+				return err
+			}
+
+			if err := block.VerifyBlock(publicKey); err != nil {
+				return err
+			}
+		}
+
+		// check if the previous block exists
+		prevBlock, err := orderChain.GetOrderBlock(block.Previous)
+		if err != nil || prevBlock == nil {
+			return errors.New("Previous block invalid")
+		}
+
+		// check if fields beside balance, link, and previous line up
+		if orderAcceptAlignment(block, prevBlock) {
+			return errors.New("Fields did not line up with order creation")
+		}
+
+		// get the linked swap
+		swapBlock, err := swapChain.GetSwapBlock(block.Link)
+		if err != nil || swapBlock == nil {
+			return errors.New("Linked swap not found")
+		}
+
+		// get the linked swap's send
+		swapSendBlock, err := accountChain.GetBlock(swapBlock.Left)
+		if err != nil || swapSendBlock == nil {
+			return errors.New("Linked swap not found")
+		}
+
+		// get the linked swap's send previous
+		swapSendPrevBlock, err := accountChain.GetBlock(swapSendBlock.Previous)
+		if err != nil || swapSendPrevBlock == nil {
+			return errors.New("Linked swap not found")
+		}
+
+		// check the swap's counterparty is the order's account
+		if swapBlock.Counterparty != block.Account {
+			return errors.New("The swap must have counterparty point to this order")
+		}
+
+		// check the ID is the same for swap and order
+		if swapBlock.ID != block.ID {
+			return errors.New("The swap must have same ID as the order")
+		}
+
+		// check if the token type lines up
+		if swapBlock.Want != block.Token || swapBlock.Token != block.Quote {
+			return errors.New("Swap and Order token mismatch")
+		}
+
+		// Balances check
+		swapWant := swapBlock.Quantity
+		orderBalance := prevBlock.Balance - block.Balance
+		orderPrice := block.Price
+		swapSendQuantity := swapSendPrevBlock.Balance - swapSendBlock.Balance
+		// valid block balance
+		if block.Balance < 0 {
+			return errors.New("Invalid block balance, must be greater than zero")
+		}
+		// check if allowed to not fill the whole order
+		if !block.Partial {
+			if block.Balance != 0 {
+				return errors.New("Balance must be paid in full for blocks with Partial = false")
+			}
+		}
+		// check to see if order gets what it wants
+		if orderPrice*swapSendQuantity != orderBalance {
+			return errors.New("Balance sent to order is invalid")
+		}
+
+		// check if swap gets what it wants
+		if orderBalance != swapWant {
+			return errors.New("Balance sent to swap is invalid")
+		}
+
+	case "refund-order":
+		// check the signature
+		publicKey, err := addressToRsaKey(block.Account)
+		if err != nil {
+			return err
+		}
+
+		if err := block.VerifyBlock(publicKey); err != nil {
+			return err
+		}
+
+		// check if the previous block exists
+		prevBlock, errPrev := orderChain.GetOrderBlock(block.Previous)
+		if errPrev != nil || prevBlock == nil {
+			return errors.New("Previous block invalid")
+		}
+
+		// check if fields beside link and previous line up
+		if orderRefundAlignment(block, prevBlock) {
+			return errors.New("Fields did not line up with head order block")
+		}
+
+		// make sure the link is to the originating send account
+		if block.Account != block.Link {
+			return errors.New("Must refund to the original sender")
+		}
+
+	default:
+		return errors.New("undefined action type: " + action)
 	}
 
-	// check if the previous block exists
-	addressPair := addressPrefix + block.Account + ":" + block.ID
-	_, errPrev := orderChain.GetOrderBlock(addressPair)
-	if errPrev != nil {
-		return errPrev
-	}
-
-	// check if the originating send exists
-	ogSend, errSend := accountChain.GetBlock(block.Link)
-	if errSend != nil || ogSend == nil {
-		return errSend
-	}
-
-	// the rest of the checks are done when an actual swap offer is started
 	return nil
+}
+
+// check if all fields beside link, balance, and previous
+// block is the accept-order, prevBlock is the create-order
+func orderAcceptAlignment(block *tb.OrderBlock, prevBlock *tb.OrderBlock) bool {
+	return block.Account != prevBlock.Account || block.Token != prevBlock.Token ||
+		block.ID != prevBlock.ID || block.Quote != prevBlock.Quote || block.Price != prevBlock.Price ||
+		block.Partial != prevBlock.Partial || block.Executor != prevBlock.Executor || block.Fee != prevBlock.Fee
+}
+
+// check if all fields beside link and previous
+// block is the refund-order, prevBlock is the current head orderblock.
+func orderRefundAlignment(block *tb.OrderBlock, prevBlock *tb.OrderBlock) bool {
+	return block.Account != prevBlock.Account || block.Token != prevBlock.Token || block.Balance != prevBlock.Balance ||
+		block.ID != prevBlock.ID || block.Quote != prevBlock.Quote || block.Price != prevBlock.Price ||
+		block.Partial != prevBlock.Partial || block.Executor != prevBlock.Executor || block.Fee != prevBlock.Fee
 }
 
 func addressToRsaKey(hash string) (*rsa.PublicKey, error) {
