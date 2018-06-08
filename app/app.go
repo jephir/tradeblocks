@@ -103,6 +103,26 @@ func RefundRight(publicKey io.Reader, refundLeft *tradeblocks.SwapBlock, counter
 	return tradeblocks.NewRefundRightBlock(refundLeft, counterSend, refundTo), nil
 }
 
+//CreateOrder creates an order
+func CreateOrder(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64, ID string, partial bool, quote string, price float64, executor string) (*tradeblocks.OrderBlock, error) {
+	address, err := PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return tradeblocks.NewCreateOrderBlock(address, send, balance, ID, partial, quote, price, executor), nil
+}
+
+//AcceptOrder creates an accept order for an order
+func AcceptOrder(publicKey io.Reader, previous *tradeblocks.OrderBlock, link string, balance float64) (*tradeblocks.OrderBlock, error) {
+	return tradeblocks.NewAcceptOrderBlock(previous, link, balance), nil
+}
+
+//RefundtOrder creates an accept order for an order
+func RefundOrder(publicKey io.Reader, previous *tradeblocks.OrderBlock, refundTo string) (*tradeblocks.OrderBlock, error) {
+	return tradeblocks.NewRefundOrderBlock(previous, refundTo), nil
+}
+
 // PublicKeyToAddress returns the string serialization of the specified public key
 func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	buf, err := ioutil.ReadAll(publicKey)

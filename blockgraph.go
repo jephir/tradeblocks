@@ -509,6 +509,60 @@ func (ab *OrderBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 	return nil
 }
 
+// NewOrderBlock creates a new order
+func NewCreateOrderBlock(account string, send *AccountBlock, balance float64, ID string, partial bool, quote string, price float64, executor string) *OrderBlock {
+	return &OrderBlock{
+		Action:    "create-order",
+		Account:   account,
+		Token:     send.Token,
+		ID:        ID,
+		Previous:  "",
+		Balance:   balance,
+		Quote:     quote,
+		Price:     price,
+		Link:      send.Hash(),
+		Partial:   partial,
+		Executor:  executor,
+		Signature: "",
+	}
+}
+
+// NewAcceptOrderBlock creates a new order
+func NewAcceptOrderBlock(previous *OrderBlock, link string, balance float64) *OrderBlock {
+	return &OrderBlock{
+		Action:    "accept-order",
+		Account:   previous.Account,
+		Token:     previous.Token,
+		ID:        previous.ID,
+		Previous:  previous.Hash(),
+		Balance:   balance,
+		Quote:     previous.Quote,
+		Price:     previous.Price,
+		Link:      link,
+		Partial:   previous.Partial,
+		Executor:  previous.Executor,
+		Signature: "",
+	}
+}
+
+// NewRefundOrderBlock creates a refund for an order
+func NewRefundOrderBlock(previous *OrderBlock, refundTo string) *OrderBlock {
+	return &OrderBlock{
+		Action:    "refund-order",
+		Account:   previous.Account,
+		Token:     previous.Token,
+		ID:        previous.ID,
+		Previous:  previous.Hash(),
+		Balance:   previous.Balance,
+		Quote:     previous.Quote,
+		Price:     previous.Price,
+		Link:      refundTo,
+		Partial:   previous.Partial,
+		Executor:  previous.Executor,
+		Signature: "",
+	}
+}
+
 // SignedAccountBlock returns a signed version of the specified block with the specified private key
 func SignedAccountBlock(b *AccountBlock, priv *rsa.PrivateKey) (*AccountBlock, error) {
 	if err := b.SignBlock(priv); err != nil {

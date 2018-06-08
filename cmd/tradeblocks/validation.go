@@ -119,3 +119,38 @@ func refundRightInputValidation(args []string) (goodInputs bool, addInfo string)
 	goodInputs = len(args) == 3
 	return
 }
+
+func createOrderInputValidation(args []string) (goodInputs bool, addInfo string) {
+	addInfo = "CLI args invalid length.\n" +
+		"Executor is optional. Run this command with $ tradeblocks create-order\n" +
+		"<send: string> <ID: string> <partial: boolean> <quote: string> <quantity: float> \n" +
+		"<executor: string, OPTIONAL>  \n"
+	goodInputs = true
+	if len(args) == 7 || len(args) == 8 {
+		if _, err := strconv.ParseBool(args[4]); err != nil {
+			goodInputs = false
+			addInfo += "Invalid partial, must be a boolean\n"
+		}
+		if _, err := strconv.ParseFloat(args[6], 64); err != nil {
+			goodInputs = false
+			addInfo += "Invalid quantity, must be a float64\n"
+		}
+	} else {
+		goodInputs = false
+	}
+	return
+}
+
+func acceptOrderInputValidation(args []string) (goodInputs bool, addInfo string) {
+	addInfo = "CLI args invalid length.\n" +
+		"Run this command with $ tradeblocks accept-order <order: string> <link: string>\n"
+	goodInputs = len(args) == 4
+	return
+}
+
+func refundOrderInputValidation(args []string) (goodInputs bool, addInfo string) {
+	addInfo = "CLI args invalid length.\n" +
+		"Run this command with $ tradeblocks refund-order <order: string>\n"
+	goodInputs = len(args) == 3
+	return
+}

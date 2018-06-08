@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -112,5 +113,69 @@ func TestRefundRightValidation(t *testing.T) {
 	ok, _ = refundRightInputValidation([]string{"tradeblocks", "refund-right", "refundLeft", "extra"})
 	if ok {
 		t.Fatalf("offer failed; expected error")
+	}
+}
+
+func TestCreateOrderValidation(t *testing.T) {
+	ok, _ := createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "10.0", "executor", "extra"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "not bool", "quote", "10.0", "executor"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, _ = createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "not float", "executor"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, err := createOrderInputValidation([]string{"tradeblocks", "create-order", "send", "id", "True", "quote", "10.0", "executor"})
+	if !ok {
+		fmt.Printf("err %v \n", err)
+		t.Fatalf("offer failed; expected ok")
+	}
+}
+
+func TestAcceptOrderValidation(t *testing.T) {
+	ok, _ := acceptOrderInputValidation([]string{"tradeblocks", "accept-order", "order"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, _ = acceptOrderInputValidation([]string{"tradeblocks", "accept-order", "order", "link", "extra"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, err := acceptOrderInputValidation([]string{"tradeblocks", "accept-order", "order", "link"})
+	if !ok {
+		fmt.Printf("err %v \n", err)
+		t.Fatalf("offer failed; expected ok")
+	}
+}
+
+func TestRefundOrderValidation(t *testing.T) {
+	ok, _ := refundOrderInputValidation([]string{"tradeblocks", "refund-order"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, _ = refundOrderInputValidation([]string{"tradeblocks", "refund-order", "order", "extra"})
+	if ok {
+		t.Fatalf("offer failed; expected error")
+	}
+
+	ok, err := refundOrderInputValidation([]string{"tradeblocks", "refund-order", "order"})
+	if !ok {
+		fmt.Printf("err %v \n", err)
+		t.Fatalf("offer failed; expected ok")
 	}
 }

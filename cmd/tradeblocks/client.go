@@ -411,6 +411,137 @@ func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) 
 	return refundRight, nil
 }
 
+func (c *client) createOrder(send string, ID string, partial bool, quote string, price float64, executor string) (*tradeblocks.OrderBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the originating send
+	sendBlock, err := c.getBlock(send)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the previous of the send
+	sendPrevBlock, err := c.getBlock(sendBlock.Previous)
+	if err != nil {
+		return nil, err
+	}
+
+	// balance of the order
+	balance := sendPrevBlock.Balance - sendBlock.Balance
+
+	// create the refund
+	createOrderBlock, err := app.CreateOrder(publicKey, sendBlock, balance, ID, partial, quote, price, executor)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signOrder(privateKey, createOrderBlock); err != nil {
+		return nil, err
+	}
+
+	if err := c.postOrderBlock(createOrderBlock); err != nil {
+		return nil, err
+	}
+
+	return createOrderBlock, nil
+}
+
+func (c *client) acceptOrder(swap string, link string) (*tradeblocks.OrderBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the previous order
+	prevBlock, err := c.getHeadOrderBlock(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the swap by address
+	swapBlock, err := c.getSwapBlock(swap)
+	if err != nil {
+		return nil, err
+	}
+
+	// balance of the order
+	balance := prevBlock.Balance - swapBlock.Quantity
+
+	// create the refund
+	acceptOrderBlock, err := app.AcceptOrder(publicKey, prevBlock, link, balance)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signOrder(privateKey, acceptOrderBlock); err != nil {
+		return nil, err
+	}
+
+	if err := c.postOrderBlock(acceptOrderBlock); err != nil {
+		return nil, err
+	}
+
+	return acceptOrderBlock, nil
+}
+
+func (c *client) refundOrder(order string) (*tradeblocks.OrderBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the previous order
+	prevBlock, err := c.getHeadOrderBlock(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	refundTo := prevBlock.Account
+
+	// create the refund
+	refundOrderBlock, err := app.RefundOrder(publicKey, prevBlock, refundTo)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signOrder(privateKey, refundOrderBlock); err != nil {
+		return nil, err
+	}
+
+	if err := c.postOrderBlock(refundOrderBlock); err != nil {
+		return nil, err
+	}
+
+	return refundOrderBlock, nil
+}
+
 func (c *client) openPublicKey() (*os.File, error) {
 	userPath := filepath.Join(c.dir, "user")
 	user, err := ioutil.ReadFile(userPath)

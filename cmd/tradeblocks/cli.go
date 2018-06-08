@@ -19,6 +19,7 @@ func (cli *cli) dispatch(args []string) error {
 	var command = args[1]
 	var block *tradeblocks.AccountBlock
 	var swapBlock *tradeblocks.SwapBlock
+	var orderBlock *tradeblocks.OrderBlock
 	var err error
 
 	cmd := newClient(cli.dataDir, cli.serverURL, cli.keySize)
@@ -131,7 +132,43 @@ func (cli *cli) dispatch(args []string) error {
 				return err
 			}
 		} else {
-			cmd.badInputs("refundLeft", addInfo)
+			cmd.badInputs("refundRight", addInfo)
+		}
+	case "create-order":
+		goodInputs, addInfo := createOrderInputValidation(args)
+		if goodInputs {
+			partial, _ := strconv.ParseBool(args[4])
+			quantity, _ := strconv.ParseFloat(args[6], 64)
+			if len(args) == 7 {
+				orderBlock, err = cmd.createOrder(args[2], args[3], partial, args[5], quantity, "")
+			} else if len(args) == 8 {
+				orderBlock, err = cmd.createOrder(args[2], args[3], partial, args[5], quantity, args[7])
+			}
+			if err != nil {
+				return err
+			}
+		} else {
+			cmd.badInputs("order", addInfo)
+		}
+	case "accept-order":
+		goodInputs, addInfo := acceptOrderInputValidation(args)
+		if goodInputs {
+			orderBlock, err = cmd.acceptOrder(args[2], args[3])
+			if err != nil {
+				return err
+			}
+		} else {
+			cmd.badInputs("order", addInfo)
+		}
+	case "refund-order":
+		goodInputs, addInfo := refundOrderInputValidation(args)
+		if goodInputs {
+			orderBlock, err = cmd.refundOrder(args[2])
+			if err != nil {
+				return err
+			}
+		} else {
+			cmd.badInputs("order", addInfo)
 		}
 	case "trade":
 		// TODO Implement trading
@@ -144,6 +181,10 @@ func (cli *cli) dispatch(args []string) error {
 
 	if swapBlock != nil {
 		fmt.Fprintln(cli.out, swapBlock.Hash())
+	}
+
+	if orderBlock != nil {
+		fmt.Fprintln(cli.out, orderBlock.Hash())
 	}
 
 	return nil
