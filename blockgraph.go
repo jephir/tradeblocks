@@ -502,3 +502,8 @@ func SignedOrderBlock(b *OrderBlock, priv *rsa.PrivateKey) (*OrderBlock, error) 
 	}
 	return b, nil
 }
+
+// SwapAddress returns an address for the specified account and id
+func SwapAddress(account, id string) string {
+	return account + ":" + id
+}

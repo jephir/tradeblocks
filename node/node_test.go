@@ -154,15 +154,26 @@ func GetAddress() (*rsa.PrivateKey, string, error) {
 }
 
 func TestSyncAllBlockTypes(t *testing.T) {
+	allBlocksTest := tradeblockstest.NewBlockTestTable(t)
+
+	// Test account chain
 	p1, a1 := tradeblockstest.CreateAccount(t)
 	p2, a2 := tradeblockstest.CreateAccount(t)
-
-	allBlocksTest := tradeblockstest.NewBlockTestTable(t)
 	p1issue := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewIssueBlock(a1, 100))
 	p1send := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1issue, a2, 50))
 	p2open := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewOpenBlockFromSend(a2, p1send, 50))
 	p2send := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewSendBlock(p2open, a1, 25))
-	allBlocksTest.AddAccountBlock(p1, tradeblocks.NewReceiveBlockFromSend(p1send, p2send, 25))
+	/*p1receive :=*/ allBlocksTest.AddAccountBlock(p1, tradeblocks.NewReceiveBlockFromSend(p1send, p2send, 25))
+
+	// Test swap chain
+	// p3, a3 := tradeblockstest.CreateAccount(t)
+	// p3issue := allBlocksTest.AddAccountBlock(p3, tradeblocks.NewIssueBlock(a3, 100))
+	// p1swapsend := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1receive, tradeblocks.SwapAddress(a1, "test"), 10))
+	// p1swapoffer := allBlocksTest.AddSwapBlock(p1, tradeblocks.NewOfferBlock(a1, p1swapsend, "test", a3, a3, 15, "", 0))
+	// p3swapsend := allBlocksTest.AddAccountBlock(p3, tradeblocks.NewSendBlock(p3issue, tradeblocks.SwapAddress(a1, "test"), 15))
+	// p3swapcommit := allBlocksTest.AddSwapBlock(p3, tradeblocks.NewCommitBlock(p3swapsend, p1swapoffer))
+	// p1swapreceive := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewOpenBlock(a1, p3swapcommit, 15))
+	// p3swapreceive := allBlocksTest.AddAccountBlock(p3, tradeblocks.NewOpenBlock(a3, p3swapcommit, 10))
 
 	n1, s1 := newNode(t, "")
 	defer s1.Close()
@@ -173,7 +184,7 @@ func TestSyncAllBlockTypes(t *testing.T) {
 	n3, s3 := newNode(t, s2.URL)
 	defer s3.Close()
 
-	for _, tt := range allBlocksTest.AccountBlocks {
+	for _, tt := range allBlocksTest.GetAll() {
 		t.Run(tt.Hash(), func(t *testing.T) {
 			h := tt.Hash()
 			addBlockToNode(t, n1, tt)
