@@ -2,10 +2,8 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"sync"
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
@@ -13,34 +11,35 @@ import (
 
 // Server implements a TradeBlocks node
 type Server struct {
-	mux           *http.ServeMux
-	accountStream *sse
-	service       *service
+	mux         *http.ServeMux
+	blockStream *sse
+	store       *app.BlockStore2
 }
 
 // NewServer allocates and returns a new server
-func NewServer(blockstore *app.BlockStore) *Server {
+func NewServer(blockstore *app.BlockStore2) *Server {
 	s := &Server{
-		mux:           http.NewServeMux(),
-		accountStream: newSSE(),
-		service: &service{
-			blockstore: blockstore,
-		},
+		mux:         http.NewServeMux(),
+		blockStream: newSSE(),
+		store:       blockstore,
 	}
 	s.routes()
-	s.accountStream.connectHandler = func() []event {
-		var result []event
-
-		for r := range s.service.getBlocks() {
-			ss, err := accountBlockEvent(r.block)
-			if err != nil {
-				log.Println(err)
-			}
-			result = append(result, ss)
-		}
-		return result
-	}
+	s.blockStream.connectHandler = s.blockEvents
 	return s
+}
+
+func (s *Server) blockEvents() []event {
+	var result []event
+	s.store.Blocks(func(sequence int, b tradeblocks.Block) bool {
+		hash := b.Hash()
+		ss, err := blockEvent(hash, b)
+		if err != nil {
+			log.Println(err)
+		}
+		result = append(result, ss)
+		return true
+	})
+	return result
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -48,189 +47,251 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) routes() {
-	s.mux.Handle("/accounts", s.accountStream)
-	s.mux.HandleFunc("/account", s.handleAccountBlock())
-	s.mux.HandleFunc("/head", s.handleAccountHead())
+	s.mux.HandleFunc("/block", s.handleBlock())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
+	s.mux.HandleFunc("/head", s.handleHead())
 }
 
-func (s *Server) handleAccountBlock() http.HandlerFunc {
+func (s *Server) handleBlock() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
 			hash := r.FormValue("hash")
-			block, err := s.service.getBlock(hash)
-			if err != nil {
-				log.Printf("error in handleAccountBlock GET1: %v Couldn't get block. \n", err.Error())
-				http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
-				return
-			}
+			block := s.store.Block(hash)
 			if block == nil {
-				http.Error(w, "No block found for '"+hash+"'", http.StatusBadRequest)
+				serverError(w, "no block found with hash '"+hash+"'", http.StatusBadRequest)
 				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
-				log.Printf("error in handleAccountBlock GET3: %v \n", err.Error())
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 		case "POST":
-			//log.Printf("received a new block to add!\n")
-			var b tradeblocks.AccountBlock
-			if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-				log.Printf("error in handleAccountBlock POST1: %v \n", err.Error())
-				http.Error(w, err.Error(), http.StatusBadRequest)
+			t := r.FormValue("type")
+			if t == "" {
+				serverError(w, "missing query param 'type'", http.StatusBadRequest)
 				return
 			}
-			//log.Printf("block is %v\n", &b)
-			if _, err := s.service.addBlock(&b); err != nil {
-				log.Printf("error in handleAccountBlock POST2: %v \n", err.Error())
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
+			switch t {
+			case "account":
+				var b tradeblocks.AccountBlock
+				if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+					serverError(w, "error decoding block: "+err.Error(), http.StatusBadRequest)
+					return
+				}
+				if err := s.store.AddAccountBlock(&b); err != nil {
+					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					return
+				}
+				if err := json.NewEncoder(w).Encode(b); err != nil {
+					serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			case "swap":
+				var b tradeblocks.SwapBlock
+				if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+					serverError(w, "error decoding block: "+err.Error(), http.StatusBadRequest)
+					return
+				}
+				if err := s.store.AddSwapBlock(&b); err != nil {
+					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					return
+				}
+				if err := json.NewEncoder(w).Encode(b); err != nil {
+					serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			case "order":
+				var b tradeblocks.OrderBlock
+				if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+					serverError(w, "error decoding block: "+err.Error(), http.StatusBadRequest)
+					return
+				}
+				if err := s.store.AddOrderBlock(&b); err != nil {
+					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					return
+				}
+				if err := json.NewEncoder(w).Encode(b); err != nil {
+					serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			default:
+				serverError(w, "invalid query type '"+t+"'", http.StatusBadRequest)
 			}
-			if err := json.NewEncoder(w).Encode(b); err != nil {
-				log.Printf("error in handleAccountBlock POST3: %v \n", err.Error())
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			// ss, _ := app.SerializeAccountBlock(&b)
-			//log.Printf("web: added block %s: %s", b.Hash(), ss)
 		default:
-			log.Printf("error in handleAccountBlock default \n")
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			serverError(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
 	}
 }
 
-func (s *Server) handleAccountHead() http.HandlerFunc {
+func (s *Server) handleHead() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		account := r.FormValue("account")
-		token := r.FormValue("token")
-
-		// fmt.Println("'" + account + ":" + token + "'")
-		// for a := range s.service.blockstore.AccountHeads {
-		// 	fmt.Println("'" + a + "'")
-		// 	if a == account+":"+token {
-		// 		fmt.Println("MATCH")
-		// 	} else {
-		// 		fmt.Println("MISS")
-		// 	}
-		// }
-
-		block, err := s.service.getHeadBlock(account, token)
-		if err != nil {
-			http.Error(w, "Couldn't get block.", http.StatusInternalServerError)
+		if r.Method != "GET" {
+			serverError(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+		t := r.FormValue("type")
+		if t == "" {
+			serverError(w, "missing query param 'type'", http.StatusBadRequest)
 			return
 		}
-		if block == nil {
-			http.Error(w, "No head found for account '"+account+"' and token '"+token+"'", http.StatusBadRequest)
-		}
-		if err := json.NewEncoder(w).Encode(block); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		switch t {
+		case "account":
+			account := r.FormValue("account")
+			token := r.FormValue("token")
+			block := s.store.GetAccountHead(account, token)
+			if block == nil {
+				serverError(w, "no head found for account '"+account+"' and token '"+token+"'", http.StatusBadRequest)
+			}
+			if err := json.NewEncoder(w).Encode(block); err != nil {
+				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		case "swap":
+			account := r.FormValue("account")
+			id := r.FormValue("id")
+			block := s.store.GetSwapHead(account, id)
+			if block == nil {
+				serverError(w, "no head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
+			}
+			if err := json.NewEncoder(w).Encode(block); err != nil {
+				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		case "order":
+			account := r.FormValue("account")
+			id := r.FormValue("id")
+			block := s.store.GetOrderHead(account, id)
+			if block == nil {
+				serverError(w, "no head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
+			}
+			if err := json.NewEncoder(w).Encode(block); err != nil {
+				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		default:
+			serverError(w, "invalid query type '"+t+"'", http.StatusBadRequest)
 		}
 	}
 }
 
 func (s *Server) handleBlocks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.FormValue("stream") != "" {
+			s.blockStream.ServeHTTP(w, r)
+			return
+		}
 		switch r.Method {
 		case "GET":
-			result := make(app.AccountBlocksMap)
-			for r := range s.service.getBlocks() {
-				result[r.hash] = r.block
+			t := r.FormValue("type")
+			switch t {
+			// case "":
+			// 	var blocks []tradeblocks.NetworkBlock
+			// 	s.store.AccountBlocks(func(hash string, b *tradeblocks.AccountBlock) bool {
+			// 		block := tradeblocks.NetworkBlock{
+			// 			Block: b,
+			// 			Type:  "account",
+			// 		}
+			// 		blocks = append(blocks, block)
+			// 		return true
+			// 	})
+			// 	s.store.SwapBlocks(func(hash string, b *tradeblocks.SwapBlock) bool {
+			// 		block := tradeblocks.NetworkBlock{
+			// 			Block: b,
+			// 			Type:  "swap",
+			// 		}
+			// 		blocks = append(blocks, block)
+			// 		return true
+			// 	})
+			// 	s.store.OrderBlocks(func(hash string, b *tradeblocks.OrderBlock) bool {
+			// 		block := tradeblocks.NetworkBlock{
+			// 			Block: b,
+			// 			Type:  "order",
+			// 		}
+			// 		blocks = append(blocks, block)
+			// 		return true
+			// 	})
+			// 	sort.Slice(blocks, func(i, j int) bool {
+			// 		a := blocks[i].Hash()
+			// 		b := blocks[j].Hash()
+			// 		return s.store.SequenceLess(a, b)
+			// 	})
+			// 	if err := json.NewEncoder(w).Encode(blocks); err != nil {
+			// 		serverError(w, "error encoding blocks: "+err.Error(), http.StatusInternalServerError)
+			// 		return
+			// 	}
+			case "account":
+				result := make(map[string]tradeblocks.NetworkAccountBlock)
+				s.store.AccountBlocks(func(sequence int, b *tradeblocks.AccountBlock) bool {
+					hash := b.Hash()
+					result[hash] = tradeblocks.NetworkAccountBlock{
+						AccountBlock: b,
+						Sequence:     sequence,
+					}
+					return true
+				})
+				if err := json.NewEncoder(w).Encode(result); err != nil {
+					serverError(w, "error encoding blocks: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			case "swap":
+				result := make(map[string]tradeblocks.NetworkSwapBlock)
+				s.store.SwapBlocks(func(sequence int, b *tradeblocks.SwapBlock) bool {
+					hash := b.Hash()
+					result[hash] = tradeblocks.NetworkSwapBlock{
+						SwapBlock: b,
+						Sequence:  sequence,
+					}
+					return true
+				})
+				if err := json.NewEncoder(w).Encode(result); err != nil {
+					serverError(w, "error encoding blocks: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			case "order":
+				result := make(map[string]tradeblocks.NetworkOrderBlock)
+				s.store.OrderBlocks(func(sequence int, b *tradeblocks.OrderBlock) bool {
+					hash := b.Hash()
+					result[hash] = tradeblocks.NetworkOrderBlock{
+						OrderBlock: b,
+						Sequence:   sequence,
+					}
+					return true
+				})
+				if err := json.NewEncoder(w).Encode(result); err != nil {
+					serverError(w, "error encoding blocks: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			default:
+				serverError(w, "invalid query type '"+t+"'", http.StatusBadRequest)
 			}
-			if err := json.NewEncoder(w).Encode(result); err != nil {
-				log.Printf("error in handleBlocks get: %v \n", err.Error())
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+
 		default:
-			log.Printf("error in handleBlocks default\n")
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			serverError(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		}
 	}
 }
 
-// BroadcastAccountBlock sends the specified account block to all event listeners
-func (s *Server) BroadcastAccountBlock(b *tradeblocks.AccountBlock) error {
-	e, err := accountBlockEvent(b)
+// BroadcastBlock broadcasts the specified block to all event listeners
+func (s *Server) BroadcastBlock(b tradeblocks.Block) error {
+	e, err := blockEvent(b.Hash(), b)
 	if err != nil {
 		return err
 	}
-	s.accountStream.broadcast <- e
+	s.blockStream.broadcast <- e
 	return nil
 }
 
-func accountBlockEvent(b *tradeblocks.AccountBlock) (event, error) {
+func blockEvent(hash string, b tradeblocks.Block) (event, error) {
 	var res struct {
-		*tradeblocks.AccountBlock
+		tradeblocks.Block
 		Hash string
 	}
-	res.AccountBlock = b
-	res.Hash = b.Hash()
+	res.Block = b
+	res.Hash = hash
 	return json.Marshal(res)
 }
 
-// service represents concurrency-safe resources that the HTTP handlers can access
-type service struct {
-	mu         sync.RWMutex
-	blockstore *app.BlockStore
-}
-
-type hashAccountBlock struct {
-	hash  string
-	block *tradeblocks.AccountBlock
-}
-
-func (s *service) getBlocks() <-chan hashAccountBlock {
-	// Use goroutine to hold open read mutex while returning blocks
-	ch := make(chan hashAccountBlock)
-	go func() {
-		s.mu.RLock()
-		defer s.mu.RUnlock()
-		for hash, block := range s.blockstore.AccountBlocks {
-			ch <- hashAccountBlock{
-				hash:  hash,
-				block: block,
-			}
-		}
-		close(ch)
-	}()
-	return ch
-}
-
-func (s *service) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.blockstore.GetBlock(hash)
-}
-
-func (s *service) getHeadBlock(account, token string) (*tradeblocks.AccountBlock, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.blockstore.GetHeadBlock(account, token)
-}
-
-func (s *service) addBlock(block *tradeblocks.AccountBlock) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	hash, err := s.blockstore.AddBlock(block)
-	fmt.Println(hash)
-	if err != nil {
-		if _, ok := err.(*app.BlockConflictError); ok {
-			var highest int
-			var hash string
-			for _, vote := range s.blockstore.VoteBlocks {
-				if vote.Order > highest {
-					highest = vote.Order
-					hash = vote.Link
-				}
-			}
-			if hash != block.Hash() {
-				return "", fmt.Errorf("server: specified block '%s' is purged", block.Hash())
-			}
-		}
-	}
-	return hash, err
+func serverError(w http.ResponseWriter, error string, code int) {
+	log.Printf("web: %s", error)
+	http.Error(w, error, code)
 }

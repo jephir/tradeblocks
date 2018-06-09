@@ -507,3 +507,21 @@ func SignedOrderBlock(b *OrderBlock, priv *rsa.PrivateKey) (*OrderBlock, error) 
 func SwapAddress(account, id string) string {
 	return account + ":" + id
 }
+
+// NetworkAccountBlock represents a block with sequence information
+type NetworkAccountBlock struct {
+	*AccountBlock
+	Sequence int
+}
+
+// NetworkSwapBlock represents a block with sequence information
+type NetworkSwapBlock struct {
+	*SwapBlock
+	Sequence int
+}
+
+// NetworkOrderBlock represents a block with sequence information
+type NetworkOrderBlock struct {
+	*OrderBlock
+	Sequence int
+}

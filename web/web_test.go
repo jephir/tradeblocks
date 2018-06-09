@@ -1,9 +1,8 @@
 package web
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
+	"github.com/jephir/tradeblocks/tradeblockstest"
 	"net/http/httptest"
 	"testing"
 
@@ -13,27 +12,23 @@ import (
 
 const base = "http://localhost:8080"
 
-var key, err = rsa.GenerateKey(rand.Reader, 512)
-
 func TestWeb(t *testing.T) {
 	// Setup keys
-	key, address, err := GetAddress()
-	if err != nil {
-		t.Fatal(err)
-	}
+	p, a := tradeblockstest.CreateAccount(t)
+
 	// Setup test
-	store := app.NewBlockStore()
+	store := app.NewBlockStore2()
 	srv := NewServer(store)
 	client := NewClient(base)
 
 	// Create request
-	b, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	b, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(a, 100), p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := `{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
+	expect := `{"Action":"issue","Account":"` + a + `","Token":"` + a + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
 
-	req, err := client.NewPostAccountRequest(b)
+	req, err := client.NewPostAccountBlockRequest(b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,8 +37,8 @@ func TestWeb(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.ServeHTTP(w, req)
 	res := w.Result()
-	result, err := client.DecodeAccountResponse(res)
-	if err != nil {
+	var result tradeblocks.AccountBlock
+	if err := client.DecodeAccountBlockResponse(res, &result); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,29 +54,30 @@ func TestWeb(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
-	key, address, err := GetAddress()
-	if err != nil {
-		t.Error(err)
-	}
+	p, a := tradeblockstest.CreateAccount(t)
 
 	// Create root server
-	rs := app.NewBlockStore()
-	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	rs := app.NewBlockStore2()
+	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(a, 100), p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 50), key)
+	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(a, 50), p)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	rs.AddBlock(b1)
-	rs.AddBlock(b2)
+	if err := rs.AddAccountBlock(b1); err != nil {
+		t.Fatal(err)
+	}
+	if err := rs.AddAccountBlock(b2); err != nil {
+		t.Fatal(err)
+	}
 	srv := NewServer(rs)
 
 	// Create connecting server
 	client := NewClient(base)
-	req, err := client.NewGetBlocksRequest()
+	req, err := client.NewGetAccountBlocksRequest()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,23 +86,17 @@ func TestBootstrap(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.ServeHTTP(w, req)
 	res := w.Result()
-	result, err := client.DecodeGetBlocksResponse(res)
+	result, err := client.DecodeGetAccountBlocksResponse(res)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Check result
-	r1, ok := result[b1.Hash()]
-	if !ok {
-		t.Fatalf("missing block b1 '%s'", b1.Hash())
-	}
+	r1 := result[b1.Hash()].AccountBlock
 	if err := r1.Equals(b1); err != nil {
 		t.Fatal(err)
 	}
-	r2, ok := result[b2.Hash()]
-	if !ok {
-		t.Fatalf("missing block b2 '%s'", b2.Hash())
-	}
+	r2 := result[b2.Hash()].AccountBlock
 	if err := r2.Equals(b2); err != nil {
 		t.Fatal(err)
 	}

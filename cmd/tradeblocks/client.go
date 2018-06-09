@@ -288,14 +288,14 @@ func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.A
 		return nil, err
 	}
 	var result tradeblocks.AccountBlock
-	if err := c.api.DecodeGetAccountHeadResponse(res, &result); err != nil {
+	if err := c.api.DecodeAccountBlockResponse(res, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
 func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	r, err := c.api.NewGetAccountBlockRequest(hash)
+	r, err := c.api.NewGetBlockRequest(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -304,14 +304,14 @@ func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 		return nil, err
 	}
 	var result tradeblocks.AccountBlock
-	if err := c.api.DecodeGetAccountHeadResponse(res, &result); err != nil {
+	if err := c.api.DecodeAccountBlockResponse(res, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
 func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
-	req, err := c.api.NewPostAccountRequest(b)
+	req, err := c.api.NewPostAccountBlockRequest(b)
 	if err != nil {
 		return err
 	}
@@ -321,7 +321,8 @@ func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
 		return err
 	}
 
-	if _, err := c.api.DecodeAccountResponse(res); err != nil {
+	var rb tradeblocks.AccountBlock
+	if err := c.api.DecodeAccountBlockResponse(res, &rb); err != nil {
 		return err
 	}
 
