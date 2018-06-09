@@ -44,17 +44,34 @@ func (tt *BlockTestTable) AddOrderBlock(priv *rsa.PrivateKey, b *tradeblocks.Ord
 	return b
 }
 
+// TypedBlock represents a block with type information
+type TypedBlock struct {
+	*tradeblocks.AccountBlock
+	*tradeblocks.SwapBlock
+	*tradeblocks.OrderBlock
+	T string
+}
+
 // GetAll returns all the blocks in the test table
-func (tt *BlockTestTable) GetAll() []tradeblocks.Block {
-	var result []tradeblocks.Block
+func (tt *BlockTestTable) GetAll() []TypedBlock {
+	var result []TypedBlock
 	for _, b := range tt.AccountBlocks {
-		result = append(result, b)
+		result = append(result, TypedBlock{
+			AccountBlock: b,
+			T:     "account",
+		})
 	}
 	for _, b := range tt.SwapBlocks {
-		result = append(result, b)
+		result = append(result, TypedBlock{
+			SwapBlock: b,
+			T:     "swap",
+		})
 	}
 	for _, b := range tt.OrderBlocks {
-		result = append(result, b)
+		result = append(result, TypedBlock{
+			OrderBlock: b,
+			T:     "order",
+		})
 	}
 	return result
 }
