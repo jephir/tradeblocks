@@ -55,19 +55,19 @@ func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
 func (s *BlockStore) checkConflict(b *tradeblocks.AccountBlock) error {
 	// open or issue case
 	// TODO Fix
-	// if b.Previous == "" {
-	// 	for _, block := range s.AccountBlocks {
-	// 		if block.Previous == "" && block.Account == b.Account {
-	// 			return &BlockConflictError{block}
-	// 		}
-	// 	}
-	// 	return nil
-	// }
-	// for _, block := range s.AccountBlocks {
-	// 	if block.Previous == b.Previous {
-	// 		return &BlockConflictError{block}
-	// 	}
-	// }
+	if b.Previous == "" {
+		for _, block := range s.AccountBlocks {
+			if block.Previous == "" && block.Account == b.Account {
+				return &BlockConflictError{block}
+			}
+		}
+		return nil
+	}
+	for _, block := range s.AccountBlocks {
+		if block.Previous == b.Previous {
+			return &BlockConflictError{block}
+		}
+	}
 	return nil
 }
 
@@ -159,26 +159,26 @@ func NewOrderBlockStore() *OrderBlockStore {
 }
 
 // AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
-func (s *OrderBlockStore) AddBlock(b *tradeblocks.OrderBlock, c AccountBlockchain) (string, error) {
-	if err := ValidateOrderBlock(c, s, b); err != nil {
+func (o *OrderBlockStore) AddBlock(b *tradeblocks.OrderBlock, s SwapBlockchain, c AccountBlockchain) (string, error) {
+	if err := ValidateOrderBlock(c, s, o, b); err != nil {
 		return "", err
 	}
-	if err := s.checkConflict(b); err != nil {
+	if err := o.checkConflict(b); err != nil {
 		return "", err
 	}
 	h := b.Hash()
-	s.OrderBlocks[h] = b
-	if s.OrderChangeListener != nil {
-		s.OrderChangeListener(h, b)
+	o.OrderBlocks[h] = b
+	if o.OrderChangeListener != nil {
+		o.OrderChangeListener(h, b)
 	}
 	return h, nil
 }
 
-func (s *OrderBlockStore) checkConflict(b *tradeblocks.OrderBlock) error {
+func (o *OrderBlockStore) checkConflict(b *tradeblocks.OrderBlock) error {
 	if b.Previous == "" {
 		return nil
 	}
-	for _, block := range s.OrderBlocks {
+	for _, block := range o.OrderBlocks {
 		if block.Previous == b.Previous {
 			return &orderConflictError{block}
 		}
@@ -188,8 +188,8 @@ func (s *OrderBlockStore) checkConflict(b *tradeblocks.OrderBlock) error {
 
 // GetOrderBlock returns the Order block with the specified hash, or nil if it doesn't exist
 // error return added for future proofing
-func (s *OrderBlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
-	return s.OrderBlocks[hash], nil
+func (o *OrderBlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
+	return o.OrderBlocks[hash], nil
 }
 
 // BlockConflictError represents a conflict (multiple parent claim)

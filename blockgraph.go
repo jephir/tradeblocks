@@ -240,6 +240,23 @@ type SwapBlock struct {
 	Signature    string
 }
 
+// Normalize trims all whitespace in the block
+func (ab *SwapBlock) Normalize() {
+	ab.Action = strings.TrimSpace(ab.Action)
+	ab.Account = strings.TrimSpace(ab.Account)
+	ab.Token = strings.TrimSpace(ab.Token)
+	ab.ID = strings.TrimSpace(ab.ID)
+	ab.Previous = strings.TrimSpace(ab.Previous)
+	ab.Left = strings.TrimSpace(ab.Left)
+	ab.Right = strings.TrimSpace(ab.Right)
+	ab.RefundLeft = strings.TrimSpace(ab.RefundLeft)
+	ab.RefundRight = strings.TrimSpace(ab.RefundRight)
+	ab.Counterparty = strings.TrimSpace(ab.Counterparty)
+	ab.Want = strings.TrimSpace(ab.Want)
+	ab.Executor = strings.TrimSpace(ab.Executor)
+	ab.Signature = strings.TrimSpace(ab.Signature)
+}
+
 // Hash returns the hash of this block
 func (ab *SwapBlock) Hash() string {
 	withoutSig := &SwapBlock{
@@ -332,22 +349,22 @@ func NewOfferBlock(account string, send *AccountBlock, ID string, counterparty s
 }
 
 // NewCommitBlock is the committing swap
-func NewCommitBlock(send *AccountBlock, previous *SwapBlock) *SwapBlock {
+func NewCommitBlock(offer *SwapBlock, right *AccountBlock) *SwapBlock {
 	return &SwapBlock{
 		Action:       "commit",
-		Account:      previous.Account,
-		Token:        previous.Token,
-		ID:           previous.ID,
-		Previous:     previous.Hash(),
-		Left:         previous.Left,
-		Right:        send.Hash(),
+		Account:      offer.Account,
+		Token:        offer.Token,
+		ID:           offer.ID,
+		Previous:     offer.Hash(),
+		Left:         offer.Left,
+		Right:        right.Hash(),
 		RefundLeft:   "",
 		RefundRight:  "",
-		Counterparty: previous.Counterparty,
-		Want:         previous.Want,
-		Quantity:     previous.Quantity,
-		Executor:     previous.Executor,
-		Fee:          previous.Fee,
+		Counterparty: offer.Counterparty,
+		Want:         offer.Want,
+		Quantity:     offer.Quantity,
+		Executor:     offer.Executor,
+		Fee:          offer.Fee,
 		Signature:    "",
 	}
 }
@@ -383,7 +400,7 @@ func NewRefundRightBlock(refundLeft *SwapBlock, counterSend *AccountBlock, refun
 		Previous:     refundLeft.Hash(),
 		Left:         refundLeft.Left,
 		Right:        counterSend.Hash(),
-		RefundLeft:   refundLeft.Account,
+		RefundLeft:   refundLeft.RefundLeft,
 		RefundRight:  refundTo,
 		Counterparty: refundLeft.Counterparty,
 		Want:         refundLeft.Want,
@@ -407,7 +424,21 @@ type OrderBlock struct {
 	Link      string
 	Partial   bool
 	Executor  string
+	Fee       float64
 	Signature string
+}
+
+// Normalize trims all whitespace in the block
+func (ab *OrderBlock) Normalize() {
+	ab.Action = strings.TrimSpace(ab.Action)
+	ab.Account = strings.TrimSpace(ab.Account)
+	ab.Token = strings.TrimSpace(ab.Token)
+	ab.ID = strings.TrimSpace(ab.ID)
+	ab.Previous = strings.TrimSpace(ab.Previous)
+	ab.Quote = strings.TrimSpace(ab.Quote)
+	ab.Link = strings.TrimSpace(ab.Link)
+	ab.Executor = strings.TrimSpace(ab.Executor)
+	ab.Signature = strings.TrimSpace(ab.Signature)
 }
 
 // Hash returns the hash of this block
@@ -424,6 +455,7 @@ func (ab *OrderBlock) Hash() string {
 		Link:      ab.Link,
 		Partial:   ab.Partial,
 		Executor:  ab.Executor,
+		Fee:       ab.Fee,
 		Signature: "",
 	}
 	b, err := json.Marshal(withoutSig)
@@ -477,6 +509,63 @@ func (ab *OrderBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
 		return errVerify
 	}
 	return nil
+}
+
+// NewOrderBlock creates a new order
+func NewCreateOrderBlock(account string, send *AccountBlock, balance float64, ID string, partial bool, quote string, price float64, executor string, fee float64) *OrderBlock {
+	return &OrderBlock{
+		Action:    "create-order",
+		Account:   account,
+		Token:     send.Token,
+		ID:        ID,
+		Previous:  "",
+		Balance:   balance,
+		Quote:     quote,
+		Price:     price,
+		Link:      send.Hash(),
+		Partial:   partial,
+		Executor:  executor,
+		Fee:       fee,
+		Signature: "",
+	}
+}
+
+// NewAcceptOrderBlock creates a new order
+func NewAcceptOrderBlock(previous *OrderBlock, link string, balance float64) *OrderBlock {
+	return &OrderBlock{
+		Action:    "accept-order",
+		Account:   previous.Account,
+		Token:     previous.Token,
+		ID:        previous.ID,
+		Previous:  previous.Hash(),
+		Balance:   balance,
+		Quote:     previous.Quote,
+		Price:     previous.Price,
+		Link:      link,
+		Partial:   previous.Partial,
+		Executor:  previous.Executor,
+		Fee:       previous.Fee,
+		Signature: "",
+	}
+}
+
+// NewRefundOrderBlock creates a refund for an order
+func NewRefundOrderBlock(previous *OrderBlock, refundTo string) *OrderBlock {
+	return &OrderBlock{
+		Action:    "refund-order",
+		Account:   previous.Account,
+		Token:     previous.Token,
+		ID:        previous.ID,
+		Previous:  previous.Hash(),
+		Balance:   previous.Balance,
+		Quote:     previous.Quote,
+		Price:     previous.Price,
+		Link:      refundTo,
+		Partial:   previous.Partial,
+		Executor:  previous.Executor,
+		Fee:       previous.Fee,
+		Signature: "",
+	}
 }
 
 // SignedAccountBlock returns a signed version of the specified block with the specified private key

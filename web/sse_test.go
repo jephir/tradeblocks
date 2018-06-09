@@ -9,13 +9,12 @@ import (
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
-	"github.com/jephir/tradeblocks/tradeblockstest"
 )
 
 func TestSSE(t *testing.T) {
 	t.Skip("TODO Fix")
 
-	p, a := tradeblockstest.CreateAccount(t)
+	p, a := app.CreateAccount(t)
 
 	// Setup test
 	store := app.NewBlockStore2()

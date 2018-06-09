@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"github.com/jephir/tradeblocks/tradeblockstest"
 	"net/http/httptest"
 	"testing"
 
@@ -14,7 +13,7 @@ const base = "http://localhost:8080"
 
 func TestWeb(t *testing.T) {
 	// Setup keys
-	p, a := tradeblockstest.CreateAccount(t)
+	p, a := app.CreateAccount(t)
 
 	// Setup test
 	store := app.NewBlockStore2()
@@ -54,7 +53,7 @@ func TestWeb(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
-	p, a := tradeblockstest.CreateAccount(t)
+	p, a := app.CreateAccount(t)
 
 	// Create root server
 	rs := app.NewBlockStore2()

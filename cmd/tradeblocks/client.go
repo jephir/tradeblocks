@@ -6,13 +6,14 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/jephir/tradeblocks/web"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jephir/tradeblocks/web"
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
@@ -238,6 +239,309 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 	return receive, nil
 }
 
+func (c *client) offer(left, ID, counterparty, want string, quantity float64, executor string, fee float64) (*tradeblocks.SwapBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the linked send
+	send, err := c.getBlock(left)
+	if err != nil {
+		return nil, err
+	}
+
+	// create the offer
+	offer, err := app.Offer(publicKey, send, ID, counterparty, want, quantity, executor, fee)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signSwap(privateKey, offer); err != nil {
+		return nil, err
+	}
+
+	if err := c.postSwapBlock(offer); err != nil {
+		return nil, err
+	}
+
+	return offer, nil
+}
+
+func (c *client) commit(offer string, send string) (*tradeblocks.SwapBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the linked send
+	right, err := c.getBlock(send)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the original offer block
+	offerBlock, err := c.getSwapBlock(offer)
+	if err != nil {
+		return nil, err
+	}
+
+	// create the commit
+	commit, err := app.Commit(publicKey, offerBlock, right)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signSwap(privateKey, commit); err != nil {
+		return nil, err
+	}
+
+	if err := c.postSwapBlock(commit); err != nil {
+		return nil, err
+	}
+
+	return commit, nil
+}
+
+func (c *client) refundLeft(offer string) (*tradeblocks.SwapBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the original offer block
+	offerBlock, err := c.getSwapBlock(offer)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the original send
+	left, err := c.getBlock(offerBlock.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// the address to refund to is the sends original address
+	refundTo := left.Account
+
+	// create the refund
+	refundLeft, err := app.RefundLeft(publicKey, offerBlock, refundTo)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signSwap(privateKey, refundLeft); err != nil {
+		return nil, err
+	}
+
+	if err := c.postSwapBlock(refundLeft); err != nil {
+		return nil, err
+	}
+
+	return refundLeft, nil
+}
+
+func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the original offer block
+	refundLeftBlock, err := c.getSwapBlock(refundLeft)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the counterparty send
+	right, err := c.getBlock(refundLeftBlock.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	// the address to refund to is the sends original address
+	refundTo := right.Account
+
+	// create the refund
+	refundRight, err := app.RefundRight(publicKey, refundLeftBlock, right, refundTo)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signSwap(privateKey, refundRight); err != nil {
+		return nil, err
+	}
+
+	if err := c.postSwapBlock(refundRight); err != nil {
+		return nil, err
+	}
+
+	return refundRight, nil
+}
+
+func (c *client) createOrder(send string, ID string, partial bool, quote string, price float64, executor string, fee float64) (*tradeblocks.OrderBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the originating send
+	sendBlock, err := c.getBlock(send)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the previous of the send
+	sendPrevBlock, err := c.getBlock(sendBlock.Previous)
+	if err != nil {
+		return nil, err
+	}
+
+	// balance of the order
+	balance := sendPrevBlock.Balance - sendBlock.Balance
+
+	// create the refund
+	createOrderBlock, err := app.CreateOrder(publicKey, sendBlock, balance, ID, partial, quote, price, executor, fee)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signOrder(privateKey, createOrderBlock); err != nil {
+		return nil, err
+	}
+
+	if err := c.postOrderBlock(createOrderBlock); err != nil {
+		return nil, err
+	}
+
+	return createOrderBlock, nil
+}
+
+func (c *client) acceptOrder(swap string, link string) (*tradeblocks.OrderBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the previous order
+	prevBlock, err := c.getHeadOrderBlock(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the swap by address
+	swapBlock, err := c.getSwapBlock(swap)
+	if err != nil {
+		return nil, err
+	}
+
+	// balance of the order
+	balance := prevBlock.Balance - swapBlock.Quantity
+
+	// create the refund
+	acceptOrderBlock, err := app.AcceptOrder(publicKey, prevBlock, link, balance)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signOrder(privateKey, acceptOrderBlock); err != nil {
+		return nil, err
+	}
+
+	if err := c.postOrderBlock(acceptOrderBlock); err != nil {
+		return nil, err
+	}
+
+	return acceptOrderBlock, nil
+}
+
+func (c *client) refundOrder(order string) (*tradeblocks.OrderBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the previous order
+	prevBlock, err := c.getHeadOrderBlock(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	refundTo := prevBlock.Account
+
+	// create the refund
+	refundOrderBlock, err := app.RefundOrder(publicKey, prevBlock, refundTo)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := signOrder(privateKey, refundOrderBlock); err != nil {
+		return nil, err
+	}
+
+	if err := c.postOrderBlock(refundOrderBlock); err != nil {
+		return nil, err
+	}
+
+	return refundOrderBlock, nil
+}
+
 func (c *client) openPublicKey() (*os.File, error) {
 	userPath := filepath.Join(c.dir, "user")
 	user, err := ioutil.ReadFile(userPath)
@@ -294,6 +598,16 @@ func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.A
 	return &result, nil
 }
 
+func (c *client) getHeadSwapBlock(publicKey io.Reader) (*tradeblocks.SwapBlock, error) {
+	// TODO NEW STORE
+	return nil, nil
+}
+
+func (c *client) getHeadOrderBlock(publicKey io.Reader) (*tradeblocks.OrderBlock, error) {
+	// TODO NEW STORE
+	return nil, nil
+}
+
 func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	r, err := c.api.NewGetBlockRequest(hash)
 	if err != nil {
@@ -308,6 +622,11 @@ func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 		return nil, err
 	}
 	return &result, nil
+}
+
+func (c *client) getSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
+	// TODO NEW STORE
+	return nil, nil
 }
 
 func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
@@ -329,18 +648,14 @@ func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
 	return nil
 }
 
-// in that case, you can add a param for your validator factory that receives the BlockStore
-// move it to the validator
-func (c *client) alreadyLinked(hash string) bool {
-	// TODO the check needs to be done on the node by iterating over all the existing
-	// blocks. if the block specifies the same
-	// link as the specified hash, then it's already linked
+func (c *client) postSwapBlock(b *tradeblocks.SwapBlock) error {
+	// TODO NEW STORE
+	return nil
+}
 
-	// block, err := c.getBlock(hash)
-	// if err != nil || block == nil {
-	// 	return true
-	// }
-	return false
+func (c *client) postOrderBlock(b *tradeblocks.OrderBlock) error {
+	// TODO NEW STORE
+	return nil
 }
 
 func parsePrivateKey(r io.Reader) (*rsa.PrivateKey, error) {
@@ -358,6 +673,24 @@ func parsePrivateKey(r io.Reader) (*rsa.PrivateKey, error) {
 }
 
 func sign(privateKey io.Reader, b *tradeblocks.AccountBlock) error {
+	b.Normalize()
+	priv, err := parsePrivateKey(privateKey)
+	if err != nil {
+		return err
+	}
+	return b.SignBlock(priv)
+}
+
+func signSwap(privateKey io.Reader, b *tradeblocks.SwapBlock) error {
+	b.Normalize()
+	priv, err := parsePrivateKey(privateKey)
+	if err != nil {
+		return err
+	}
+	return b.SignBlock(priv)
+}
+
+func signOrder(privateKey io.Reader, b *tradeblocks.OrderBlock) error {
 	b.Normalize()
 	priv, err := parsePrivateKey(privateKey)
 	if err != nil {

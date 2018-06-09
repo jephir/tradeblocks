@@ -14,13 +14,14 @@ import (
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
-	"github.com/jephir/tradeblocks/tradeblockstest"
 )
 
 func TestBootstrapAndSync(t *testing.T) {
 	t.Skip("TODO Re-implement sync")
 
 	key, address, err := GetAddress()
+	key2, address2, err := GetAddress()
+	key3, address3, err := GetAddress()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestBootstrapAndSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 50), key)
+	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address2, 50), key2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +68,7 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Add block to seed node
-	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 15), key)
+	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address3, 15), key3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,11 +159,9 @@ func GetAddress() (*rsa.PrivateKey, string, error) {
 func TestSyncAllBlockTypes(t *testing.T) {
 	t.Skip("TODO Re-implement sync")
 
-	allBlocksTest := tradeblockstest.NewBlockTestTable(t)
-
-	// Test account chain
-	p1, a1 := tradeblockstest.CreateAccount(t)
-	p2, a2 := tradeblockstest.CreateAccount(t)
+	allBlocksTest := app.NewBlockTestTable(t)
+	p1, a1 := app.CreateAccount(t)
+	p2, a2 := app.CreateAccount(t)
 	p1issue := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewIssueBlock(a1, 100))
 	p1send := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1issue, a2, 50))
 	p2open := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewOpenBlockFromSend(a2, p1send, 50))
@@ -170,12 +169,12 @@ func TestSyncAllBlockTypes(t *testing.T) {
 	p1receive := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewReceiveBlockFromSend(p1send, p2send, 25))
 
 	// Test swap chain
-	p3, a3 := tradeblockstest.CreateAccount(t)
+	p3, a3 := app.CreateAccount(t)
 	p3issue := allBlocksTest.AddAccountBlock(p3, tradeblocks.NewIssueBlock(a3, 100))
 	p1swapsend := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1receive, tradeblocks.SwapAddress(a1, "test"), 10))
 	p1swapoffer := allBlocksTest.AddSwapBlock(p1, tradeblocks.NewOfferBlock(a1, p1swapsend, "test", a3, a3, 15, "", 0))
 	p3swapsend := allBlocksTest.AddAccountBlock(p3, tradeblocks.NewSendBlock(p3issue, tradeblocks.SwapAddress(a1, "test"), 15))
-	p3swapcommit := allBlocksTest.AddSwapBlock(p3, tradeblocks.NewCommitBlock(p3swapsend, p1swapoffer))
+	p3swapcommit := allBlocksTest.AddSwapBlock(p3, tradeblocks.NewCommitBlock(p1swapoffer, p3swapsend))
 	/* p1swapreceive := */ allBlocksTest.AddAccountBlock(p1, tradeblocks.NewOpenBlockFromSwap(a1, p3swapcommit, 15))
 	/* p3swapreceive := */ allBlocksTest.AddAccountBlock(p3, tradeblocks.NewOpenBlockFromSwap(a3, p3swapcommit, 10))
 
@@ -202,7 +201,7 @@ func TestSyncAllBlockTypes(t *testing.T) {
 
 }
 
-func addBlockToNode(t *testing.T, n *Node, b tradeblockstest.TypedBlock) string {
+func addBlockToNode(t *testing.T, n *Node, b app.TypedBlock) string {
 	switch b.T {
 	case "account":
 		if err := n.store.AddAccountBlock(b.AccountBlock); err != nil {
