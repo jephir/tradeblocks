@@ -12,7 +12,6 @@ import (
 )
 
 func TestSSE(t *testing.T) {
-	t.Skip("TODO Fix")
 
 	p, a := app.CreateAccount(t)
 
@@ -23,7 +22,7 @@ func TestSSE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := `data: {"Action":"issue","Account":"` + a + `","Token":"` + a + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + issue.Signature + `","Hash":"` + issue.Hash() + `"}`
+	expect := `data: {"Block":{"Action":"issue","Account":"` + a + `","Token":"` + a + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + issue.Signature + `"},"Hash":"` + issue.Hash() + `"}`
 
 	if err := store.AddAccountBlock(issue); err != nil {
 		t.Fatal(err)
@@ -57,6 +56,6 @@ func TestSSE(t *testing.T) {
 	}
 	got := strings.TrimSpace(string(b))
 	if got != expect {
-		t.Fatalf("Response was incorrect, got: %s, want: %s", got, expect)
+		t.Fatalf("Response was incorrect, got: \n%s, want: \n%s", got, expect)
 	}
 }
