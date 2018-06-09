@@ -49,14 +49,6 @@ type AccountBlockValidator interface {
 	ValidateAccountBlock(block *tb.AccountBlock) error
 }
 
-func validatePrevious(block *tb.AccountBlock, chain AccountBlockchain) (*tb.AccountBlock, error) {
-	prevBlock, err := chain.GetBlock(block.Previous)
-	if err != nil || prevBlock == nil {
-		return nil, errors.New("previous field was invalid")
-	}
-	return prevBlock, nil
-}
-
 // OpenBlockValidator is a validator for OpenBlocks
 type OpenBlockValidator struct {
 	accountChain AccountBlockchain
@@ -87,19 +79,19 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	}
 
 	// check if the previous exists, don't care if it does
-	_, errPrev := validatePrevious(block, accountChain)
+	_, errPrev := getAndVerifyAccount(block.Previous, accountChain)
 	if errPrev == nil {
 		return errors.New("previous field was not null")
 	}
 
 	// check if the send block referenced exists
-	sendBlock, err := accountChain.GetBlock(block.Link)
+	sendBlock, err := getAndVerifyAccount(block.Link, accountChain)
 	if err != nil || sendBlock == nil {
 		return errors.New("link field references invalid block")
 	}
 
 	// get the previous of the send to get balance
-	sendBlockPrev, err := accountChain.GetBlock(sendBlock.Previous)
+	sendBlockPrev, err := getAndVerifyAccount(sendBlock.Previous, accountChain)
 	if err != nil || sendBlockPrev == nil {
 		return errors.New("send has no previous")
 	}
@@ -186,9 +178,9 @@ func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	}
 
 	// check if the previous exists, get it if it does
-	prevBlock, err := validatePrevious(block, accountChain)
+	prevBlock, err := getAndVerifyAccount(block.Previous, accountChain)
 	if err != nil {
-		return err
+		return errors.New("Previous block invalid")
 	}
 
 	// check if the balances are proper
@@ -232,19 +224,19 @@ func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlo
 	}
 
 	// check if the previous block exists, get it if it does
-	prevBlock, err := validatePrevious(block, accountChain)
+	prevBlock, err := getAndVerifyAccount(block.Previous, accountChain)
 	if err != nil {
 		return errors.New("previous field was invalid")
 	}
 
 	// check if the send block referenced exists, get it if it does
-	sendBlock, err := accountChain.GetBlock(block.Link)
+	sendBlock, err := getAndVerifyAccount(block.Link, accountChain)
 	if err != nil || sendBlock == nil {
 		return errors.New("link field references invalid block")
 	}
 
 	// now need to get the send previous
-	sendPrevBlock, err := accountChain.GetBlock(sendBlock.Previous)
+	sendPrevBlock, err := getAndVerifyAccount(sendBlock.Previous, accountChain)
 	if err != nil || sendPrevBlock == nil {
 		return errors.New("link field's previous references invalid block")
 	}
@@ -310,7 +302,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 	}
 
 	// check if the previous block exists
-	prevBlock, errPrev := swapChain.GetSwapBlock(block.Previous)
+	prevBlock, errPrev := getAndVerifySwap(block.Previous, swapChain)
 
 	// originating block of swap
 	if action == "offer" {
@@ -319,7 +311,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// check if the send block referenced exists, don't get it if it does
-		left, errLeft := accountChain.GetBlock(block.Left)
+		left, errLeft := getAndVerifyAccount(block.Left, accountChain)
 		if errLeft != nil || left == nil || left.Action != "send" {
 			return errors.New("link field references invalid block")
 		}
@@ -340,13 +332,13 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// check if the send for the original swap exists
-		ogSend, errSendOriginal := accountChain.GetBlock(prevBlock.Left)
+		ogSend, errSendOriginal := getAndVerifyAccount(prevBlock.Left, accountChain)
 		if errSendOriginal != nil || ogSend == nil {
 			return errors.New("originating send not found")
 		}
 
 		// get the send (right) for the second swap
-		sendCounter, errSendCounter := accountChain.GetBlock(block.Right)
+		sendCounter, errSendCounter := getAndVerifyAccount(block.Right, accountChain)
 		if errSendCounter != nil || sendCounter == nil {
 			return errors.New("counter send not found")
 		}
@@ -357,7 +349,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// get the sendCounter's prev to determine quantity sent
-		sendCounterPrev, errSendCounterPrev := accountChain.GetBlock(sendCounter.Previous)
+		sendCounterPrev, errSendCounterPrev := getAndVerifyAccount(sendCounter.Previous, accountChain)
 		if errSendCounterPrev != nil || sendCounterPrev == nil {
 			return errors.New("counter send prev not found")
 		}
@@ -379,7 +371,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 			return errors.New("Counterparty swap has incorrect fields: must match originating swap")
 		}
 
-		sendBlock, errSend := accountChain.GetBlock(prevBlock.Left)
+		sendBlock, errSend := getAndVerifyAccount(prevBlock.Left, accountChain)
 		if errSend != nil || sendBlock == nil {
 			return errors.New("Originating send is invalid or not found")
 		}
@@ -405,7 +397,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// get the counterparty send
-		send, err := accountChain.GetBlock(block.Right)
+		send, err := getAndVerifyAccount(block.Right, accountChain)
 		if err != nil || send == nil {
 			return errors.New("counterparty send not found/invalid")
 		}
@@ -494,7 +486,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// get the originating send
-		ogSend, err := accountChain.GetBlock(block.Link)
+		ogSend, err := getAndVerifyAccount(block.Link, accountChain)
 		if err != nil || ogSend == nil {
 			return errors.New("Order linked send not found")
 		}
@@ -505,7 +497,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// get the previous of the send
-		ogPrevSend, err := accountChain.GetBlock(ogSend.Previous)
+		ogPrevSend, err := getAndVerifyAccount(ogSend.Previous, accountChain)
 		if err != nil || ogPrevSend == nil {
 			return errors.New("Linked send block does not have a valid previous")
 		}
@@ -540,7 +532,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// check if the previous block exists
-		prevBlock, err := orderChain.GetOrderBlock(block.Previous)
+		prevBlock, err := getAndVerifyOrder(block.Previous, orderChain)
 		if err != nil || prevBlock == nil {
 			return errors.New("Previous block invalid")
 		}
@@ -551,19 +543,19 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// get the linked swap
-		swapBlock, err := swapChain.GetSwapBlock(block.Link)
+		swapBlock, err := getAndVerifySwap(block.Link, swapChain)
 		if err != nil || swapBlock == nil {
 			return errors.New("Linked swap not found")
 		}
 
 		// get the linked swap's send
-		swapSendBlock, err := accountChain.GetBlock(swapBlock.Left)
+		swapSendBlock, err := getAndVerifyAccount(swapBlock.Left, accountChain)
 		if err != nil || swapSendBlock == nil {
 			return errors.New("Linked swap not found")
 		}
 
 		// get the linked swap's send previous
-		swapSendPrevBlock, err := accountChain.GetBlock(swapSendBlock.Previous)
+		swapSendPrevBlock, err := getAndVerifyAccount(swapSendBlock.Previous, accountChain)
 		if err != nil || swapSendPrevBlock == nil {
 			return errors.New("Linked swap not found")
 		}
@@ -609,7 +601,6 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 	case "refund-order":
-		// check the signature
 		publicKey, err := addressToRsaKey(block.Account)
 		if err != nil {
 			return err
@@ -620,7 +611,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// check if the previous block exists
-		prevBlock, errPrev := orderChain.GetOrderBlock(block.Previous)
+		prevBlock, errPrev := getAndVerifyOrder(block.Previous, orderChain)
 		if errPrev != nil || prevBlock == nil {
 			return errors.New("Previous block invalid")
 		}
@@ -682,4 +673,74 @@ func addressToRsaKey(hash string) (*rsa.PublicKey, error) {
 	default:
 		return nil, errors.New("wrong public key type, have unknown, want rsa")
 	}
+}
+
+func getAndVerifyAccount(hash string, chain AccountBlockchain) (*tb.AccountBlock, error) {
+	// check if the previous block exists
+	block, err := chain.GetBlock(hash)
+	if err != nil || block == nil {
+		return nil, errors.New("Getting block failed for hash: " + hash)
+	}
+
+	publicKey, err := addressToRsaKey(block.Account)
+	if err != nil {
+		return nil, err
+	}
+
+	err = block.VerifyBlock(publicKey)
+	if err != nil {
+		return nil, errors.New("Verification of block failed")
+	}
+
+	return block, nil
+}
+
+func getAndVerifySwap(hash string, chain SwapBlockchain) (*tb.SwapBlock, error) {
+	// check if the previous block exists
+	block, err := chain.GetSwapBlock(hash)
+	if err != nil || block == nil {
+		return nil, errors.New("Getting block failed for hash: " + hash)
+	}
+
+	address := block.Account
+	if (block.Action == "commit" || block.Action == "refund-right") && block.Executor != "" {
+		address = block.Executor
+	}
+
+	publicKey, err := addressToRsaKey(address)
+	if err != nil {
+		return nil, err
+	}
+
+	err = block.VerifyBlock(publicKey)
+	if err != nil {
+		return nil, errors.New("Verification of block failed")
+	}
+
+	return block, nil
+}
+
+func getAndVerifyOrder(hash string, chain OrderBlockchain) (*tb.OrderBlock, error) {
+	// check if the previous block exists
+	block, err := chain.GetOrderBlock(hash)
+	if err != nil || block == nil {
+		return nil, errors.New("Getting block failed for hash: " + hash)
+	}
+
+	address := block.Account
+	if block.Action == "accept-order" && block.Executor != "" {
+		address = block.Executor
+	}
+
+	publicKey, err := addressToRsaKey(address)
+	if err != nil {
+		return nil, err
+	}
+
+	err = block.VerifyBlock(publicKey)
+	if err != nil {
+		return nil, errors.New("Verification of block failed")
+	}
+
+	return block, nil
 }
