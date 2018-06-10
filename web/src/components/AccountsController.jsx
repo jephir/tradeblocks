@@ -41,9 +41,7 @@ export default class AccountsController extends Component {
     }
 
     getAccounts(blocks) {
-        const demoBlocks = this.getDemoBlocks()
         const accountsDict = {}
-        // replace demoBlocks with blocks to undo demo
         this.props.blocks.forEach(function(block) {
             const blockList = accountsDict[block.Account] || []
             blockList.push(block)

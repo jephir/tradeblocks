@@ -32,18 +32,50 @@ $ tradeblocks issue 1000
 3.  Send 50 `apple-coin` tokens to `alice`.
 
 ```sh
-$ XTB_SEND="$(tradeblocks send $XTB_ALICE $XTB_APPLE_COIN 50)"
+$ XTB_SEND1="$(tradeblocks send $XTB_ALICE $XTB_APPLE_COIN 50)"
 $ tradeblocks login alice
-$ tradeblocks open $XTB_SEND
+$ tradeblocks open $XTB_SEND1
 ```
 
-4.  Create a new token `banana-coin` with 2000 tokens. Then, offer to trade 25 `banana-coin` for 50 `apple-coin` with `alice`. Finally, accept the trade as `alice`.
+4.  Create a new token `banana-coin` with 2000 tokens. 
 
 ```sh
 $ XTB_BANANA_COIN="$(tradeblocks register banana-coin)"
-$ XTB_TRADE="$(tradeblocks trade $XTB_BANANA_COIN 25 $XTB_ALICE $XTB_APPLE_COIN 50)"
+$ tradeblocks login banana-coin
+$ tradeblocks issue 2000
+```
+
+5. Create an offer to trade 25 `banana-coin` for 50 `apple-coin` with `alice`.
+
+```sh
+$ XTB_OFFER_ID = "BANANA_APPLE_OFFER"
+$ XTB_OFFER_LINK = $XTB_OFFER_ID += ":offer:"
+$ XTB_OFFER_LINK += $XTB_BANANA_COIN 
+$ XTB_SEND2 = "$(tradeblocks send $XTB_OFFER_LINK $XTB_BANANA_COIN 25)"
+$ XTB_CREATE_ORDER ="$(tradeblocks create-order $XTB_SEND2 $XTB_OFFER_ID false $XTB_APPLE_COIN 2)"
+```
+
+6. Create the offer swap for `alice` to accept the order
+```sh
 $ tradeblocks login alice
-$ tradeblocks trade $XTB_TRADE
+$ XTB_SWAP_ID = "BANANA_APPLE_SWAP"
+$ XTB_SWAP_LINK = $XTB_SWAP_ID += ":swap:"
+$ XTB_SWAP_LINK += $XTB_BANANA_COIN 
+$ XTB_SEND3 = "$(tradeblocks send $XTB_SWAP_LINK $XTB_APPLE_COIN 50)"
+$ XTB_SWAP_OFFER = "$(tradeblocks offer $XTB_SEND3 $XTB_SWAP_ID $XTB_BANANA_COIN $XTB_BANANA_COIN 25)"
+```
+
+7. Accept the swap for `banana-coin`
+```sh
+$ XTB_ACCEPT_ORDER = "$(tradeblocks accept $XTB_CREATE_ORDER $XTB_SWAP_OFFER)"
+$ XTB_SWAP_COMMIT = "$(tradeblocks commit $XTB_SWAP_OFFER $SEND2)"
+```
+
+8. Receive the coins
+```sh
+$ XTB_RECEIVE1 = "$(tradeblocks receive $XTB_SWAP_COMMIT)"
+$ tradeblocks login banana-coin
+$ XTB_RECEIVE1 = "$(tradeblocks receive $XTB_SWAP_COMMIT)"
 ```
 
 ## Running Tests

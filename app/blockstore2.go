@@ -1,8 +1,9 @@
 package app
 
 import (
-	"github.com/jephir/tradeblocks"
 	"sync"
+
+	"github.com/jephir/tradeblocks"
 )
 
 // Blocks maps hashes to blocks

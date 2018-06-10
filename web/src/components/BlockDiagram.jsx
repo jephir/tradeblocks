@@ -1,16 +1,13 @@
-import React, { Component } from 'react'
+import React from 'react'
 import {
 	DiagramEngine,
 	DiagramModel,
 	DefaultNodeModel,
-	LinkModel,
 	DiagramWidget,
-	DefaultLinkModel
 } from "storm-react-diagrams"
 
 export default function BlockDiagram(props) {
     const {
-        allBlocks,
         accounts
     } = props
     // setup
@@ -38,19 +35,17 @@ export default function BlockDiagram(props) {
         var nodes = []
         Object.keys(accounts).forEach((key) => {
             const blocks = accounts[key]
-            console.log("blocks for", key, blocks)
             const newNodes = makeNodes(blocks, y)
             nodes = nodes.concat(newNodes)
-            console.log("nodes after", key, nodes)
             y += 100
         })
-        const ports = makePorts(nodes) 
+        makePorts(nodes) 
         const links = makeLinks(nodes)
         
-        nodes.map((node) => {
+        nodes.forEach((node) => {
             model.addAll(node)
         })
-        links.map((link) => {
+        links.forEach((link) => {
             model.addAll(link)
         })
         
@@ -68,7 +63,7 @@ function makeNodes(blocks, y) {
         var node = new DefaultNodeModel(block.Action + " by " + shortAccount, "rgb(0,192,255)")
         node.setPosition(x, y)
         node.block = block
-        x = x + 200
+        x = x + 250
         return node
     })
 }
@@ -96,6 +91,14 @@ function makePorts(nodes) {
             const shortText = shortenText(node.block.Token, false)
             const portToken = node.addOutPort("Token: " + shortText)
             ports.push(portToken)
+        } else if (action === "create-order") {
+            const shortText = shortenText(node.block.Link, false)
+            const portToken = node.addOutPort("Link: " + shortText)
+            ports.push(portToken)
+        } else if (action === "offer") {
+            const shortText = shortenText(node.block.Left, false)
+            const portToken = node.addOutPort("Left: " + shortText)
+            ports.push(portToken)
         }
 
         let portLink = node.addOutPort("Link")
@@ -106,13 +109,12 @@ function makePorts(nodes) {
 
 function makeLinks(nodes) {
     const links = []
-    console.log("nodes in links", nodes)
     nodes.forEach((node) => {
         const block = node.block
+        var toNode = null
         if (block.Previous) {
-            console.log("block", block)
             const prevPort = node.getOutPorts()[0]
-            const toNode = getHashNode(nodes, block.Previous)
+            toNode = getHashNode(nodes, block.Previous)
             if (toNode) {
                 const toPort = toNode.getInPorts()[0]
                 const link = prevPort.link(toPort)
@@ -124,7 +126,7 @@ function makeLinks(nodes) {
                 return
             } else if (block.Action === "open" || block.Action === "receive") {
                 const prevPort = node.getOutPorts()[0]
-                var toNode = getHashNode(nodes, block.Link)
+                toNode = getHashNode(nodes, block.Link)
                 if (toNode) {
                     const toPort = toNode.getInPorts()[0]
                     const link = prevPort.link(toPort)
@@ -134,7 +136,7 @@ function makeLinks(nodes) {
         }
         if (block.Left && block.Action === "offer") {
             const prevPort = node.getOutPorts()[0]
-            var toNode = getHashNode(nodes, block.Left)
+            toNode = getHashNode(nodes, block.Left)
             if (toNode) {
                 const toPort = toNode.getInPorts()[0]
                 const link = prevPort.link(toPort)
@@ -143,7 +145,25 @@ function makeLinks(nodes) {
         }
         if (block.Right && block.Action === "commit") {
             const prevPort = node.getOutPorts()[0]
-            var toNode = getHashNode(nodes, block.Right)
+            toNode = getHashNode(nodes, block.Right)
+            if (toNode) {
+                const toPort = toNode.getInPorts()[0]
+                const link = prevPort.link(toPort)
+                links.push(link)
+            }
+        }
+        if (block.Link && block.Action === "create-order") {
+            const prevPort = node.getOutPorts()[0]
+            toNode = getHashNode(nodes, block.Link)
+            if (toNode) {
+                const toPort = toNode.getInPorts()[0]
+                const link = prevPort.link(toPort)
+                links.push(link)
+            }
+        }
+        if (block.Link && block.Action === "offer") {
+            const prevPort = node.getOutPorts()[0]
+            toNode = getHashNode(nodes, block.Left)
             if (toNode) {
                 const toPort = toNode.getInPorts()[0]
                 const link = prevPort.link(toPort)

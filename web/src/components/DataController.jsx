@@ -9,9 +9,11 @@ export default class DataController extends Component {
     // inline blocks maybe
 
     componentDidMount() {
-        var accountsSource = new EventSource("http://localhost:8080/accounts", {mode: 'no-cors'} )
+        var accountsSource = new EventSource("http://localhost:8080/blocks?stream=1", {mode: 'no-cors'} )
         accountsSource.onmessage = function(message) {
-            var block = JSON.parse(message.data)
+            var blockJson = JSON.parse(message.data)
+            var block = blockJson.Block
+            block.Hash = blockJson.Hash
             console.log("accounts message", block)
             this.addBlock(block)
         }.bind(this)

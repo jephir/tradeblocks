@@ -317,7 +317,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// check to see if the send (left) is pointed at this block
-		if left.Link != block.Account+":"+block.ID {
+		if left.Link != block.Account+":swap:"+block.ID {
 			return errors.New("Linked left block does not send to this swap")
 		}
 
@@ -344,7 +344,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// check to see if the send (left) is pointed at this block
-		if sendCounter.Link != block.Account+":"+block.ID {
+		if sendCounter.Link != block.Account+":swap:"+block.ID {
 			return errors.New("Linked right block does not send to this swap")
 		}
 
@@ -492,7 +492,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// check to see if the send is pointed at this order
-		if ogSend.Link != block.Account+":"+block.ID {
+		if ogSend.Link != block.Account+":order:"+block.ID {
 			return errors.New("Linked send block does not send to this order")
 		}
 
