@@ -5,6 +5,7 @@ import (
 	"github.com/jephir/tradeblocks/app"
 	"github.com/jephir/tradeblocks/fs"
 	"github.com/jephir/tradeblocks/web"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -47,6 +48,7 @@ func NewNode(dir string) (n *Node, err error) {
 	if err != nil {
 		return
 	}
+	server.BlockHandler = n.handleBlock
 	return
 }
 
@@ -187,6 +189,81 @@ func (n *Node) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		n.addPeer(addr)
 	}
 	n.server.ServeHTTP(rw, r)
+}
+
+func (n *Node) handleBlock(b app.TypedBlock) {
+	// TODO don't broadcast if block already seen
+
+	// Save block
+	switch b.T {
+	case "account":
+		if err := n.storage.SaveAccountBlock(b.AccountBlock); err != nil {
+			log.Println(err)
+		}
+	case "swap":
+		if err := n.storage.SaveSwapBlock(b.SwapBlock); err != nil {
+			log.Println(err)
+		}
+	case "order":
+		if err := n.storage.SaveOrderBlock(b.OrderBlock); err != nil {
+			log.Println(err)
+		}
+	}
+
+	// Broadcast to peers
+	for address := range n.peers {
+		c := web.NewClient(address)
+		switch b.T {
+		case "account":
+			req, err := c.NewPostAccountBlockRequest(b.AccountBlock)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			res, err := n.client.Do(req)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			var rb tradeblocks.AccountBlock
+			if err := c.DecodeAccountBlockResponse(res, &rb); err != nil {
+				log.Println(err)
+				return
+			}
+		case "swap":
+			req, err := c.NewPostSwapBlockRequest(b.SwapBlock)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			res, err := n.client.Do(req)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			var rb tradeblocks.SwapBlock
+			if err := c.DecodeSwapBlockResponse(res, &rb); err != nil {
+				log.Println(err)
+				return
+			}
+		case "order":
+			req, err := c.NewPostOrderBlockRequest(b.OrderBlock)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			res, err := n.client.Do(req)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			var rb tradeblocks.OrderBlock
+			if err := c.DecodeOrderBlockResponse(res, &rb); err != nil {
+				log.Println(err)
+				return
+			}
+		}
+	}
 }
 
 // // AddBlock adds the specified block to this node

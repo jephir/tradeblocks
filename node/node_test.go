@@ -6,7 +6,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/jephir/tradeblocks/web"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -17,17 +19,19 @@ import (
 )
 
 func TestBootstrapAndSync(t *testing.T) {
-	t.Skip("TODO Re-implement sync")
-
 	key, address, err := GetAddress()
 	key2, address2, err := GetAddress()
 	key3, address3, err := GetAddress()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	// Create seed node
 	seed, s := newNode(t, "")
 	defer s.Close()
+
+	// Create connecting client
+	client := web.NewClient(s.URL)
 
 	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
 	if err != nil {
@@ -40,8 +44,8 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Add blocks to seed node
-	h1 := addBlock(t, seed, b1)
-	h2 := addBlock(t, seed, b2)
+	h1 := addBlock(t, client, b1)
+	h2 := addBlock(t, client, b2)
 
 	// Create connecting node 1
 	node1, s1 := newNode(t, s.URL)
@@ -72,7 +76,7 @@ func TestBootstrapAndSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h3 := addBlock(t, seed, b3)
+	h3 := addBlock(t, client, b3)
 
 	// Check that connecting node 1 has new block
 	if err := seed.Sync(); err != nil {
@@ -80,6 +84,13 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 	if node1.store.GetAccountBlock(h3) == nil {
 		t.Fatalf("N1 missing new block %s", h3)
+	}
+
+	// Ensure that the new block is persisted
+	dir1 := node1.storage.Dir()
+	p1 := filepath.Join(dir1, "accounts", h3)
+	if _, err := os.Stat(p1); os.IsNotExist(err) {
+		t.Fatalf("N1 didn't persist block %s at %s", h3, p1)
 	}
 
 	// Check that connecting node 2 has new block
@@ -91,9 +102,10 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Ensure that the new block is persisted
-	dir := node2.storage.Dir()
-	if _, err := os.Stat(filepath.Join(dir, h3)); os.IsNotExist(err) {
-		t.Fatalf("N2 didn't persist block %s", h3)
+	dir2 := node2.storage.Dir()
+	p2 := filepath.Join(dir2, "accounts", h3)
+	if _, err := os.Stat(p2); os.IsNotExist(err) {
+		t.Fatalf("N2 didn't persist block %s at %s", h3, p2)
 	}
 }
 
@@ -117,12 +129,22 @@ func newNode(t *testing.T, bootstrapURL string) (*Node, *httptest.Server) {
 	return n, s
 }
 
-func addBlock(t *testing.T, n *Node, b *tradeblocks.AccountBlock) string {
-	err := n.store.AddAccountBlock(b)
+var client = &http.Client{}
+
+func addBlock(t *testing.T, c *web.Client, b *tradeblocks.AccountBlock) string {
+	req, err := c.NewPostAccountBlockRequest(b)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return b.Hash()
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rb tradeblocks.AccountBlock
+	if err := c.DecodeAccountBlockResponse(res, &rb); err != nil {
+		t.Fatal(err)
+	}
+	return rb.Hash()
 }
 
 func TestMissingParent(t *testing.T) {

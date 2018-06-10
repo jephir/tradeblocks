@@ -32,24 +32,21 @@ func (s *BlockStorage) Save() error {
 	// Serialize each block and write it to the directory
 	var err error
 	s.blockstore.AccountBlocks(func(sequence int, b *tradeblocks.AccountBlock) bool {
-		hash := b.Hash()
-		err = s.SaveAccountBlock(hash, b)
+		err = s.SaveAccountBlock(b)
 		if err != nil {
 			return false
 		}
 		return true
 	})
 	s.blockstore.SwapBlocks(func(sequence int, b *tradeblocks.SwapBlock) bool {
-		hash := b.Hash()
-		err = s.SaveSwapBlock(hash, b)
+		err = s.SaveSwapBlock(b)
 		if err != nil {
 			return false
 		}
 		return true
 	})
 	s.blockstore.OrderBlocks(func(sequence int, b *tradeblocks.OrderBlock) bool {
-		hash := b.Hash()
-		err = s.SaveOrderBlock(hash, b)
+		err = s.SaveOrderBlock(b)
 		if err != nil {
 			return false
 		}
@@ -72,7 +69,11 @@ func (s *BlockStorage) createStorageDir() error {
 }
 
 // SaveAccountBlock saves the specified block with the specified hash to the filesystem
-func (s *BlockStorage) SaveAccountBlock(hash string, block *tradeblocks.AccountBlock) error {
+func (s *BlockStorage) SaveAccountBlock(block *tradeblocks.AccountBlock) error {
+	if err := s.createStorageDir(); err != nil {
+		return err
+	}
+	hash := block.Hash()
 	p := filepath.Join(accountsDir(s.dir), hash)
 	f, err := os.Create(p)
 	if err != nil {
@@ -86,7 +87,11 @@ func (s *BlockStorage) SaveAccountBlock(hash string, block *tradeblocks.AccountB
 }
 
 // SaveSwapBlock saves the specified block with the specified hash to the filesystem
-func (s *BlockStorage) SaveSwapBlock(hash string, block *tradeblocks.SwapBlock) error {
+func (s *BlockStorage) SaveSwapBlock(block *tradeblocks.SwapBlock) error {
+	if err := s.createStorageDir(); err != nil {
+		return err
+	}
+	hash := block.Hash()
 	p := filepath.Join(swapsDir(s.dir), hash)
 	f, err := os.Create(p)
 	if err != nil {
@@ -100,7 +105,11 @@ func (s *BlockStorage) SaveSwapBlock(hash string, block *tradeblocks.SwapBlock) 
 }
 
 // SaveOrderBlock saves the specified block with the specified hash to the filesystem
-func (s *BlockStorage) SaveOrderBlock(hash string, block *tradeblocks.OrderBlock) error {
+func (s *BlockStorage) SaveOrderBlock(block *tradeblocks.OrderBlock) error {
+	if err := s.createStorageDir(); err != nil {
+		return err
+	}
+	hash := block.Hash()
 	p := filepath.Join(ordersDir(s.dir), hash)
 	f, err := os.Create(p)
 	if err != nil {
