@@ -42,7 +42,7 @@ func (c *Client) NewPostAccountBlockRequest(b *tradeblocks.AccountBlock) (r *htt
 }
 
 // NewPostSwapBlockRequest returns an http.Request to send the specified block
-func (c *Client) NewPostSwapBlockRequest(b *tradeblocks.AccountBlock) (r *http.Request, err error) {
+func (c *Client) NewPostSwapBlockRequest(b *tradeblocks.SwapBlock) (r *http.Request, err error) {
 	var buf bytes.Buffer
 	err = json.NewEncoder(&buf).Encode(b)
 	if err != nil {
@@ -60,7 +60,7 @@ func (c *Client) NewPostSwapBlockRequest(b *tradeblocks.AccountBlock) (r *http.R
 }
 
 // NewPostOrderBlockRequest returns an http.Request to send the specified block
-func (c *Client) NewPostOrderBlockRequest(b *tradeblocks.AccountBlock) (r *http.Request, err error) {
+func (c *Client) NewPostOrderBlockRequest(b *tradeblocks.OrderBlock) (r *http.Request, err error) {
 	var buf bytes.Buffer
 	err = json.NewEncoder(&buf).Encode(b)
 	if err != nil {
@@ -197,7 +197,7 @@ func (c *Client) DecodeSwapBlockResponse(res *http.Response, result *tradeblocks
 }
 
 // DecodeOrderBlockResponse returns the result of an order block request
-func (c *Client) DecodeOrderBlockResponse(res *http.Response, result *tradeblocks.SwapBlock) error {
+func (c *Client) DecodeOrderBlockResponse(res *http.Response, result *tradeblocks.OrderBlock) error {
 	if err := c.checkResponse(res); err != nil {
 		return err
 	}

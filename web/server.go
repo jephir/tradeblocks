@@ -14,6 +14,8 @@ type Server struct {
 	mux         *http.ServeMux
 	blockStream *sse
 	store       *app.BlockStore2
+
+	BlockHandler func(b app.TypedBlock)
 }
 
 // NewServer allocates and returns a new server
@@ -87,6 +89,12 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
 					return
 				}
+				if s.BlockHandler != nil {
+					s.BlockHandler(app.TypedBlock{
+						AccountBlock: &b,
+						T:            "account",
+					})
+				}
 			case "swap":
 				var b tradeblocks.SwapBlock
 				if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
@@ -101,6 +109,12 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
 					return
 				}
+				if s.BlockHandler != nil {
+					s.BlockHandler(app.TypedBlock{
+						SwapBlock: &b,
+						T:         "swap",
+					})
+				}
 			case "order":
 				var b tradeblocks.OrderBlock
 				if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
@@ -114,6 +128,12 @@ func (s *Server) handleBlock() http.HandlerFunc {
 				if err := json.NewEncoder(w).Encode(b); err != nil {
 					serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
 					return
+				}
+				if s.BlockHandler != nil {
+					s.BlockHandler(app.TypedBlock{
+						OrderBlock: &b,
+						T:          "order",
+					})
 				}
 			default:
 				serverError(w, "invalid query type '"+t+"'", http.StatusBadRequest)
