@@ -200,12 +200,21 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 		if err := n.storage.SaveAccountBlock(b.AccountBlock); err != nil {
 			log.Println(err)
 		}
+		if err := n.server.BroadcastBlock(b.AccountBlock); err != nil {
+			log.Println(err)
+		}
 	case "swap":
 		if err := n.storage.SaveSwapBlock(b.SwapBlock); err != nil {
 			log.Println(err)
 		}
+		if err := n.server.BroadcastBlock(b.SwapBlock); err != nil {
+			log.Println(err)
+		}
 	case "order":
 		if err := n.storage.SaveOrderBlock(b.OrderBlock); err != nil {
+			log.Println(err)
+		}
+		if err := n.server.BroadcastBlock(b.OrderBlock); err != nil {
 			log.Println(err)
 		}
 	}
