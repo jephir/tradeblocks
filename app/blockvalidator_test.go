@@ -1186,7 +1186,7 @@ func createOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 	orderStore := NewOrderBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
-	send := tradeblocks.NewSendBlock(i, address[0]+":ID0", 50.0)
+	send := tradeblocks.NewSendBlock(i, address[0]+":order:ID0", 50.0)
 	order := tradeblocks.NewCreateOrderBlock(address[0], send, 50, "ID0", false, "quote0", 10.0, "", 0.0)
 
 	err := i.SignBlock(key[0])
@@ -1789,7 +1789,7 @@ func refundOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 	orderStore := NewOrderBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
-	send := tradeblocks.NewSendBlock(i, address[0]+":test-ID", 50.0)
+	send := tradeblocks.NewSendBlock(i, address[0]+":order:test-ID", 50.0)
 	order := tradeblocks.NewCreateOrderBlock(address[0], send, 50, "test-ID", false, address[1], 10.0, "", 0.0)
 	refund := tradeblocks.NewRefundOrderBlock(order, address[0])
 
