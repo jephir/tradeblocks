@@ -471,7 +471,7 @@ func (c *client) acceptOrder(swap string, link string) (*tradeblocks.OrderBlock,
 	defer privateKey.Close()
 
 	// get the previous order
-	prevBlock, err := c.getHeadOrderBlock(publicKey)
+	prevBlock, err := c.getHeadOrderBlock(publicKey, swap)
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +517,7 @@ func (c *client) refundOrder(order string) (*tradeblocks.OrderBlock, error) {
 	defer privateKey.Close()
 
 	// get the previous order
-	prevBlock, err := c.getHeadOrderBlock(publicKey)
+	prevBlock, err := c.getHeadOrderBlock(publicKey, order)
 	if err != nil {
 		return nil, err
 	}
@@ -598,14 +598,44 @@ func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.A
 	return &result, nil
 }
 
-func (c *client) getHeadSwapBlock(publicKey io.Reader) (*tradeblocks.SwapBlock, error) {
-	// TODO NEW STORE
-	return nil, nil
+func (c *client) getHeadSwapBlock(publicKey io.Reader, id string) (*tradeblocks.SwapBlock, error) {
+	address, err := app.PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	r, err := c.api.NewGetSwapHeadRequest(address, id)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	var result tradeblocks.SwapBlock
+	if err := c.api.DecodeSwapBlockResponse(res, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
-func (c *client) getHeadOrderBlock(publicKey io.Reader) (*tradeblocks.OrderBlock, error) {
-	// TODO NEW STORE
-	return nil, nil
+func (c *client) getHeadOrderBlock(publicKey io.Reader, id string) (*tradeblocks.OrderBlock, error) {
+	address, err := app.PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	r, err := c.api.NewGetOrderHeadRequest(address, id)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	var result tradeblocks.OrderBlock
+	if err := c.api.DecodeOrderBlockResponse(res, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
@@ -625,8 +655,19 @@ func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 }
 
 func (c *client) getSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
-	// TODO NEW STORE
-	return nil, nil
+	r, err := c.api.NewGetBlockRequest(hash)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	var result tradeblocks.SwapBlock
+	if err := c.api.DecodeSwapBlockResponse(res, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
@@ -634,27 +675,46 @@ func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
 	if err != nil {
 		return err
 	}
-
 	res, err := c.http.Do(req)
 	if err != nil {
 		return err
 	}
-
 	var rb tradeblocks.AccountBlock
 	if err := c.api.DecodeAccountBlockResponse(res, &rb); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (c *client) postSwapBlock(b *tradeblocks.SwapBlock) error {
-	// TODO NEW STORE
+	req, err := c.api.NewPostSwapBlockRequest(b)
+	if err != nil {
+		return err
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	var rb tradeblocks.SwapBlock
+	if err := c.api.DecodeSwapBlockResponse(res, &rb); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (c *client) postOrderBlock(b *tradeblocks.OrderBlock) error {
-	// TODO NEW STORE
+	req, err := c.api.NewPostOrderBlockRequest(b)
+	if err != nil {
+		return err
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	var rb tradeblocks.OrderBlock
+	if err := c.api.DecodeOrderBlockResponse(res, &rb); err != nil {
+		return err
+	}
 	return nil
 }
 
