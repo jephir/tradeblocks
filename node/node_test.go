@@ -44,8 +44,8 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Add blocks to seed node
-	h1 := addBlock(t, client, b1)
-	h2 := addBlock(t, client, b2)
+	h1 := addAccountBlock(t, client, b1)
+	h2 := addAccountBlock(t, client, b2)
 
 	// Create connecting node 1
 	node1, s1 := newNode(t, s.URL)
@@ -83,7 +83,7 @@ func TestBootstrapAndSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h3 := addBlock(t, client, b3)
+	h3 := addAccountBlock(t, client, b3)
 
 	// Check that connecting node 1 has new block
 	if err := seed.Sync(); err != nil {
@@ -138,7 +138,7 @@ func newNode(t *testing.T, bootstrapURL string) (*Node, *httptest.Server) {
 
 var client = &http.Client{}
 
-func addBlock(t *testing.T, c *web.Client, b *tradeblocks.AccountBlock) string {
+func addAccountBlock(t *testing.T, c *web.Client, b *tradeblocks.AccountBlock) string {
 	req, err := c.NewPostAccountBlockRequest(b)
 	if err != nil {
 		t.Fatal(err)
@@ -149,6 +149,38 @@ func addBlock(t *testing.T, c *web.Client, b *tradeblocks.AccountBlock) string {
 	}
 	var rb tradeblocks.AccountBlock
 	if err := c.DecodeAccountBlockResponse(res, &rb); err != nil {
+		t.Fatal(err)
+	}
+	return rb.Hash()
+}
+
+func addSwapBlock(t *testing.T, c *web.Client, b *tradeblocks.SwapBlock) string {
+	req, err := c.NewPostSwapBlockRequest(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rb tradeblocks.SwapBlock
+	if err := c.DecodeSwapBlockResponse(res, &rb); err != nil {
+		t.Fatal(err)
+	}
+	return rb.Hash()
+}
+
+func addOrderBlock(t *testing.T, c *web.Client, b *tradeblocks.OrderBlock) string {
+	req, err := c.NewPostOrderBlockRequest(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rb tradeblocks.OrderBlock
+	if err := c.DecodeOrderBlockResponse(res, &rb); err != nil {
 		t.Fatal(err)
 	}
 	return rb.Hash()
@@ -186,8 +218,6 @@ func GetAddress() (*rsa.PrivateKey, string, error) {
 }
 
 func TestSyncAllBlockTypes(t *testing.T) {
-	t.Skip("TODO Re-implement sync")
-
 	allBlocksTest := app.NewBlockTestTable(t)
 	p1, a1 := app.CreateAccount(t)
 	p2, a2 := app.CreateAccount(t)
@@ -207,7 +237,7 @@ func TestSyncAllBlockTypes(t *testing.T) {
 	/* p1swapreceive := */ allBlocksTest.AddAccountBlock(p1, tradeblocks.NewOpenBlockFromSwap(a1, p3swapcommit, 15))
 	/* p3swapreceive := */ allBlocksTest.AddAccountBlock(p3, tradeblocks.NewOpenBlockFromSwap(a3, p3swapcommit, 10))
 
-	n1, s1 := newNode(t, "")
+	_, s1 := newNode(t, "")
 	defer s1.Close()
 
 	n2, s2 := newNode(t, s1.URL)
@@ -218,35 +248,43 @@ func TestSyncAllBlockTypes(t *testing.T) {
 
 	for _, tt := range allBlocksTest.GetAll() {
 		t.Run(tt.T, func(t *testing.T) {
-			h := addBlockToNode(t, n1, tt)
-			if n2block := n2.store.GetAccountBlock(h); n2block == nil {
-				t.Fatalf("node2 missing block %s", h)
-			}
-			if n3block := n3.store.GetAccountBlock(h); n3block == nil {
-				t.Fatalf("node3 missing block %s", h)
+			h := addBlockToNode(t, s1.URL, tt)
+			switch tt.T {
+			case "account":
+				if n2block := n2.store.GetAccountBlock(h); n2block == nil {
+					t.Fatalf("node2 missing block %s", h)
+				}
+				if n3block := n3.store.GetAccountBlock(h); n3block == nil {
+					t.Fatalf("node3 missing block %s", h)
+				}
+			case "swap":
+				if n2block := n2.store.GetSwapBlock(h); n2block == nil {
+					t.Fatalf("node2 missing block %s", h)
+				}
+				if n3block := n3.store.GetSwapBlock(h); n3block == nil {
+					t.Fatalf("node3 missing block %s", h)
+				}
+			case "order":
+				if n2block := n2.store.GetOrderBlock(h); n2block == nil {
+					t.Fatalf("node2 missing block %s", h)
+				}
+				if n3block := n3.store.GetOrderBlock(h); n3block == nil {
+					t.Fatalf("node3 missing block %s", h)
+				}
 			}
 		})
 	}
-
 }
 
-func addBlockToNode(t *testing.T, n *Node, b app.TypedBlock) string {
+func addBlockToNode(t *testing.T, url string, b app.TypedBlock) string {
+	client := web.NewClient(url)
 	switch b.T {
 	case "account":
-		if err := n.store.AddAccountBlock(b.AccountBlock); err != nil {
-			t.Fatal(err)
-		}
-		return b.AccountBlock.Hash()
+		return addAccountBlock(t, client, b.AccountBlock)
 	case "swap":
-		if err := n.store.AddSwapBlock(b.SwapBlock); err != nil {
-			t.Fatal(err)
-		}
-		return b.SwapBlock.Hash()
+		return addSwapBlock(t, client, b.SwapBlock)
 	case "order":
-		if err := n.store.AddOrderBlock(b.OrderBlock); err != nil {
-			t.Fatal(err)
-		}
-		return b.OrderBlock.Hash()
+		return addOrderBlock(t, client, b.OrderBlock)
 	}
 	panic("node: unknown type")
 }
