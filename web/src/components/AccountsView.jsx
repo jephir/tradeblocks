@@ -20,6 +20,9 @@ const styles = {
         textAlign: "center",
         marginTop: "15px",
         wordBreak: "all",
+        '&:hover': {
+            cursor: 'pointer'
+        }
     },
     grid: {
         flexGrow: 1
@@ -41,9 +44,10 @@ function AccountsView(props) {
     const accountsRender = Object.keys(accounts).map((key) => {
         const blocks = accounts[key]
         const shortAccount = key.substring(0,12) + "..."
+        const raised = key === activeAccount
         return (
             <div key={key} className={classes.cardDiv} onClick={() => handleClick(key)}>
-                <Card className={classes.accountCard}>
+                <Card className={classes.accountCard} raised={raised}>
                     <CardContent>
                         <Typography className={classes.accountHeader} nowrap={"true"}>
                             Account: {shortAccount}

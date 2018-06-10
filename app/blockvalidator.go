@@ -317,7 +317,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// check to see if the send (left) is pointed at this block
-		if left.Link != block.Account+":"+block.ID {
+		if left.Link != block.Account+":swap:"+block.ID {
 			return errors.New("Linked left block does not send to this swap")
 		}
 

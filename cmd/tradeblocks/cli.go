@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -171,9 +172,8 @@ func (cli *cli) dispatch(args []string) error {
 		} else {
 			cmd.badInputs("order", addInfo)
 		}
-	case "trade":
-		// TODO Implement trading
-		fmt.Fprintln(cli.out, "TWJOTBNV7AKQQNND2G6HZRZM4AD2ZNBQOZPF7UTRS6DBBKJ5ZILA")
+	default:
+		return errors.New("Invalid command")
 	}
 
 	if block != nil {
