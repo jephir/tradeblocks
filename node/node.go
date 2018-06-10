@@ -100,7 +100,7 @@ func (n *Node) Bootstrap(hostURL, bootstrapURL string) error {
 		}
 		sequence++
 	}
-	return nil
+	return n.storage.Save()
 }
 
 func accountWithSequence(accounts map[string]tradeblocks.NetworkAccountBlock, sequence int) *tradeblocks.NetworkAccountBlock {

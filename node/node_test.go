@@ -71,6 +71,13 @@ func TestBootstrapAndSync(t *testing.T) {
 		t.Fatalf("N2 missing existing block %s", h2)
 	}
 
+	// Ensure that the new block is persisted
+	dir := node2.storage.Dir()
+	p := filepath.Join(dir, "accounts", h2)
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		t.Fatalf("N2 didn't persist block %s at %s", h2, p)
+	}
+
 	// Add block to seed node
 	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address3, 15), key3)
 	if err != nil {
