@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jephir/tradeblocks"
+	tb "github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
 )
 
@@ -33,12 +33,12 @@ func TestBootstrapAndSync(t *testing.T) {
 	// Create connecting client
 	client := web.NewClient(s.URL)
 
-	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address, 100), key)
+	b1, err := tb.SignedAccountBlock(tb.NewIssueBlock(address, 100), key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b2, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address2, 50), key2)
+	b2, err := tb.SignedAccountBlock(tb.NewIssueBlock(address2, 50), key2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Add block to seed node
-	b3, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(address3, 15), key3)
+	b3, err := tb.SignedAccountBlock(tb.NewIssueBlock(address3, 15), key3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func newNode(t *testing.T, bootstrapURL string) (*Node, *httptest.Server) {
 
 var client = &http.Client{}
 
-func addAccountBlock(t *testing.T, c *web.Client, b *tradeblocks.AccountBlock) string {
+func addAccountBlock(t *testing.T, c *web.Client, b *tb.AccountBlock) string {
 	req, err := c.NewPostAccountBlockRequest(b)
 	if err != nil {
 		t.Fatal(err)
@@ -147,14 +147,14 @@ func addAccountBlock(t *testing.T, c *web.Client, b *tradeblocks.AccountBlock) s
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rb tradeblocks.AccountBlock
+	var rb tb.AccountBlock
 	if err := c.DecodeAccountBlockResponse(res, &rb); err != nil {
 		t.Fatal(err)
 	}
 	return rb.Hash()
 }
 
-func addSwapBlock(t *testing.T, c *web.Client, b *tradeblocks.SwapBlock) string {
+func addSwapBlock(t *testing.T, c *web.Client, b *tb.SwapBlock) string {
 	req, err := c.NewPostSwapBlockRequest(b)
 	if err != nil {
 		t.Fatal(err)
@@ -163,14 +163,14 @@ func addSwapBlock(t *testing.T, c *web.Client, b *tradeblocks.SwapBlock) string 
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rb tradeblocks.SwapBlock
+	var rb tb.SwapBlock
 	if err := c.DecodeSwapBlockResponse(res, &rb); err != nil {
 		t.Fatal(err)
 	}
 	return rb.Hash()
 }
 
-func addOrderBlock(t *testing.T, c *web.Client, b *tradeblocks.OrderBlock) string {
+func addOrderBlock(t *testing.T, c *web.Client, b *tb.OrderBlock) string {
 	req, err := c.NewPostOrderBlockRequest(b)
 	if err != nil {
 		t.Fatal(err)
@@ -179,7 +179,7 @@ func addOrderBlock(t *testing.T, c *web.Client, b *tradeblocks.OrderBlock) strin
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rb tradeblocks.OrderBlock
+	var rb tb.OrderBlock
 	if err := c.DecodeOrderBlockResponse(res, &rb); err != nil {
 		t.Fatal(err)
 	}
@@ -218,24 +218,26 @@ func GetAddress() (*rsa.PrivateKey, string, error) {
 }
 
 func TestSyncAllBlockTypes(t *testing.T) {
-	allBlocksTest := app.NewBlockTestTable(t)
+	ts := app.NewBlockTestTable(t)
 	p1, a1 := app.CreateAccount(t)
 	p2, a2 := app.CreateAccount(t)
-	p1issue := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewIssueBlock(a1, 100))
-	p1send := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1issue, a2, 50))
-	p2open := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewOpenBlockFromSend(a2, p1send, 50))
-	p2send := allBlocksTest.AddAccountBlock(p2, tradeblocks.NewSendBlock(p2open, a1, 25))
-	p1receive := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewReceiveBlockFromSend(p1send, p2send, 25))
+	p1issue := ts.AddAccountBlock(p1, tb.NewIssueBlock(a1, 100))
+	p1send := ts.AddAccountBlock(p1, tb.NewSendBlock(p1issue, a2, 50))
+	p2open := ts.AddAccountBlock(p2, tb.NewOpenBlockFromSend(a2, p1send, 50))
+	p2send := ts.AddAccountBlock(p2, tb.NewSendBlock(p2open, a1, 25))
+	p1receive := ts.AddAccountBlock(p1, tb.NewReceiveBlockFromSend(p1send, p2send, 25))
 
-	// Test swap chain
+	// Test order and swap chain
 	p3, a3 := app.CreateAccount(t)
-	p3issue := allBlocksTest.AddAccountBlock(p3, tradeblocks.NewIssueBlock(a3, 100))
-	p1swapsend := allBlocksTest.AddAccountBlock(p1, tradeblocks.NewSendBlock(p1receive, tradeblocks.SwapAddress(a1, "test"), 10))
-	p1swapoffer := allBlocksTest.AddSwapBlock(p1, tradeblocks.NewOfferBlock(a1, p1swapsend, "test", a3, a3, 15, "", 0))
-	p3swapsend := allBlocksTest.AddAccountBlock(p3, tradeblocks.NewSendBlock(p3issue, tradeblocks.SwapAddress(a1, "test"), 15))
-	p3swapcommit := allBlocksTest.AddSwapBlock(p3, tradeblocks.NewCommitBlock(p1swapoffer, p3swapsend))
-	/* p1swapreceive := */ allBlocksTest.AddAccountBlock(p1, tradeblocks.NewOpenBlockFromSwap(a1, p3swapcommit, 15))
-	/* p3swapreceive := */ allBlocksTest.AddAccountBlock(p3, tradeblocks.NewOpenBlockFromSwap(a3, p3swapcommit, 10))
+	p3issue := ts.AddAccountBlock(p3, tb.NewIssueBlock(a3, 100))
+	p1ordersend := ts.AddAccountBlock(p1, tb.NewSendBlock(p1receive, tb.OrderAddress(a1, "test"), 5))
+	p1orderopen := ts.AddOrderBlock(p1, tb.NewCreateOrderBlock(a1, p1ordersend, 5, "test", false, a3, 1, "", 0))
+	p3orderswapsend := ts.AddAccountBlock(p3, tb.NewSendBlock(p3issue, tb.SwapAddress(a3, "test"), 10))
+	p3orderswapoffer := ts.AddSwapBlock(p3, tb.NewOfferBlock(a3, p3orderswapsend, "test", a1, a1, 5, "", 0))
+	ts.AddOrderBlock(p1, tb.NewAcceptOrderBlock(p1orderopen, tb.SwapAddress(a3, "test"), 5))
+	p1orderswapcommit := ts.AddSwapBlock(p1, tb.NewCommitBlock(p3orderswapoffer, p1receive))
+	ts.AddAccountBlock(p1, tb.NewOpenBlockFromSwap(a1, p1orderswapcommit, 10))
+	ts.AddAccountBlock(p3, tb.NewOpenBlockFromSwap(a3, p1orderswapcommit, 5))
 
 	_, s1 := newNode(t, "")
 	defer s1.Close()
@@ -246,7 +248,7 @@ func TestSyncAllBlockTypes(t *testing.T) {
 	n3, s3 := newNode(t, s2.URL)
 	defer s3.Close()
 
-	for _, tt := range allBlocksTest.GetAll() {
+	for _, tt := range ts.GetAll() {
 		t.Run(tt.T, func(t *testing.T) {
 			h := addBlockToNode(t, s1.URL, tt)
 			switch tt.T {

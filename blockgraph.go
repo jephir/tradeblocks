@@ -597,6 +597,11 @@ func SwapAddress(account, id string) string {
 	return account + ":" + id
 }
 
+// OrderAddress returns an address for the specified account and id
+func OrderAddress(account, id string) string {
+	return account + ":" + id
+}
+
 // NetworkAccountBlock represents a block with sequence information
 type NetworkAccountBlock struct {
 	*AccountBlock
