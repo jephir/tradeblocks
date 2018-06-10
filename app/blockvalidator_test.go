@@ -388,10 +388,10 @@ func swapOfferSetup(keys []*rsa.PrivateKey, address []string, t *testing.T) (*tr
 	swapStore := NewSwapBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
-	send := tradeblocks.NewSendBlock(i, address[2]+":test-ID", 50.0)
+	send := tradeblocks.NewSendBlock(i, address[2]+":swap:test-ID", 50.0)
 
 	i2 := tradeblocks.NewIssueBlock(address[1], 50.0)
-	send2 := tradeblocks.NewSendBlock(i2, address[2]+":test-ID", 10.0)
+	send2 := tradeblocks.NewSendBlock(i2, address[2]+":swap:test-ID", 10.0)
 
 	swap := tradeblocks.NewOfferBlock(address[2], send, "test-ID", "counterparty", address[1], 10.0, "", 0.0)
 	swap2 := tradeblocks.NewCommitBlock(swap, send2)
@@ -770,7 +770,7 @@ func swapRefundLeftSetup(key []*rsa.PrivateKey, address []string, t *testing.T) 
 	swapStore := NewSwapBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
-	send := tradeblocks.NewSendBlock(i, address[2]+":test-ID", 50.0)
+	send := tradeblocks.NewSendBlock(i, address[2]+":swap:test-ID", 50.0)
 
 	i2 := tradeblocks.NewIssueBlock(address[1], 50.0)
 	swap := tradeblocks.NewOfferBlock(address[2], send, "test-ID", "counterparty", address[1], 10.0, "", 0.0)
@@ -937,9 +937,9 @@ func swapRefundRightSetup(key []*rsa.PrivateKey, address []string, t *testing.T)
 	swapStore := NewSwapBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
-	send := tradeblocks.NewSendBlock(i, address[2]+":test-ID", 50.0)
+	send := tradeblocks.NewSendBlock(i, address[2]+":swap:test-ID", 50.0)
 	i2 := tradeblocks.NewIssueBlock(address[1], 50)
-	send2 := tradeblocks.NewSendBlock(i2, address[2]+":test-ID", 10.0)
+	send2 := tradeblocks.NewSendBlock(i2, address[2]+":swap:test-ID", 10.0)
 	swap := tradeblocks.NewOfferBlock(address[2], send, "test-ID", "counterparty", address[1], 10.0, "", 0.0)
 	refundLeft := tradeblocks.NewRefundLeftBlock(swap, address[0])
 	refundRight := tradeblocks.NewRefundRightBlock(refundLeft, send2, address[1])
@@ -1373,11 +1373,11 @@ func acceptOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 	orderStore := NewOrderBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
-	send := tradeblocks.NewSendBlock(i, address[0]+":test-ID", 50.0)
+	send := tradeblocks.NewSendBlock(i, address[0]+":order:test-ID", 50.0)
 	order := tradeblocks.NewCreateOrderBlock(address[0], send, 50, "test-ID", false, address[1], 10.0, "", 0.0)
 
 	i2 := tradeblocks.NewIssueBlock(address[1], 100.0)
-	send2 := tradeblocks.NewSendBlock(i2, address[2]+":test-ID", 5)
+	send2 := tradeblocks.NewSendBlock(i2, address[2]+":swap:test-ID", 5)
 	swap := tradeblocks.NewOfferBlock(address[2], send2, "test-ID", address[0], address[0], 50, "", 0.0)
 	order2 := tradeblocks.NewAcceptOrderBlock(order, swap.Hash(), 0)
 

@@ -204,16 +204,16 @@ func TestDemo(t *testing.T) {
 	}
 	xtbTrade := &bytes.Buffer{}
 	c.out = xtbTrade
-	if err := c.dispatch([]string{"tradeblocks", "trade", xtbBananaCoin.String(), "25", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
-		t.Fatal(err)
-	}
-	c.out = ioutil.Discard
-	if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.dispatch([]string{"tradeblocks", "trade", xtbTrade.String()}); err != nil {
-		t.Fatal(err)
-	}
+	// if err := c.dispatch([]string{"tradeblocks", "trade", xtbBananaCoin.String(), "25", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
+	// 	t.Fatal(err)
+	// }
+	// c.out = ioutil.Discard
+	// if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
+	// 	t.Fatal(err)
+	// }
+	// if err := c.dispatch([]string{"tradeblocks", "trade", xtbTrade.String()}); err != nil {
+	// 	t.Fatal(err)
+	// }
 }
 
 func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
