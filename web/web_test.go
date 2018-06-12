@@ -16,7 +16,7 @@ func TestWeb(t *testing.T) {
 	p, a := app.CreateAccount(t)
 
 	// Setup test
-	store := app.NewBlockStore2()
+	store := app.NewBlockStore()
 	srv := NewServer(store)
 	client := NewClient(base)
 
@@ -56,7 +56,7 @@ func TestBootstrap(t *testing.T) {
 	p, a := app.CreateAccount(t)
 
 	// Create root server
-	rs := app.NewBlockStore2()
+	rs := app.NewBlockStore()
 	b1, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(a, 100), p)
 	if err != nil {
 		t.Fatal(err)

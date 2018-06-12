@@ -19,7 +19,7 @@ type blockHashMap map[string]struct{}
 // Node represents a node in the TradeBlocks network
 type Node struct {
 	dir     string
-	store   *app.BlockStore2
+	store   *app.BlockStore
 	storage *fs.BlockStorage
 	client  *http.Client
 	server  *web.Server
@@ -31,7 +31,7 @@ type Node struct {
 
 // NewNode creates a new node that bootstraps from the specified URL. An error is returned if boostrapping fails.
 func NewNode(dir string) (n *Node, err error) {
-	store := app.NewBlockStore2()
+	store := app.NewBlockStore()
 	storage := fs.NewBlockStorage(store, blocksDir(dir))
 	server := web.NewServer(store)
 	c := &http.Client{}

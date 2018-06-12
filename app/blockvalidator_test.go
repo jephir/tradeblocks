@@ -2,6 +2,7 @@ package app
 
 import (
 	"crypto/rsa"
+	"errors"
 	"strings"
 	"testing"
 
@@ -36,12 +37,12 @@ func openSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.
 		t.Fatal(err)
 	}
 
-	if _, err := s.AddBlock(i); err != nil {
-		t.Fatal(err)
+	if block := s.AddAccountBlock(i); block == nil {
+		t.Fatal("Block not found")
 	}
 
-	if _, err := s.AddBlock(send); err != nil {
-		t.Fatal(err)
+	if block := s.AddAccountBlock(send); block == nil {
+		t.Fatal("Block not found")
 	}
 	return open, send, validator, nil
 }
@@ -146,19 +147,19 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 }
 
-func issueSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
+func issueSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 	issue := tradeblocks.NewIssueBlock(address, 100)
 	s := NewBlockStore()
 
 	validator := NewIssueValidator(s)
 
-	errIssue := issue.SignBlock(key)
-	if errIssue != nil {
-		return nil, nil, errIssue
+	err := issue.SignBlock(key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if _, err := s.AddBlock(issue); err != nil {
-		return nil, nil, err
+	if block := s.AddAccountBlock(issue); block == nil {
+		t.Fatal("block not founs")
 	}
 
 	return issue, validator, nil
@@ -167,7 +168,7 @@ func issueSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock,
 func TestIssueBlockValidator(t *testing.T) {
 	key, address := CreateAccount(t)
 	// test for success
-	issue, validator, err := issueSetup(key, address)
+	issue, validator, err := issueSetup(key, address, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +179,7 @@ func TestIssueBlockValidator(t *testing.T) {
 	}
 }
 
-func sendSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
+func sendSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.AccountBlock, AccountBlockValidator, error) {
 	s := NewBlockStore()
 	issue := tradeblocks.NewIssueBlock(address, 100.0)
 
@@ -191,17 +192,17 @@ func sendSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock, 
 		return nil, nil, errSend
 	}
 
-	errIssue := issue.SignBlock(key)
-	if errIssue != nil {
-		return nil, nil, errIssue
+	err := issue.SignBlock(key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if _, err := s.AddBlock(issue); err != nil {
-		return nil, nil, err
+	if block := s.AddAccountBlock(issue); block == nil {
+		t.Fatal("Block not found")
 	}
 
-	if _, err := s.AddBlock(send); err != nil {
-		return nil, nil, err
+	if block := s.AddAccountBlock(send); block == nil {
+		t.Fatal("Block not found")
 	}
 
 	return send, validator, nil
@@ -210,7 +211,7 @@ func sendSetup(key *rsa.PrivateKey, address string) (*tradeblocks.AccountBlock, 
 func TestSendBlockValidator(t *testing.T) {
 	key, address := CreateAccount(t)
 	// test for success
-	send, validator, err := sendSetup(key, address)
+	send, validator, err := sendSetup(key, address, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +222,7 @@ func TestSendBlockValidator(t *testing.T) {
 	}
 
 	// test for previous not null
-	send, validator, errPrevNull := sendSetup(key, address)
+	send, validator, errPrevNull := sendSetup(key, address, t)
 	if errPrevNull != nil {
 		t.Fatal(errPrevNull)
 	}
@@ -272,14 +273,15 @@ func receiveSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*trade
 		t.Fatal(err)
 	}
 
-	if _, err := s.AddBlock(i); err != nil {
+	err = errors.New("block not found")
+	if block := s.AddAccountBlock(i); block == nil {
 		t.Fatal(err)
 	}
 
-	if _, err := s.AddBlock(send); err != nil {
+	if block := s.AddAccountBlock(send); block == nil {
 		t.Fatal(err)
 	}
-	if _, err := s.AddBlock(i2); err != nil {
+	if block := s.AddAccountBlock(i2); block == nil {
 		t.Fatal(err)
 	}
 
@@ -384,8 +386,7 @@ func TestUnkownAction(t *testing.T) {
 }
 
 func swapOfferSetup(keys []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
-	accountStore := NewBlockStore()
-	swapStore := NewSwapBlockStore()
+	blockStore := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
 	send := tradeblocks.NewSendBlock(i, address[2]+":swap:test-ID", 50.0)
@@ -426,35 +427,31 @@ func swapOfferSetup(keys []*rsa.PrivateKey, address []string, t *testing.T) (*tr
 		t.Fatal(err)
 	}
 
-	_, err = accountStore.AddBlock(i)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = accountStore.AddBlock(send)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = accountStore.AddBlock(i2)
-	if err != nil {
+	err = errors.New("Block not found")
+	if block := blockStore.AddAccountBlock(i); block == nil {
 		t.Fatal(err)
 	}
 
-	_, err = accountStore.AddBlock(send2)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(send); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddAccountBlock(i2); block == nil {
 		t.Fatal(err)
 	}
 
-	_, err = swapStore.AddBlock(swap, accountStore)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(send2); block == nil {
 		t.Fatal(err)
 	}
 
-	_, err = swapStore.AddBlock(swap2, accountStore)
-	if err != nil {
+	if block := blockStore.AddSwapBlock(swap); block == nil {
 		t.Fatal(err)
 	}
 
-	validator := NewSwapValidator(accountStore, swapStore)
+	if block := blockStore.AddSwapBlock(swap2); block == nil {
+		t.Fatal(err)
+	}
+
+	validator := NewSwapValidator(blockStore)
 
 	return swap, swap2, send, validator, nil
 }
@@ -725,9 +722,9 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	send2, err := validator.accountChain.GetBlock(swap2.Right)
-	if err != nil || send2 == nil {
-		t.Fatal(err)
+	send2 := validator.blockStore.GetAccountBlock(swap2.Right)
+	if send2 == nil {
+		t.Fatal("Block not found")
 	}
 
 	send2.Previous = badAddress
@@ -748,9 +745,9 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	send2, err = validator.accountChain.GetBlock(swap2.Right)
-	if err != nil || send2 == nil {
-		t.Fatal(err)
+	send2 = validator.blockStore.GetAccountBlock(swap2.Right)
+	if send2 == nil {
+		t.Fatal("Block not found")
 	}
 	send2.Balance = 0
 	err = send2.SignBlock(key2)
@@ -766,8 +763,7 @@ func TestSwapCommitValidation(t *testing.T) {
 }
 
 func swapRefundLeftSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
-	accountStore := NewBlockStore()
-	swapStore := NewSwapBlockStore()
+	blockStore := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
 	send := tradeblocks.NewSendBlock(i, address[2]+":swap:test-ID", 50.0)
@@ -777,45 +773,49 @@ func swapRefundLeftSetup(key []*rsa.PrivateKey, address []string, t *testing.T) 
 
 	refundLeft := tradeblocks.NewRefundLeftBlock(swap, address[0])
 
-	errIssue := i.SignBlock(key[0])
-	if errIssue != nil {
-		t.Fatal(errIssue)
-	}
-
-	errIssue = i2.SignBlock(key[1])
-	if errIssue != nil {
-		t.Fatal(errIssue)
-	}
-
-	errSend := send.SignBlock(key[0])
-	if errSend != nil {
-		t.Fatal(errSend)
-	}
-
-	errSwap := swap.SignBlock(key[2])
-	if errSwap != nil {
-		t.Fatal(errSwap)
-	}
-
-	errRefund := refundLeft.SignBlock(key[2])
-	if errRefund != nil {
-		t.Fatal(errRefund)
-	}
-
-	accountStore.AddBlock(i)
-	accountStore.AddBlock(send)
-	accountStore.AddBlock(i2)
-
-	_, err := swapStore.AddBlock(swap, accountStore)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = swapStore.AddBlock(refundLeft, accountStore)
+	err := i.SignBlock(key[0])
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	validator := NewSwapValidator(accountStore, swapStore)
+	err = i2.SignBlock(key[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = send.SignBlock(key[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = swap.SignBlock(key[2])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = refundLeft.SignBlock(key[2])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = errors.New("Block not found")
+	if block := blockStore.AddAccountBlock(i); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddAccountBlock(send); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddAccountBlock(i2); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddSwapBlock(swap); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddSwapBlock(refundLeft); block == nil {
+		t.Fatal(err)
+	}
+
+	validator := NewSwapValidator(blockStore)
 
 	return swap, refundLeft, send, validator, nil
 }
@@ -933,8 +933,7 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 }
 
 func swapRefundRightSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
-	accountStore := NewBlockStore()
-	swapStore := NewSwapBlockStore()
+	blockStore := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
 	send := tradeblocks.NewSendBlock(i, address[2]+":swap:test-ID", 50.0)
@@ -979,25 +978,31 @@ func swapRefundRightSetup(key []*rsa.PrivateKey, address []string, t *testing.T)
 		t.Fatal(err)
 	}
 
-	accountStore.AddBlock(i)
-	accountStore.AddBlock(send)
-	accountStore.AddBlock(i2)
-	accountStore.AddBlock(send2)
-
-	_, err = swapStore.AddBlock(swap, accountStore)
-	if err != nil {
+	err = errors.New("Block not found")
+	if block := blockStore.AddAccountBlock(i); block == nil {
 		t.Fatal(err)
 	}
-	_, err = swapStore.AddBlock(refundLeft, accountStore)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(send); block == nil {
 		t.Fatal(err)
 	}
-	_, err = swapStore.AddBlock(refundRight, accountStore)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(i2); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddAccountBlock(send2); block == nil {
 		t.Fatal(err)
 	}
 
-	validator := NewSwapValidator(accountStore, swapStore)
+	if block := blockStore.AddSwapBlock(swap); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddSwapBlock(refundLeft); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddSwapBlock(refundRight); block == nil {
+		t.Fatal(err)
+	}
+
+	validator := NewSwapValidator(blockStore)
 
 	return swap, refundLeft, refundRight, send2, validator, nil
 }
@@ -1181,9 +1186,7 @@ func TestSwapRefundRightValidation(t *testing.T) {
 }
 
 func createOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.OrderBlock, *OrderBlockValidator, error) {
-	accountStore := NewBlockStore()
-	swapStore := NewSwapBlockStore()
-	orderStore := NewOrderBlockStore()
+	blockStore := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
 	send := tradeblocks.NewSendBlock(i, address[0]+":order:ID0", 50.0)
@@ -1204,11 +1207,18 @@ func createOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 		t.Fatal(err)
 	}
 
-	accountStore.AddBlock(i)
-	accountStore.AddBlock(send)
-	orderStore.AddBlock(order, swapStore, accountStore)
+	err = errors.New("Block not found")
+	if block := blockStore.AddAccountBlock(i); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddAccountBlock(send); block == nil {
+		t.Fatal(err)
+	}
+	if block := blockStore.AddOrderBlock(order); block == nil {
+		t.Fatal(err)
+	}
 
-	validator := NewOrderValidator(accountStore, swapStore, orderStore)
+	validator := NewOrderValidator(blockStore)
 
 	return send, order, validator, nil
 }
@@ -1368,9 +1378,7 @@ func TestCreateOrderValidation(t *testing.T) {
 }
 
 func acceptOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.OrderBlock, *tradeblocks.OrderBlock, *tradeblocks.SwapBlock, *OrderBlockValidator, error) {
-	accountStore := NewBlockStore()
-	swapStore := NewSwapBlockStore()
-	orderStore := NewOrderBlockStore()
+	blockStore := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
 	send := tradeblocks.NewSendBlock(i, address[0]+":order:test-ID", 50.0)
@@ -1416,36 +1424,28 @@ func acceptOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 		t.Fatal(err)
 	}
 
-	_, err = accountStore.AddBlock(i)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(i); block == nil {
 		t.Fatal(err)
 	}
-	_, err = accountStore.AddBlock(i2)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(i2); block == nil {
 		t.Fatal(err)
 	}
-	_, err = accountStore.AddBlock(send)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(send); block == nil {
 		t.Fatal(err)
 	}
-	_, err = accountStore.AddBlock(send2)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(send2); block == nil {
 		t.Fatal(err)
 	}
-	_, err = swapStore.AddBlock(swap, accountStore)
-	if err != nil {
+	if block := blockStore.AddSwapBlock(swap); block == nil {
 		t.Fatal(err)
 	}
-	_, err = orderStore.AddBlock(order, swapStore, accountStore)
-	if err != nil {
+	if block := blockStore.AddOrderBlock(order); block == nil {
 		t.Fatal(err)
 	}
-	_, err = orderStore.AddBlock(order2, swapStore, accountStore)
-	if err != nil {
+	if block := blockStore.AddOrderBlock(order2); block == nil {
 		t.Fatal(err)
 	}
-
-	validator := NewOrderValidator(accountStore, swapStore, orderStore)
+	validator := NewOrderValidator(blockStore)
 
 	return send2, order, order2, swap, validator, nil
 }
@@ -1784,9 +1784,7 @@ func TestAcceptOrderValidation(t *testing.T) {
 }
 
 func refundOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.OrderBlock, *tradeblocks.OrderBlock, *OrderBlockValidator, error) {
-	accountStore := NewBlockStore()
-	swapStore := NewSwapBlockStore()
-	orderStore := NewOrderBlockStore()
+	blockStore := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
 	send := tradeblocks.NewSendBlock(i, address[0]+":order:test-ID", 50.0)
@@ -1813,27 +1811,23 @@ func refundOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 		t.Fatal(err)
 	}
 
-	_, err = accountStore.AddBlock(i)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(i); block == nil {
 		t.Fatal(err)
 	}
 
-	_, err = accountStore.AddBlock(send)
-	if err != nil {
+	if block := blockStore.AddAccountBlock(send); block == nil {
 		t.Fatal(err)
 	}
 
-	_, err = orderStore.AddBlock(order, swapStore, accountStore)
-	if err != nil {
+	if block := blockStore.AddOrderBlock(order); block == nil {
 		t.Fatal(err)
 	}
 
-	_, err = orderStore.AddBlock(refund, swapStore, accountStore)
-	if err != nil {
+	if block := blockStore.AddOrderBlock(refund); block == nil {
 		t.Fatal(err)
 	}
 
-	validator := NewOrderValidator(accountStore, swapStore, orderStore)
+	validator := NewOrderValidator(blockStore)
 
 	return order, refund, validator, nil
 }

@@ -1,15 +1,16 @@
 package fs
 
 import (
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 )
 
 func TestFS(t *testing.T) {
-	store1 := app.NewBlockStore2()
+	store1 := app.NewBlockStore()
 
 	b1 := tradeblocks.NewIssueBlock("xtb:test1", 100)
 	h1, err := app.AccountBlockHash(b1)
@@ -40,7 +41,7 @@ func TestFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store2 := app.NewBlockStore2()
+	store2 := app.NewBlockStore()
 	bs2 := NewBlockStorage(store2, dir)
 	if err := bs2.Load(); err != nil {
 		t.Fatal(err)

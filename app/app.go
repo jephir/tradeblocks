@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -150,19 +148,6 @@ func AddressToPublicKey(address string) (publicKey []byte, err error) {
 	addressNoPrefix := strings.TrimPrefix(address, addressPrefix)
 	byteKey, err := base64.RawURLEncoding.DecodeString(addressNoPrefix)
 	return byteKey, err
-}
-
-// AccountBlockHash returns the hash of the specified account block
-func AccountBlockHash(block *tradeblocks.AccountBlock) (string, error) {
-	b, err := json.Marshal(block)
-	if err != nil {
-		return "", err
-	}
-	hash := sha256.New()
-	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
-		return "", err
-	}
-	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil)), nil
 }
 
 // SerializeAccountBlock returns the string representation of the specified account block

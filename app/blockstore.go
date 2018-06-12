@@ -1,217 +1,231 @@
 package app
 
 import (
-	"fmt"
+	"sync"
 
 	"github.com/jephir/tradeblocks"
 )
 
-// AccountBlocksMap maps block hashes to account blocks
-type AccountBlocksMap map[string]*tradeblocks.AccountBlock
+// Blocks maps hashes to blocks
+type Blocks map[string]tradeblocks.Block
 
-// AccountTokenHeadMap maps an 'account:token' string to their head block
-type AccountTokenHeadMap map[string]*tradeblocks.AccountBlock
+// AccountBlocks maps a context-specific identifier to an account block
+type AccountBlocks map[string]*tradeblocks.AccountBlock
 
-// AccountChangeListener is called whenever an account block is added or changed
-type AccountChangeListener func(hash string, b *tradeblocks.AccountBlock)
+// SwapBlocks maps a context-specific identifier to a swap block
+type SwapBlocks map[string]*tradeblocks.SwapBlock
 
-// VoteBlocksMap maps block hashes to vote blocks
-type VoteBlocksMap map[string]*tradeblocks.VoteBlock
+// OrderBlocks maps a context-specific identifier to an order block
+type OrderBlocks map[string]*tradeblocks.OrderBlock
 
-// BlockStore stores all of the local blockchains
+// BlockStore is a concurrency-safe block store
 type BlockStore struct {
-	AccountChangeListener AccountChangeListener
-	AccountBlocks         AccountBlocksMap
-	AccountHeads          AccountTokenHeadMap
-	VoteBlocks            VoteBlocksMap
+	mu sync.RWMutex
+
+	// Keyed by hash
+	blocks        Blocks
+	blockSequence map[string]int
+	sequence      int
+
+	// Keyed by hash
+	accountBlocks AccountBlocks
+	// Keyed by account:token
+	accountHeads AccountBlocks
+
+	// Keyed by hash
+	swapBlocks SwapBlocks
+	// Keyed by account:id
+	swapHeads SwapBlocks
+
+	// Keyed by hash
+	orderBlocks OrderBlocks
+	// Keyed by account:id
+	orderHeads OrderBlocks
 }
 
 // NewBlockStore allocates and returns a new BlockStore
 func NewBlockStore() *BlockStore {
 	return &BlockStore{
-		AccountBlocks: make(AccountBlocksMap),
-		AccountHeads:  make(AccountTokenHeadMap),
-		VoteBlocks:    make(VoteBlocksMap),
+		blocks:        make(Blocks),
+		blockSequence: make(map[string]int),
+		accountBlocks: make(AccountBlocks),
+		accountHeads:  make(AccountBlocks),
+		swapBlocks:    make(SwapBlocks),
+		swapHeads:     make(SwapBlocks),
+		orderBlocks:   make(OrderBlocks),
+		orderHeads:    make(OrderBlocks),
 	}
 }
 
-// AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
-func (s *BlockStore) AddBlock(b *tradeblocks.AccountBlock) (string, error) {
+// AddAccountBlock verifies and adds the specified account block to this store
+func (s *BlockStore) AddAccountBlock(b *tradeblocks.AccountBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if err := ValidateAccountBlock(s, b); err != nil {
-		return "", err
-	}
-	if err := s.checkConflict(b); err != nil {
-		return "", err
+		return err
 	}
 	h := b.Hash()
-	s.AccountBlocks[h] = b
-	s.AccountHeads[s.accountHeadKey(b.Account, b.Token)] = b
-	if s.AccountChangeListener != nil {
-		s.AccountChangeListener(h, b)
-	}
-	return h, nil
-}
-
-func (s *BlockStore) checkConflict(b *tradeblocks.AccountBlock) error {
-	// open or issue case
-	if b.Previous == "" {
-		for _, block := range s.AccountBlocks {
-			if block.Previous == "" && block.Account == b.Account {
-				return &BlockConflictError{block}
-			}
-		}
-		return nil
-	}
-	for _, block := range s.AccountBlocks {
-		if block.Previous == b.Previous {
-			return &BlockConflictError{block}
-		}
-	}
+	s.blocks[h] = b
+	s.accountBlocks[h] = b
+	s.accountHeads[accountHeadKey(b.Account, b.Token)] = b
+	s.setBlockSequence(h)
 	return nil
 }
 
-// GetBlock returns the account block with the specified hash, or nil if it doesn't exist
-// error return added for future proofing
-func (s *BlockStore) GetBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	return s.AccountBlocks[hash], nil
+// AddSwapBlock verifies and adds the specified swap block to this store
+func (s *BlockStore) AddSwapBlock(b *tradeblocks.SwapBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// if err := ValidateSwapBlock(s, b); err != nil {
+	// 	return err
+	// }
+	h := b.Hash()
+	s.blocks[h] = b
+	s.swapBlocks[h] = b
+	s.swapHeads[swapHeadKey(b.Account, b.ID)] = b
+	s.setBlockSequence(h)
+	return nil
 }
 
-// GetHeadBlock returns the head block for the specified account-token blockchain
-func (s *BlockStore) GetHeadBlock(account, token string) (*tradeblocks.AccountBlock, error) {
-	return s.AccountHeads[s.accountHeadKey(account, token)], nil
+// AddOrderBlock verifies and adds the specified order block to this store
+func (s *BlockStore) AddOrderBlock(b *tradeblocks.OrderBlock) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// if err := ValidateOrderBlock(s, b); err != nil {
+	// 	return err
+	// }
+	h := b.Hash()
+	s.blocks[h] = b
+	s.orderBlocks[h] = b
+	s.orderHeads[orderHeadKey(b.Account, b.ID)] = b
+	s.setBlockSequence(h)
+	return nil
 }
 
-func (s *BlockStore) accountHeadKey(account, token string) string {
+func (s *BlockStore) setBlockSequence(hash string) {
+	s.blockSequence[hash] = s.sequence
+	s.sequence++
+}
+
+// Sequence returns the sequence number of the block with the specified hash
+func (s *BlockStore) Sequence(hash string) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.blockSequence[hash]
+}
+
+// SequenceLess returns true if the sequence number of block i is less than block j
+func (s *BlockStore) SequenceLess(i, j string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.blockSequence[i] < s.blockSequence[j]
+}
+
+// AccountBlocks calls the specified function with every block in this store. Return false to stop iteration.
+func (s *BlockStore) AccountBlocks(f func(sequence int, b *tradeblocks.AccountBlock) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for h, b := range s.accountBlocks {
+		seq := s.blockSequence[h]
+		if !f(seq, b) {
+			return
+		}
+	}
+}
+
+// SwapBlocks calls the specified function with every block in this store. Return false to stop iteration.
+func (s *BlockStore) SwapBlocks(f func(sequence int, b *tradeblocks.SwapBlock) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for h, b := range s.swapBlocks {
+		seq := s.blockSequence[h]
+		if !f(seq, b) {
+			return
+		}
+	}
+}
+
+// OrderBlocks calls the specified function with every block in this store. Return false to stop iteration.
+func (s *BlockStore) OrderBlocks(f func(sequence int, b *tradeblocks.OrderBlock) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for h, b := range s.orderBlocks {
+		seq := s.blockSequence[h]
+		if !f(seq, b) {
+			return
+		}
+	}
+}
+
+// Blocks calls the specified function with every block in this store. Return false to stop iteration.
+func (s *BlockStore) Blocks(f func(sequence int, b tradeblocks.Block) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for h, b := range s.blocks {
+		seq := s.blockSequence[h]
+		if !f(seq, b) {
+			return
+		}
+	}
+}
+
+// Block returns the block with the specified hash or nil if it's not found
+func (s *BlockStore) Block(hash string) tradeblocks.Block {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.blocks[hash]
+}
+
+// GetAccountBlock returns the account block for the specified hash or nil if it's not found
+func (s *BlockStore) GetAccountBlock(hash string) *tradeblocks.AccountBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.accountBlocks[hash]
+}
+
+// GetSwapBlock returns the swap block for the specified hash or nil if it's not found
+func (s *BlockStore) GetSwapBlock(hash string) *tradeblocks.SwapBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.swapBlocks[hash]
+}
+
+// GetOrderBlock returns the order block for the specified hash or nil if it's not found
+func (s *BlockStore) GetOrderBlock(hash string) *tradeblocks.OrderBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.orderBlocks[hash]
+}
+
+// GetAccountHead returns the head block for the specified account-token pair
+func (s *BlockStore) GetAccountHead(account, token string) *tradeblocks.AccountBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.accountHeads[accountHeadKey(account, token)]
+}
+
+// GetSwapHead returns the head block for the specified account-id pair
+func (s *BlockStore) GetSwapHead(account, id string) *tradeblocks.SwapBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.swapHeads[swapHeadKey(account, id)]
+}
+
+// GetOrderHead returns the head block for the specified account-id pair
+func (s *BlockStore) GetOrderHead(account, id string) *tradeblocks.OrderBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.orderHeads[orderHeadKey(account, id)]
+}
+
+func accountHeadKey(account, token string) string {
 	return account + ":" + token
 }
 
-// SwapBlocksMap maps block hashes to Swap blocks
-type SwapBlocksMap map[string]*tradeblocks.SwapBlock
-
-// SwapChangeListener is called whenever an Swap block is added or changed
-type SwapChangeListener func(hash string, b *tradeblocks.SwapBlock)
-
-// SwapBlockStore stores all of the local blockchains
-type SwapBlockStore struct {
-	SwapChangeListener SwapChangeListener
-	SwapBlocks         SwapBlocksMap
+func swapHeadKey(account, id string) string {
+	return account + ":" + id
 }
 
-// NewSwapBlockStore allocates and returns a new BlockStore
-func NewSwapBlockStore() *SwapBlockStore {
-	return &SwapBlockStore{
-		SwapBlocks: make(SwapBlocksMap),
-	}
-}
-
-// AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
-func (s *SwapBlockStore) AddBlock(b *tradeblocks.SwapBlock, c AccountBlockchain) (string, error) {
-	if err := ValidateSwapBlock(c, s, b); err != nil {
-		return "", err
-	}
-	if err := s.checkConflict(b); err != nil {
-		return "", err
-	}
-	h := b.Hash()
-	s.SwapBlocks[h] = b
-	if s.SwapChangeListener != nil {
-		s.SwapChangeListener(h, b)
-	}
-	return h, nil
-}
-
-func (s *SwapBlockStore) checkConflict(b *tradeblocks.SwapBlock) error {
-	if b.Previous == "" {
-		return nil
-	}
-	for _, block := range s.SwapBlocks {
-		if block.Previous == b.Previous {
-			return &swapConflictError{block}
-		}
-	}
-	return nil
-}
-
-// GetSwapBlock returns the Swap block with the specified hash, or nil if it doesn't exist
-// error return added for future proofing
-func (s *SwapBlockStore) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
-	return s.SwapBlocks[hash], nil
-}
-
-// OrderBlocksMap maps block hashes to Order blocks
-type OrderBlocksMap map[string]*tradeblocks.OrderBlock
-
-// OrderChangeListener is called whenever an Order block is added or changed
-type OrderChangeListener func(hash string, b *tradeblocks.OrderBlock)
-
-// OrderBlockStore stores all of the local blockchains
-type OrderBlockStore struct {
-	OrderChangeListener OrderChangeListener
-	OrderBlocks         OrderBlocksMap
-}
-
-// NewOrderBlockStore allocates and returns a new BlockStore
-func NewOrderBlockStore() *OrderBlockStore {
-	return &OrderBlockStore{
-		OrderBlocks: make(OrderBlocksMap),
-	}
-}
-
-// AddBlock verifies and adds the specified block to the store, and returns the hash of the added block
-func (o *OrderBlockStore) AddBlock(b *tradeblocks.OrderBlock, s SwapBlockchain, c AccountBlockchain) (string, error) {
-	if err := ValidateOrderBlock(c, s, o, b); err != nil {
-		return "", err
-	}
-	if err := o.checkConflict(b); err != nil {
-		return "", err
-	}
-	h := b.Hash()
-	o.OrderBlocks[h] = b
-	if o.OrderChangeListener != nil {
-		o.OrderChangeListener(h, b)
-	}
-	return h, nil
-}
-
-func (o *OrderBlockStore) checkConflict(b *tradeblocks.OrderBlock) error {
-	if b.Previous == "" {
-		return nil
-	}
-	for _, block := range o.OrderBlocks {
-		if block.Previous == b.Previous {
-			return &orderConflictError{block}
-		}
-	}
-	return nil
-}
-
-// GetOrderBlock returns the Order block with the specified hash, or nil if it doesn't exist
-// error return added for future proofing
-func (o *OrderBlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
-	return o.OrderBlocks[hash], nil
-}
-
-// BlockConflictError represents a conflict (multiple parent claim)
-type BlockConflictError struct {
-	existing *tradeblocks.AccountBlock
-}
-
-func (e *BlockConflictError) Error() string {
-	return fmt.Sprintf("blockstore: conflict with existing block '%s'", e.existing.Hash())
-}
-
-type swapConflictError struct {
-	existing *tradeblocks.SwapBlock
-}
-
-func (e *swapConflictError) Error() string {
-	return fmt.Sprintf("blockstore: conflict with existing block '%s'", e.existing.Hash())
-}
-
-type orderConflictError struct {
-	existing *tradeblocks.OrderBlock
-}
-
-func (e *orderConflictError) Error() string {
-	return fmt.Sprintf("blockstore: conflict with existing block '%s'", e.existing.Hash())
+func orderHeadKey(account, id string) string {
+	return account + ":" + id
 }

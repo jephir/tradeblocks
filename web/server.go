@@ -13,13 +13,13 @@ import (
 type Server struct {
 	mux         *http.ServeMux
 	blockStream *sse
-	store       *app.BlockStore2
+	store       *app.BlockStore
 
 	BlockHandler func(b app.TypedBlock)
 }
 
 // NewServer allocates and returns a new server
-func NewServer(blockstore *app.BlockStore2) *Server {
+func NewServer(blockstore *app.BlockStore) *Server {
 	s := &Server{
 		mux:         http.NewServeMux(),
 		blockStream: newSSE(),
