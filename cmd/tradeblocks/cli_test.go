@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jephir/tradeblocks/node"
@@ -163,58 +164,24 @@ func TestDemo(t *testing.T) {
 		serverURL: s.URL,
 		dataDir:   dir,
 	}
-
-	xtbAlice := &bytes.Buffer{}
-	c.out = xtbAlice
-	if err := c.dispatch([]string{"tradeblocks", "register", "alice"}); err != nil {
-		t.Fatal(err)
-	}
-	xtbAliceStr := xtbAlice.String()
-	xtbAppleCoin := &bytes.Buffer{}
-	c.out = xtbAppleCoin
-	if err := c.dispatch([]string{"tradeblocks", "register", "apple-coin"}); err != nil {
-		t.Fatal(err)
-	}
-	xtbAppleCoinStr := xtbAppleCoin.String()
-	c.out = ioutil.Discard
-	if err := c.dispatch([]string{"tradeblocks", "login", "apple-coin"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.dispatch([]string{"tradeblocks", "issue", "1000"}); err != nil {
-		t.Fatal(err)
+	x := &executor{
+		t: t,
+		c: c,
 	}
 
-	xtbSend := &bytes.Buffer{}
-	c.out = xtbSend
-	if err := c.dispatch([]string{"tradeblocks", "send", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
-		t.Fatal(err)
-	}
-	c.out = ioutil.Discard
-	if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.dispatch([]string{"tradeblocks", "open", xtbSend.String()}); err != nil {
-		t.Fatal(err)
-	}
+	xtbAlice := x.exec("tradeblocks register alice")
+	xtbAppleCoin := x.exec("tradeblocks register apple-coin")
+	x.exec("tradeblocks login apple-coin")
+	x.exec("tradeblocks issue 1000")
 
-	xtbBananaCoin := &bytes.Buffer{}
-	c.out = xtbBananaCoin
-	if err := c.dispatch([]string{"tradeblocks", "register", "banana-coin"}); err != nil {
-		t.Fatal(err)
-	}
-	xtbTrade := &bytes.Buffer{}
-	c.out = xtbTrade
-	// if err := c.dispatch([]string{"tradeblocks", "trade", xtbBananaCoin.String(), "25", xtbAliceStr, xtbAppleCoinStr, "50"}); err != nil {
-	// 	t.Fatal(err)
-	// }
-	// c.out = ioutil.Discard
-	// if err := c.dispatch([]string{"tradeblocks", "login", "alice"}); err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if err := c.dispatch([]string{"tradeblocks", "trade", xtbTrade.String()}); err != nil {
-	// 	t.Fatal(err)
-	// }
+	xtbSend := x.exec("tradeblocks send " + xtbAlice + " " + xtbAppleCoin + " " + "50")
+	x.exec("tradeblocks login alice")
+	x.exec("tradeblocks open " + xtbSend)
 }
+
+// func TestLimitOrders(t *testing.T) {
+
+// }
 
 func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
 	dir, err := ioutil.TempDir("", "tradeblocks")
@@ -234,4 +201,19 @@ func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
 		}
 	}
 	return n, s
+}
+
+type executor struct {
+	t *testing.T
+	c *cli
+}
+
+func (x *executor) exec(cmd string) string {
+	args := strings.Split(cmd, " ")
+	output := &bytes.Buffer{}
+	x.c.out = output
+	if err := x.c.dispatch(args); err != nil {
+		x.t.Fatal(err)
+	}
+	return output.String()
 }
