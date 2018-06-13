@@ -158,15 +158,7 @@ func TestDemo(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	c := &cli{
-		keySize:   1024,
-		serverURL: s.URL,
-		dataDir:   dir,
-	}
-	x := &executor{
-		t: t,
-		c: c,
-	}
+	x := newExecutor(t, s.URL, dir)
 
 	xtbAlice := x.exec("tradeblocks", "register", "alice")
 	xtbAppleCoin := x.exec("tradeblocks", "register", "apple-coin")
@@ -178,9 +170,35 @@ func TestDemo(t *testing.T) {
 	x.exec("tradeblocks", "open", xtbSend)
 }
 
-// func TestLimitOrders(t *testing.T) {
+func TestLimitOrders(t *testing.T) {
+	t.Skip("TODO implement")
 
-// }
+	_, s := newNode(t, "")
+	defer s.Close()
+
+	dir, err := ioutil.TempDir("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	defer os.RemoveAll(dir)
+
+	x := newExecutor(t, s.URL, dir)
+
+	t1 := x.exec("tradeblocks", "register", "t1")
+	t2 := x.exec("tradeblocks", "register", "t2")
+	x.exec("tradeblocks", "login", "t1")
+	x.exec("tradeblocks", "issue", "1000")
+	x.exec("tradeblocks", "login", "t2")
+	x.exec("tradeblocks", "issue", "1000")
+
+	// Sell 100 units of t2 coin for 200 units t1 coin (2 price per unit)
+	x.exec("tradeblocks", "sell", "100", t2, "2", t1)
+
+	// Buy 100 units of t2 coin for 200 units of t1 coin (2 price per unit)
+	x.exec("tradeblocks", "login", "t1")
+	x.exec("tradeblocks", "buy", "100", t2, "2", t1)
+}
 
 func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
 	dir, err := ioutil.TempDir("", "tradeblocks")
@@ -205,6 +223,19 @@ func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
 type executor struct {
 	t *testing.T
 	c *cli
+}
+
+func newExecutor(t *testing.T, serverURL, dataDir string) *executor {
+
+	c := &cli{
+		keySize:   1024,
+		serverURL: serverURL,
+		dataDir:   dataDir,
+	}
+	return &executor{
+		t: t,
+		c: c,
+	}
 }
 
 func (x *executor) exec(cmd ...string) string {
