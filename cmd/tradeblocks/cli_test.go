@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/jephir/tradeblocks/node"
@@ -169,14 +168,14 @@ func TestDemo(t *testing.T) {
 		c: c,
 	}
 
-	xtbAlice := x.exec("tradeblocks register alice")
-	xtbAppleCoin := x.exec("tradeblocks register apple-coin")
-	x.exec("tradeblocks login apple-coin")
-	x.exec("tradeblocks issue 1000")
+	xtbAlice := x.exec("tradeblocks", "register", "alice")
+	xtbAppleCoin := x.exec("tradeblocks", "register", "apple-coin")
+	x.exec("tradeblocks", "login", "apple-coin")
+	x.exec("tradeblocks", "issue", "1000")
 
-	xtbSend := x.exec("tradeblocks send " + xtbAlice + " " + xtbAppleCoin + " " + "50")
-	x.exec("tradeblocks login alice")
-	x.exec("tradeblocks open " + xtbSend)
+	xtbSend := x.exec("tradeblocks", "send", xtbAlice, xtbAppleCoin, "50")
+	x.exec("tradeblocks", "login", "alice")
+	x.exec("tradeblocks", "open", xtbSend)
 }
 
 // func TestLimitOrders(t *testing.T) {
@@ -208,11 +207,10 @@ type executor struct {
 	c *cli
 }
 
-func (x *executor) exec(cmd string) string {
-	args := strings.Split(cmd, " ")
+func (x *executor) exec(cmd ...string) string {
 	output := &bytes.Buffer{}
 	x.c.out = output
-	if err := x.c.dispatch(args); err != nil {
+	if err := x.c.dispatch(cmd); err != nil {
 		x.t.Fatal(err)
 	}
 	return output.String()
