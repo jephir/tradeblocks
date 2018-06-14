@@ -249,11 +249,6 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 		}
 	}
 
-	// Check if this node set as executor
-	if b.T == "order" && b.OrderBlock.Executor == n.address {
-
-	}
-
 	// Check if block matches an open order
 	if b.T == "swap" {
 		if err := n.handleSwap(b.SwapBlock); err != nil {

@@ -182,6 +182,8 @@ func (c *Client) newGetHeadRequest(t string) (r *http.Request, err error) {
 
 // NewGetBuyOrdersRequest returns matching buy orders for the specified parameters
 func (c *Client) NewGetBuyOrdersRequest(base string, ppu float64, quote string) (r *http.Request, err error) {
+	base = strings.TrimSpace(base)
+	quote = strings.TrimSpace(quote)
 	r, err = c.newRequest("GET", "/orders", nil)
 	q := r.URL.Query()
 	q.Add("side", "buy")
@@ -194,6 +196,8 @@ func (c *Client) NewGetBuyOrdersRequest(base string, ppu float64, quote string) 
 
 // NewGetSellOrdersRequest returns matching sell orders for the specified parameters
 func (c *Client) NewGetSellOrdersRequest(base string, ppu float64, quote string) (r *http.Request, err error) {
+	base = strings.TrimSpace(base)
+	quote = strings.TrimSpace(quote)
 	r, err = c.newRequest("GET", "/orders", nil)
 	q := r.URL.Query()
 	q.Add("side", "sell")
@@ -275,11 +279,15 @@ func (c *Client) DecodeGetOrderBlocksResponse(res *http.Response) (result map[st
 }
 
 // DecodeGetOrdersArrayResponse returns the result of a blocks request
-func (c *Client) DecodeGetOrdersArrayResponse(res *http.Response, result []*tradeblocks.OrderBlock) error {
+func (c *Client) DecodeGetOrdersArrayResponse(res *http.Response) ([]*tradeblocks.OrderBlock, error) {
 	if err := c.checkResponse(res); err != nil {
-		return err
+		return nil, err
 	}
-	return json.NewDecoder(res.Body).Decode(&result)
+	var result []*tradeblocks.OrderBlock
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // DecodeGetAddressResponse returns the result of a get address request

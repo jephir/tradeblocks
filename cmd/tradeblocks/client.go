@@ -606,14 +606,15 @@ func (c *client) buy(quantity float64, base string, ppu float64, quote string) (
 		return nil, err
 	}
 
-	var orders []*tradeblocks.OrderBlock
-	if err := c.api.DecodeGetOrdersArrayResponse(res, orders); err != nil {
+	orders, err := c.api.DecodeGetOrdersArrayResponse(res)
+	if err != nil {
 		return nil, err
 	}
 
 	var swaps []tradeblocks.Block
 	for quantity != 0 {
 		// Get order
+		fmt.Println(len(orders))
 		if len(orders) == 0 {
 			return nil, fmt.Errorf("client: not enough orders to fill buy")
 		}

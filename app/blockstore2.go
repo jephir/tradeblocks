@@ -218,33 +218,36 @@ func (s *BlockStore2) GetOrderHead(account, id string) *tradeblocks.OrderBlock {
 	return s.orderHeads[orderHeadKey(account, id)]
 }
 
-// MatchBuyOrders returns orders that meet the specified criteria
-func (s *BlockStore2) MatchBuyOrders(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
+// MatchOrdersForBuy returns orders that meet the specified criteria
+func (s *BlockStore2) MatchOrdersForBuy(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, b := range s.orderBlocks {
-		if b.Token != quote {
+	for _, b := range s.orderHeads {
+		// fmt.Printf("%s %s %t\n", b.Token, base, b.Token != base)
+		// fmt.Printf("%f %f %t\n", b.Price, ppu, b.Price > ppu)
+		// fmt.Printf("%s %s %t\n", b.Quote, quote, b.Quote != quote)
+		if b.Token != base {
 			continue
 		}
-		if b.Price < ppu {
+		if b.Price > ppu {
 			continue
 		}
-		if b.Quote != base {
+		if b.Quote != quote {
 			continue
 		}
 		f(b)
 	}
 }
 
-// MatchSellOrders returns orders that meet the specified criteria
-func (s *BlockStore2) MatchSellOrders(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
+// MatchOrdersForSell returns orders that meet the specified criteria
+func (s *BlockStore2) MatchOrdersForSell(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, b := range s.orderBlocks {
+	for _, b := range s.orderHeads {
 		if b.Token != base {
 			continue
 		}
-		if b.Price > ppu {
+		if b.Price < ppu {
 			continue
 		}
 		if b.Quote != quote {

@@ -171,8 +171,6 @@ func TestDemo(t *testing.T) {
 }
 
 func TestLimitOrders(t *testing.T) {
-	t.Skip("TODO implement")
-
 	_, s := newNode(t, "")
 	defer s.Close()
 

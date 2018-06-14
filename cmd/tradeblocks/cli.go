@@ -172,7 +172,42 @@ func (cli *cli) dispatch(args []string) error {
 		} else {
 			cmd.badInputs("order", addInfo)
 		}
-		
+	case "sell":
+		// TODO validation
+		quantity, err := strconv.ParseFloat(args[2], 64)
+		if err != nil {
+			return err
+		}
+		base := args[3]
+		ppu, err := strconv.ParseFloat(args[4], 64)
+		if err != nil {
+			return err
+		}
+		quote := args[5]
+		b, err := cmd.sell(quantity, base, ppu, quote)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(cli.out, b.Hash())
+	case "buy":
+		// TODO validation
+		quantity, err := strconv.ParseFloat(args[2], 64)
+		if err != nil {
+			return err
+		}
+		base := args[3]
+		ppu, err := strconv.ParseFloat(args[4], 64)
+		if err != nil {
+			return err
+		}
+		quote := args[5]
+		blocks, err := cmd.buy(quantity, base, ppu, quote)
+		if err != nil {
+			return err
+		}
+		for _, b := range blocks {
+			fmt.Fprintln(cli.out, b.Hash())
+		}
 	default:
 		return errors.New("Invalid command")
 	}

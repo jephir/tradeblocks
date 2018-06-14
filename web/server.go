@@ -270,11 +270,11 @@ func (s *Server) handleOrders() http.HandlerFunc {
 		side := r.FormValue("side")
 		var result []*tradeblocks.OrderBlock
 		if side == "buy" {
-			s.store.MatchBuyOrders(base, ppu, quote, func(b *tradeblocks.OrderBlock) {
+			s.store.MatchOrdersForBuy(base, ppu, quote, func(b *tradeblocks.OrderBlock) {
 				result = append(result, b)
 			})
 		} else if side == "sell" {
-			s.store.MatchSellOrders(base, ppu, quote, func(b *tradeblocks.OrderBlock) {
+			s.store.MatchOrdersForSell(base, ppu, quote, func(b *tradeblocks.OrderBlock) {
 				result = append(result, b)
 			})
 		} else {
