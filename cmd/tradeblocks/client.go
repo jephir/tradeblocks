@@ -149,7 +149,7 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 	return send, nil
 }
 
-func (c *client) open(link string) (*tradeblocks.AccountBlock, error) {
+func (c *client) openFromSend(link string) (*tradeblocks.AccountBlock, error) {
 	// get the keys
 	publicKey, err := c.openPublicKey()
 	if err != nil {
@@ -174,7 +174,69 @@ func (c *client) open(link string) (*tradeblocks.AccountBlock, error) {
 	balance := sendParent.Balance - send.Balance
 
 	// create the Open
-	open, err := app.Open(publicKey, send, balance)
+	open, err := app.OpenFromSend(publicKey, send, balance)
+	if err != nil {
+		return nil, err
+	}
+
+	// add the signature
+	if err := sign(privateKey, open); err != nil {
+		return nil, err
+	}
+
+	if err := c.postAccountBlock(open); err != nil {
+		return nil, err
+	}
+
+	return open, nil
+}
+
+func (c *client) openFromSwap(link string) (*tradeblocks.AccountBlock, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+	defer privateKey.Close()
+
+	// get the linked send
+	swap, err := c.getSwapBlock(link)
+	if err != nil {
+		return nil, err
+	}
+
+	address, err := app.PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var send *tradeblocks.AccountBlock
+	if address == swap.Account {
+		send, err = c.getBlock(swap.Right)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		send, err = c.getBlock(swap.Right)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	sendParent, err := c.getBlock(send.Previous)
+	if err != nil {
+		return nil, err
+	}
+	balance := sendParent.Balance - send.Balance
+	token := send.Token
+
+	// create the Open
+	open, err := app.OpenFromSwap(publicKey, token, swap, balance)
 	if err != nil {
 		return nil, err
 	}

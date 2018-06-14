@@ -9,7 +9,7 @@ import (
 )
 
 // something to use for address that won't break the decrypter
-const badAddress = "Ci0tLS0tQkVHSU4gUlNBIFBVQkxJQyBLRVktLS0tLQpNSUdmTUEwR0NTcUdTSWIzRFFFQkFRVUFBNEdOQURDQmlRS0JnUURWbGVZUStNT0doSFZ2a216Q2tKcmpJNUNMCjROTUh3TlJsN1NSbkVsRkkyK25XallNRXdTT2xwNXBUY0hCempSaEpPeDFTYkx0aUtSS0ZnMVE5d1Vldk5lV1MKUE1qQjFsK0xXbVVUUnFOVGNBUFFjMFZkZXVtanFzMVArZUhFUmZrOU13cU5zclB5dHZHd3ZOUUowNVBrZ0xTawpYdTU4a3I1aVh4TUFCSXVrYlFJREFRQUIKLS0tLS1FTkQgUlNBIFBVQkxJQyBLRVktLS0tLQo"
+const badAddress = "xtb:MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCz8_JKRKFLWxECvLqxyBt3L95IzqtFcxPMbXeCwGUzi0MNuG7Z_WxNfrKJZEZnepL_KzmFaa9gwXQ1GmPmFHShKjk7eqhglOyO6pPWWoCvxywY3hqVFvVE4hUchvzUTZNUSu1Pr-TOFzicYU4zXnzmh7r7cD4xC1N5CAIHtjAXKQIDAQAB"
 const badSignature = "zypz3O++osG8rj3R9jirIvhZGwTtwwEZ16LTc3BdjUiJ6w5pBKd1JPDamXbSyIjCIC9wGTZx14IDVHLpL/wW8W8GI3d2ocsFfPolo81Wrgu1HN5ciklQ3Ph1MaxxO8/KND64k9cwG5EjH79M4vtiJMcl4EPM4BZ00yrcNxwSkik="
 
 func openSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
@@ -216,7 +216,7 @@ func openFromSwapSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*
 	return open2, open3, send1, swap2, validator, nil
 }
 
-func TestOpenFromSwap(t *testing.T) {
+func TestOpenFromSwapValidation(t *testing.T) {
 	key, address := CreateAccount(t)
 	key2, address2 := CreateAccount(t)
 	key3, address3 := CreateAccount(t)
@@ -813,33 +813,27 @@ func swapOfferSetup(keys []*rsa.PrivateKey, address []string, t *testing.T) (*tr
 	swap := tradeblocks.NewOfferBlock(address[2], send, "test-ID", address[1], address[1], 10.0, "", 0.0)
 	swap2 := tradeblocks.NewCommitBlock(swap, send2)
 
-	err := i.SignBlock(keys[0])
-	if err != nil {
+	if err := i.SignBlock(keys[0]); err != nil {
 		t.Fatal(err)
 	}
 
-	err = i2.SignBlock(keys[1])
-	if err != nil {
+	if err := i2.SignBlock(keys[1]); err != nil {
 		t.Fatal(err)
 	}
 
-	err = send.SignBlock(keys[0])
-	if err != nil {
+	if err := send.SignBlock(keys[0]); err != nil {
 		t.Fatal(err)
 	}
 
-	err = send2.SignBlock(keys[1])
-	if err != nil {
+	if err := send2.SignBlock(keys[1]); err != nil {
 		t.Fatal(err)
 	}
 
-	err = swap.SignBlock(keys[2])
-	if err != nil {
+	if err := swap.SignBlock(keys[2]); err != nil {
 		t.Fatal(err)
 	}
 
-	err = swap2.SignBlock(keys[1])
-	if err != nil {
+	if err := swap2.SignBlock(keys[1]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1031,7 +1025,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	err = validator.ValidateSwapBlock(swap2)
-	expectedError = "failed to parse PEM block containing the public key"
+	expectedError = "failed to parse DER encoded public key: asn1: syntax error: truncated tag or length"
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
@@ -1044,7 +1038,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	err = validator.ValidateSwapBlock(swap2)
-	expectedError = "failed to parse PEM block containing the public key"
+	expectedError = "failed to parse DER encoded public key: asn1: syntax error: truncated tag or length"
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
@@ -1480,7 +1474,7 @@ func TestSwapRefundRightValidation(t *testing.T) {
 	}
 
 	err = validator.ValidateSwapBlock(refundRight)
-	expectedError = "failed to parse PEM block containing the public key"
+	expectedError = "failed to parse DER encoded public key: asn1: syntax error: truncated tag or length"
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}

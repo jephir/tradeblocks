@@ -11,21 +11,27 @@ import (
 
 func TestFS(t *testing.T) {
 	store1 := app.NewBlockStore()
+	key, address := app.CreateAccount(t)
+	key2, address2 := app.CreateAccount(t)
 
-	b1 := tradeblocks.NewIssueBlock("xtb:test1", 100)
-	h1, err := app.AccountBlockHash(b1)
-	if err != nil {
+	b1 := tradeblocks.NewIssueBlock(address, 100)
+	h1 := b1.Hash()
+
+	if err := b1.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := store1.AddAccountBlock(b1); err != nil {
 		t.Fatal(err)
 	}
 
-	b2 := tradeblocks.NewIssueBlock("xtb:test2", 100)
-	h2, err := app.AccountBlockHash(b2)
-	if err != nil {
+	b2 := tradeblocks.NewIssueBlock(address2, 100)
+	h2 := b2.Hash()
+
+	if err := b2.SignBlock(key2); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := store1.AddAccountBlock(b2); err != nil {
 		t.Fatal(err)
 	}
