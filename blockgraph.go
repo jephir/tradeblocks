@@ -349,7 +349,7 @@ func NewOfferBlock(account string, send *AccountBlock, ID string, counterparty s
 }
 
 // NewCommitBlock is the committing swap
-func NewCommitBlock(offer *SwapBlock, right *AccountBlock) *SwapBlock {
+func NewCommitBlock(offer *SwapBlock, send Block) *SwapBlock {
 	return &SwapBlock{
 		Action:       "commit",
 		Account:      offer.Account,
@@ -357,7 +357,7 @@ func NewCommitBlock(offer *SwapBlock, right *AccountBlock) *SwapBlock {
 		ID:           offer.ID,
 		Previous:     offer.Hash(),
 		Left:         offer.Left,
-		Right:        right.Hash(),
+		Right:        send.Hash(),
 		RefundLeft:   "",
 		RefundRight:  "",
 		Counterparty: offer.Counterparty,

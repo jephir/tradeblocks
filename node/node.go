@@ -28,7 +28,9 @@ type Node struct {
 	storage *fs.BlockStorage
 	client  *http.Client
 	server  *web.Server
+
 	priv    *rsa.PrivateKey
+	address string
 
 	mu                sync.Mutex
 	peers             peerMap
@@ -41,10 +43,16 @@ func NewNode(dir string) (n *Node, err error) {
 	storage := fs.NewBlockStorage(store, blocksDir(dir))
 	server := web.NewServer(store)
 	c := &http.Client{}
+
 	priv, err := rsa.GenerateKey(rand.Reader, keySize)
 	if err != nil {
 		return
 	}
+	address, err := app.PrivateKeyToAddress(priv)
+	if err != nil {
+		return
+	}
+
 	n = &Node{
 		dir:               dir,
 		store:             store,
@@ -52,6 +60,7 @@ func NewNode(dir string) (n *Node, err error) {
 		client:            c,
 		server:            server,
 		priv:              priv,
+		address:           address,
 		peers:             make(peerMap),
 		seenAccountBlocks: make(blockHashMap),
 	}
@@ -208,12 +217,7 @@ func (n *Node) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 func (n *Node) handleAddress() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		addr, err := app.PrivateKeyToAddress(n.priv)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprint(w, addr)
+		fmt.Fprint(w, n.address)
 	}
 }
 
@@ -241,6 +245,18 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 			log.Println(err)
 		}
 		if err := n.server.BroadcastBlock(b.OrderBlock); err != nil {
+			log.Println(err)
+		}
+	}
+
+	// Check if this node set as executor
+	if b.T == "order" && b.OrderBlock.Executor == n.address {
+
+	}
+
+	// Check if block matches an open order
+	if b.T == "swap" {
+		if err := n.handleSwap(b.SwapBlock); err != nil {
 			log.Println(err)
 		}
 	}
@@ -301,23 +317,34 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 	}
 }
 
-// // AddBlock adds the specified block to this node
-// func (n *Node) AddBlock(b tradeblocks.Block) error {
-// 	if b, ok := b.(*tradeblocks.AccountBlock); ok {
-// 		_, err := n.store.AddBlock(b)
-// 		return err
-// 	}
-// 	return fmt.Errorf("node: unsupported block type")
-// }
+func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
+	if b.Action == "offer" && b.Executor == n.address {
+		order := n.store.GetOrderHead(b.Counterparty, b.ID)
+		if order == nil {
+			return fmt.Errorf("node: no order found for '%s:%s'", b.Counterparty, b.ID)
+		}
 
-// // GetAccountBlock returns the account block with the specified hash; otherwise nil
-// func (n *Node) GetAccountBlock(h string) *tradeblocks.AccountBlock {
-// 	b, err := n.store.GetBlock(h)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return b
-// }
+		link := tradeblocks.SwapAddress(b.Account, b.ID)
+		send := tradeblocks.NewAcceptOrderBlock(order, link, b.Quantity)
+		if err := n.store.AddOrderBlock(send); err != nil {
+			return err
+		}
+		n.server.BlockHandler(app.TypedBlock{
+			OrderBlock: send,
+			T:          "order",
+		})
+
+		commit := tradeblocks.NewCommitBlock(b, send)
+		if err := n.store.AddSwapBlock(commit); err != nil {
+			return err
+		}
+		n.server.BlockHandler(app.TypedBlock{
+			SwapBlock: commit,
+			T:         "swap",
+		})
+	}
+	return nil
+}
 
 func (n *Node) addPeer(address string) {
 	n.mu.Lock()
