@@ -564,7 +564,23 @@ func (c *client) sell(quantity float64, base string, ppu float64, quote string) 
 	if err != nil {
 		return nil, err
 	}
-	return c.createOrder(send.Hash(), id, false, quote, ppu, "", 0)
+
+	r, err := c.api.NewGetAddressRequest()
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+
+	executor, err := c.api.DecodeGetAddressResponse(res)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.createOrder(send.Hash(), id, false, quote, ppu, executor, 0)
 }
 
 func (c *client) buy(quantity float64, base string, ppu float64, quote string) ([]tradeblocks.Block, error) {
