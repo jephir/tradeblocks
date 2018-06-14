@@ -18,6 +18,37 @@ import (
 	"github.com/jephir/tradeblocks/app"
 )
 
+func TestAddress(t *testing.T) {
+	n, s := newNode(t, "")
+	defer s.Close()
+
+	expect, err := app.PrivateKeyToAddress(n.priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := web.NewClient(s.URL)
+
+	req, err := c.NewGetAddressRequest()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr, err := c.DecodeGetAddressResponse(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if addr != expect {
+		t.Fatalf("expected %s, got %s", expect, addr)
+	}
+}
+
 func TestBootstrapAndSync(t *testing.T) {
 	key, address, err := GetAddress()
 	key2, address2, err := GetAddress()

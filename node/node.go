@@ -1,6 +1,9 @@
 package node
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"fmt"
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
 	"github.com/jephir/tradeblocks/fs"
@@ -11,6 +14,8 @@ import (
 	"path/filepath"
 	"sync"
 )
+
+const keySize = 2048
 
 type peerMap map[string]struct{} // "IP:port" address
 
@@ -23,6 +28,7 @@ type Node struct {
 	storage *fs.BlockStorage
 	client  *http.Client
 	server  *web.Server
+	priv    *rsa.PrivateKey
 
 	mu                sync.Mutex
 	peers             peerMap
@@ -35,12 +41,17 @@ func NewNode(dir string) (n *Node, err error) {
 	storage := fs.NewBlockStorage(store, blocksDir(dir))
 	server := web.NewServer(store)
 	c := &http.Client{}
+	priv, err := rsa.GenerateKey(rand.Reader, keySize)
+	if err != nil {
+		return
+	}
 	n = &Node{
 		dir:               dir,
 		store:             store,
 		storage:           storage,
 		client:            c,
 		server:            server,
+		priv:              priv,
 		peers:             make(peerMap),
 		seenAccountBlocks: make(blockHashMap),
 	}
@@ -188,7 +199,22 @@ func (n *Node) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if addr := r.Header.Get("TradeBlocks-Register"); addr != "" {
 		n.addPeer(addr)
 	}
+	if r.URL.Path == "/address" {
+		n.handleAddress().ServeHTTP(rw, r)
+		return
+	}
 	n.server.ServeHTTP(rw, r)
+}
+
+func (n *Node) handleAddress() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		addr, err := app.PrivateKeyToAddress(n.priv)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprint(w, addr)
+	}
 }
 
 func (n *Node) handleBlock(b app.TypedBlock) {

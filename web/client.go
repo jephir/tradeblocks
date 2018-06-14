@@ -204,6 +204,12 @@ func (c *Client) NewGetSellOrdersRequest(base string, ppu float64, quote string)
 	return
 }
 
+// NewGetAddressRequest returns the address (public key) of the node
+func (c *Client) NewGetAddressRequest() (r *http.Request, err error) {
+	r, err = c.newRequest("GET", "/address", nil)
+	return
+}
+
 // DecodeAccountBlockResponse returns the result of an account block request
 func (c *Client) DecodeAccountBlockResponse(res *http.Response, result *tradeblocks.AccountBlock) error {
 	if err := c.checkResponse(res); err != nil {
@@ -274,6 +280,18 @@ func (c *Client) DecodeGetOrdersArrayResponse(res *http.Response, result []*trad
 		return err
 	}
 	return json.NewDecoder(res.Body).Decode(&result)
+}
+
+// DecodeGetAddressResponse returns the result of a get address request
+func (c *Client) DecodeGetAddressResponse(res *http.Response) (string, error) {
+	if err := c.checkResponse(res); err != nil {
+		return "", err
+	}
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 func (c *Client) newRequest(method, path string, body io.Reader) (r *http.Request, err error) {
