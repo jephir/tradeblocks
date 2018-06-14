@@ -318,7 +318,11 @@ func (c *Client) checkResponse(res *http.Response) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("client: unexpected status %d on %s: %s", res.StatusCode, res.Request.URL.String(), string(b))
+		if res.Request != nil {
+			return fmt.Errorf("client: unexpected status %d on %s: %s", res.StatusCode, res.Request.URL.String(), string(b))
+		} else {
+			return fmt.Errorf("client: unexpected status %d: %s", res.StatusCode, string(b))
+		}
 	}
 	return nil
 }

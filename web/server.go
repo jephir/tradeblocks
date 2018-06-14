@@ -162,7 +162,7 @@ func (s *Server) handleHead() http.HandlerFunc {
 			token := r.FormValue("token")
 			block := s.store.GetAccountHead(account, token)
 			if block == nil {
-				serverError(w, "no head found for account '"+account+"' and token '"+token+"'", http.StatusBadRequest)
+				serverError(w, "no account head found for account '"+account+"' and token '"+token+"'", http.StatusBadRequest)
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
@@ -173,7 +173,7 @@ func (s *Server) handleHead() http.HandlerFunc {
 			id := r.FormValue("id")
 			block := s.store.GetSwapHead(account, id)
 			if block == nil {
-				serverError(w, "no head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
+				serverError(w, "no swap head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
@@ -184,7 +184,7 @@ func (s *Server) handleHead() http.HandlerFunc {
 			id := r.FormValue("id")
 			block := s.store.GetOrderHead(account, id)
 			if block == nil {
-				serverError(w, "no head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
+				serverError(w, "no order head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)

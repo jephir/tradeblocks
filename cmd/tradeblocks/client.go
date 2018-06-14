@@ -591,7 +591,7 @@ func (c *client) buy(quantity float64, base string, ppu float64, quote string) (
 	}
 	defer publicKey.Close()
 
-	addr, err := app.PublicKeyToAddress(publicKey)
+	account, err := app.PublicKeyToAddress(publicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -614,15 +614,20 @@ func (c *client) buy(quantity float64, base string, ppu float64, quote string) (
 	var swaps []tradeblocks.Block
 	for quantity != 0 {
 		// Get order
-		fmt.Println(len(orders))
 		if len(orders) == 0 {
 			return nil, fmt.Errorf("client: not enough orders to fill buy")
 		}
-		var b *tradeblocks.OrderBlock
-		b, orders = orders[0], orders[1:]
+		var order *tradeblocks.OrderBlock
+		order, orders = orders[0], orders[1:]
 
-		amount := math.Min(quantity, b.Balance)
-		swap, err := c.offer(addr, b.ID, b.Account, base, amount, b.Executor, b.Fee)
+		amount := math.Min(quantity, order.Balance)
+
+		send, err := c.send(tradeblocks.SwapAddress(account, order.ID), quote, amount)
+		if err != nil {
+			return nil, err
+		}
+
+		swap, err := c.offer(send.Hash(), order.ID, order.Account, base, amount, order.Executor, order.Fee)
 		if err != nil {
 			return nil, err
 		}
