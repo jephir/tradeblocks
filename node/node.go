@@ -318,6 +318,9 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 		if order == nil {
 			return fmt.Errorf("node: no order found for '%s:%s'", b.Counterparty, b.ID)
 		}
+		if order.Balance < b.Quantity {
+			return fmt.Errorf("node: only '%f' balance remaining to fill order of quantity '%f' in '%s:%s'", order.Balance, b.Quantity, b.Counterparty, b.ID)
+		}
 
 		link := tradeblocks.SwapAddress(b.Account, b.ID)
 		send := tradeblocks.NewAcceptOrderBlock(order, link, b.Quantity)
