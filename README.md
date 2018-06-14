@@ -14,12 +14,7 @@ $ go install -i github.com/jephir/tradeblocks/cmd/tradeblocks
 
 ## Demo
 
-Run the block explorer to see the created blocks.
-
-```sh
-$ cd web
-$ npm start
-```
+To view the created blocks by hash, browse the `data/blocks` directory.
 
 ### Limit Orders
 
