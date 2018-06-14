@@ -63,6 +63,8 @@ func NewOpenValidator(chain *BlockStore) *OpenBlockValidator {
 
 // ValidateAccountBlock Validates that an OpenBlock is correctly formatted
 func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
+	account := block.Account
+
 	//get the chain
 	blockStore := validator.blockStore
 	publicKey, err := addressToRsaKey(block.Account)
@@ -75,38 +77,101 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	}
 
 	// check if the previous exists, don't care if it does
-	_, errPrev := getAndVerifyAccount(block.Previous, blockStore)
-	if errPrev == nil {
+	_, err = getAndVerifyAccount(block.Previous, blockStore)
+	if err == nil {
 		return errors.New("previous field was not null")
 	}
 
-	// check if the send block referenced exists
-	sendBlock, err := getAndVerifyAccount(block.Link, blockStore)
-	if err != nil || sendBlock == nil {
+	// check if the block referenced exists, get it if it does
+	link := blockStore.GetVariableBlock(block.Link)
+	if link == nil {
 		return errors.New("link field references invalid block")
 	}
 
-	// get the previous of the send to get balance
-	sendBlockPrev, err := getAndVerifyAccount(sendBlock.Previous, blockStore)
-	if err != nil || sendBlockPrev == nil {
-		return errors.New("send has no previous")
-	}
+	switch link := link.(type) {
+	// send base case
+	case *tb.AccountBlock:
+		// get the previous of the send to get balance
+		sendBlockPrev, err := getAndVerifyAccount(link.Previous, blockStore)
+		if err != nil || sendBlockPrev == nil {
+			return errors.New("send has no previous")
+		}
 
-	// check if the balances match
-	if block.Balance < 0 {
-		return errors.New("Balance must be positive")
-	}
-	sendBalance := sendBlockPrev.Balance - sendBlock.Balance
-	if sendBalance != block.Balance {
-		//return errors.New("balance does not match")
-		return fmt.Errorf("balance expected %f; got %f", block.Balance, sendBalance)
-	}
+		// check if the balances match
+		if block.Balance < 0 {
+			return errors.New("Balance must be positive")
+		}
+		sendBalance := sendBlockPrev.Balance - link.Balance
+		if sendBalance != block.Balance {
+			//return errors.New("balance does not match")
+			return fmt.Errorf("balance expected %f; got %f", block.Balance, sendBalance)
+		}
 
-	// check the send block references the right key pair
-	if sendBlock.Link != block.Account {
-		return fmt.Errorf("send link '%s' does not reference account '%s'", sendBlock.Link, block.Account)
-	}
+		// check the send block references the right key pair
+		if link.Link != block.Account {
+			return fmt.Errorf("send link '%s' does not reference account '%s'", link.Link, block.Account)
+		}
+	// swap case
+	case *tb.SwapBlock:
+		// If this errors there is an invalid block on the chain. Panic
+		rightBlock, err := getAndVerifyAccount(link.Right, blockStore)
+		if err != nil || rightBlock == nil {
+			return errors.New("Right of linked swap is invalid")
+		}
+		// If this errors there is an invalid block on the chain. Panic
+		leftBlock, err := getAndVerifyAccount(link.Left, blockStore)
+		if err != nil || leftBlock == nil {
+			return errors.New("Left of linked swap is invalid")
+		}
+		// if same account, opener is the swap offerer
+		// means we take from the right send
+		if account == link.Account {
+			// make sure correct account is claiming tokens
+			if account != leftBlock.Account {
+				return errors.New("Account mismatch between receiver and sender")
+			}
 
+			// check if the token types match
+			if block.Token != rightBlock.Token {
+				return errors.New("Can't receive different token types")
+			}
+
+			// If this errors there is an invalid block on the chain. Panic
+			rightPrevBlock, err := getAndVerifyAccount(rightBlock.Previous, blockStore)
+			if err != nil || rightPrevBlock == nil {
+				return errors.New("Previous of right of linked swap is invalid")
+			}
+
+			// check if the balances match
+			balSent := rightPrevBlock.Balance - rightBlock.Balance
+			balRec := block.Balance
+			if balRec != balSent {
+				return errors.New("Mismatched balances receiving by offerer")
+			}
+		} else { // opener is the commiter, take from left send
+			// check if receiver is sender of Right
+			if account != rightBlock.Account {
+				return errors.New("Account mismatch between receiver and sender")
+			}
+
+			// check if the token types match
+			if block.Token != leftBlock.Token {
+				return errors.New("Can't receive different token types")
+			}
+			// get the prev of the left block. Should only error if the store is corrupt
+			leftPrevBlock, err := getAndVerifyAccount(leftBlock.Previous, blockStore)
+			if err != nil || leftPrevBlock == nil {
+				return errors.New("Previous of left of linked swap is invalid")
+			}
+
+			// check if the balances match
+			balSent := leftPrevBlock.Balance - leftBlock.Balance
+			balRec := block.Balance
+			if balRec != balSent {
+				return errors.New("Mismatched balances receiving by committer")
+			}
+		}
+	}
 	return nil
 }
 
@@ -197,6 +262,7 @@ func NewReceiveValidator(blockStore *BlockStore) *ReceiveBlockValidator {
 func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlock) error {
 	//get the chain
 	blockStore := validator.blockStore
+	account := block.Account
 
 	publicKey, err := addressToRsaKey(block.Account)
 	if err != nil {
@@ -213,28 +279,96 @@ func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlo
 		return errors.New("previous field was invalid")
 	}
 
-	// check if the send block referenced exists, get it if it does
-	sendBlock, err := getAndVerifyAccount(block.Link, blockStore)
-	if err != nil || sendBlock == nil {
+	// check if the block referenced exists, get it if it does
+	link := blockStore.GetVariableBlock(block.Link)
+	if link == nil {
 		return errors.New("link field references invalid block")
 	}
 
-	// now need to get the send previous
-	sendPrevBlock, err := getAndVerifyAccount(sendBlock.Previous, blockStore)
-	if err != nil || sendPrevBlock == nil {
-		return errors.New("link field's previous references invalid block")
-	}
+	switch b := link.(type) {
+	// send base case
+	case *tb.AccountBlock:
+		// now need to get the send previous
+		sendPrevBlock, err := getAndVerifyAccount(b.Previous, blockStore)
+		if err != nil || sendPrevBlock == nil {
+			return errors.New("link field's previous references invalid block")
+		}
 
-	// check if the balances match
-	balSent := sendPrevBlock.Balance - sendBlock.Balance
-	balRec := block.Balance - prevBlock.Balance
-	if balRec != balSent {
-		return errors.New("mismatched balances")
-	}
+		// check if the token types match
+		if block.Token != b.Token {
+			return errors.New("Can't receive different token types")
+		}
 
-	// check if this is the intended recipient
-	if sendBlock.Link != block.Account {
-		return errors.New("sendBlock does not reference this account")
+		// check if the balances match
+		balSent := sendPrevBlock.Balance - b.Balance
+		balRec := block.Balance - prevBlock.Balance
+		if balRec != balSent {
+			return errors.New("mismatched balances")
+		}
+
+		// check if this is the intended recipient
+		if block.Link != b.Hash() {
+			return errors.New("linked send does not reference this account")
+		}
+	// swap case
+	case *tb.SwapBlock:
+		rightBlock, err := getAndVerifyAccount(b.Right, blockStore)
+		if err != nil || rightBlock == nil {
+			return errors.New("Right of linked swap is invalid")
+		}
+		leftBlock, err := getAndVerifyAccount(b.Left, blockStore)
+		if err != nil || leftBlock == nil {
+			return errors.New("left of linked swap is invalid")
+		}
+		// if same account, receiver is the swap offerer
+		// means we take from the right send
+		if account == b.Account {
+			// check if receiver is sender of Right
+			if account != leftBlock.Account {
+				return errors.New("Account mismatch between receiver and sender")
+			}
+
+			// check if the token types match
+			if block.Token != rightBlock.Token {
+				return errors.New("Can't receive different token types")
+			}
+
+			// get the prev of the right block. Should only error if the store is corrupt
+			rightPrevBlock, err := getAndVerifyAccount(rightBlock.Previous, blockStore)
+			if err != nil || rightPrevBlock == nil {
+				return errors.New("Previous of right of linked swap is invalid")
+			}
+
+			// check if the balances match
+			balSent := rightPrevBlock.Balance - rightBlock.Balance
+			balRec := block.Balance - prevBlock.Balance
+			if balRec != balSent {
+				return errors.New("Mismatched balances receiving by offerer")
+			}
+		} else { // receiver is the commiter, take from left send
+			// check if the token types match
+			if block.Token != leftBlock.Token {
+				return errors.New("Can't receive different token types")
+			}
+
+			// check if receiver is sender of Right
+			if account != rightBlock.Account {
+				return errors.New("Account mismatch between receiver and sender")
+			}
+
+			// get the prev of the left block. Should only error if the store is corrupt
+			leftPrevBlock, err := getAndVerifyAccount(leftBlock.Previous, blockStore)
+			if err != nil || leftPrevBlock == nil {
+				return errors.New("Previous of left of linked swap is invalid")
+			}
+
+			// check if the balances match
+			balSent := leftPrevBlock.Balance - leftBlock.Balance
+			balRec := block.Balance - prevBlock.Balance
+			if balRec != balSent {
+				return errors.New("Mismatched balances receiving by committer")
+			}
+		}
 	}
 
 	return nil
@@ -258,16 +392,30 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 	blockStore := validator.blockStore
 	action := block.Action
 
-	// check the signature, non executor case
-	if block.Executor != "" && (action == "commit" || action == "refund-right") {
-		executorKey, err := addressToRsaKey(block.Executor)
-		if err != nil {
-			return err
-		}
+	// Verify signature
+	// Executor can only be counted for commit and refund right
+	// Otherwise the Counterparty is the signer
+	// Standard signing for offer and refund left
+	if action == "commit" || action == "refund-right" {
+		if block.Executor != "" {
+			executorKey, err := addressToRsaKey(block.Executor)
+			if err != nil {
+				return err
+			}
 
-		errVerify := block.VerifyBlock(executorKey)
-		if errVerify != nil {
-			return errVerify
+			errVerify := block.VerifyBlock(executorKey)
+			if errVerify != nil {
+				return errVerify
+			}
+		} else {
+			publicKey, err := addressToRsaKey(block.Counterparty)
+			if err != nil {
+				return err
+			}
+
+			if err := block.VerifyBlock(publicKey); err != nil {
+				return err
+			}
 		}
 	} else {
 		publicKey, err := addressToRsaKey(block.Account)
@@ -676,8 +824,12 @@ func getAndVerifySwap(hash string, chain *BlockStore) (*tb.SwapBlock, error) {
 	}
 
 	address := block.Account
-	if (block.Action == "commit" || block.Action == "refund-right") && block.Executor != "" {
-		address = block.Executor
+	if block.Action == "commit" || block.Action == "refund-right" {
+		if block.Executor != "" {
+			address = block.Executor
+		} else {
+			address = block.Counterparty
+		}
 	}
 
 	publicKey, err := addressToRsaKey(address)

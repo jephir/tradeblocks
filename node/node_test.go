@@ -6,13 +6,14 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/jephir/tradeblocks/web"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jephir/tradeblocks/web"
 
 	tb "github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
@@ -236,8 +237,8 @@ func TestSyncAllBlockTypes(t *testing.T) {
 	p3orderswapoffer := ts.AddSwapBlock(p3, tb.NewOfferBlock(a3, p3orderswapsend, "test", a1, a1, 5, "", 0))
 	ts.AddOrderBlock(p1, tb.NewAcceptOrderBlock(p1orderopen, tb.SwapAddress(a3, "test"), 5))
 	p1orderswapcommit := ts.AddSwapBlock(p1, tb.NewCommitBlock(p3orderswapoffer, p1receive))
-	ts.AddAccountBlock(p1, tb.NewOpenBlockFromSwap(a1, p1orderswapcommit, 10))
-	ts.AddAccountBlock(p3, tb.NewOpenBlockFromSwap(a3, p1orderswapcommit, 5))
+	ts.AddAccountBlock(p1, tb.NewOpenBlockFromSwap(a1, a3, p1orderswapcommit, 10))
+	ts.AddAccountBlock(p3, tb.NewOpenBlockFromSwap(a3, a1, p1orderswapcommit, 5))
 
 	_, s1 := newNode(t, "")
 	defer s1.Close()

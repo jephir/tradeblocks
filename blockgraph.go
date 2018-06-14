@@ -166,15 +166,15 @@ func NewOpenBlockFromSend(account string, send *AccountBlock, balance float64) (
 }
 
 // NewOpenBlockFromSwap initializes the start of an account blockchain
-func NewOpenBlockFromSwap(account string, send *SwapBlock, balance float64) (openBlock *AccountBlock) {
+func NewOpenBlockFromSwap(account string, token string, swap *SwapBlock, balance float64) (openBlock *AccountBlock) {
 	return &AccountBlock{
 		Action:         "open",
 		Account:        account,
-		Token:          send.Token,
+		Token:          token,
 		Previous:       "",
 		Representative: "",
 		Balance:        balance,
-		Link:           send.Hash(),
+		Link:           swap.Hash(),
 		Signature:      "",
 	}
 }
@@ -208,7 +208,7 @@ func NewReceiveBlockFromSend(previous *AccountBlock, send *AccountBlock, amount 
 }
 
 // NewReceiveBlockFromSwap initializes a receive of tokens from a swap commit
-func NewReceiveBlockFromSwap(previous *AccountBlock, send *SwapBlock, amount float64) *AccountBlock {
+func NewReceiveBlockFromSwap(previous *AccountBlock, swap *SwapBlock, amount float64) *AccountBlock {
 	return &AccountBlock{
 		Action:         "receive",
 		Account:        previous.Account,
@@ -216,7 +216,7 @@ func NewReceiveBlockFromSwap(previous *AccountBlock, send *SwapBlock, amount flo
 		Previous:       previous.Hash(),
 		Representative: previous.Representative,
 		Balance:        previous.Balance + amount,
-		Link:           send.Hash(),
+		Link:           swap.Hash(),
 		Signature:      "",
 	}
 }

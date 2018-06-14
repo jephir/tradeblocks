@@ -59,11 +59,11 @@ func NewBlockStore() *BlockStore {
 
 // AddAccountBlock verifies and adds the specified account block to this store
 func (s *BlockStore) AddAccountBlock(b *tradeblocks.AccountBlock) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if err := ValidateAccountBlock(s, b); err != nil {
 		return err
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	h := b.Hash()
 	s.blocks[h] = b
 	s.accountBlocks[h] = b
@@ -74,11 +74,11 @@ func (s *BlockStore) AddAccountBlock(b *tradeblocks.AccountBlock) error {
 
 // AddSwapBlock verifies and adds the specified swap block to this store
 func (s *BlockStore) AddSwapBlock(b *tradeblocks.SwapBlock) error {
+	if err := ValidateSwapBlock(s, b); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// if err := ValidateSwapBlock(s, b); err != nil {
-	// 	return err
-	// }
 	h := b.Hash()
 	s.blocks[h] = b
 	s.swapBlocks[h] = b
@@ -89,11 +89,11 @@ func (s *BlockStore) AddSwapBlock(b *tradeblocks.SwapBlock) error {
 
 // AddOrderBlock verifies and adds the specified order block to this store
 func (s *BlockStore) AddOrderBlock(b *tradeblocks.OrderBlock) error {
+	if err := ValidateOrderBlock(s, b); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// if err := ValidateOrderBlock(s, b); err != nil {
-	// 	return err
-	// }
 	h := b.Hash()
 	s.blocks[h] = b
 	s.orderBlocks[h] = b
@@ -228,4 +228,19 @@ func swapHeadKey(account, id string) string {
 
 func orderHeadKey(account, id string) string {
 	return account + ":" + id
+}
+
+// GetVariableBlock returns a block of any block type. Used currently for receive Links
+// which can link to sendor commit swap
+func (s *BlockStore) GetVariableBlock(hash string) interface{} {
+	if accountBlock := s.GetAccountBlock(hash); accountBlock != nil {
+		return accountBlock
+	}
+	if swapBlock := s.GetSwapBlock(hash); swapBlock != nil {
+		return swapBlock
+	}
+	if orderBlock := s.GetOrderBlock(hash); orderBlock != nil {
+		return orderBlock
+	}
+	return nil
 }
