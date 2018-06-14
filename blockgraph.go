@@ -594,12 +594,12 @@ func SignedOrderBlock(b *OrderBlock, priv *rsa.PrivateKey) (*OrderBlock, error) 
 
 // SwapAddress returns an address for the specified account and id
 func SwapAddress(account, id string) string {
-	return account + ":" + id
+	return account + ":swap:" + id
 }
 
 // OrderAddress returns an address for the specified account and id
 func OrderAddress(account, id string) string {
-	return account + ":" + id
+	return account + ":order:" + id
 }
 
 // NetworkAccountBlock represents a block with sequence information

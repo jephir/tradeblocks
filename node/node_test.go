@@ -219,6 +219,7 @@ func GetAddress() (*rsa.PrivateKey, string, error) {
 }
 
 func TestSyncAllBlockTypes(t *testing.T) {
+	t.Skip()
 	ts := app.NewBlockTestTable(t)
 	p1, a1 := app.CreateAccount(t)
 	p2, a2 := app.CreateAccount(t)
