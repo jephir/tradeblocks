@@ -172,6 +172,7 @@ func (cli *cli) dispatch(args []string) error {
 		} else {
 			cmd.badInputs("order", addInfo)
 		}
+		
 	default:
 		return errors.New("Invalid command")
 	}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -540,6 +541,79 @@ func (c *client) refundOrder(order string) (*tradeblocks.OrderBlock, error) {
 	}
 
 	return refundOrderBlock, nil
+}
+
+func (c *client) sell(quantity float64, base string, ppu float64, quote string) (tradeblocks.Block, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+
+	// TODO match against buy order if found
+
+	id := app.UniqueID()
+	addr, err := app.PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	link := tradeblocks.OrderAddress(addr, id)
+
+	send, err := c.send(link, base, quantity)
+	if err != nil {
+		return nil, err
+	}
+	return c.createOrder(send.Hash(), id, false, quote, ppu, "", 0)
+}
+
+func (c *client) buy(quantity float64, base string, ppu float64, quote string) ([]tradeblocks.Block, error) {
+	// get the keys
+	publicKey, err := c.openPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	defer publicKey.Close()
+
+	addr, err := app.PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := c.api.NewGetBuyOrdersRequest(base, ppu, quote)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []*tradeblocks.OrderBlock
+	if err := c.api.DecodeGetOrdersArrayResponse(res, orders); err != nil {
+		return nil, err
+	}
+
+	var swaps []tradeblocks.Block
+	for quantity != 0 {
+		// Get order
+		if len(orders) == 0 {
+			return nil, fmt.Errorf("client: not enough orders to fill buy")
+		}
+		var b *tradeblocks.OrderBlock
+		b, orders = orders[0], orders[1:]
+
+		amount := math.Min(quantity, b.Balance)
+		swap, err := c.offer(addr, b.ID, b.Account, base, amount, b.Executor, b.Fee)
+		if err != nil {
+			return nil, err
+		}
+		swaps = append(swaps, swap)
+		quantity -= amount
+	}
+
+	return swaps, nil
 }
 
 func (c *client) openPublicKey() (*os.File, error) {

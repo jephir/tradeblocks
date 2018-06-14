@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
@@ -52,6 +53,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/block", s.handleBlock())
 	s.mux.HandleFunc("/blocks", s.handleBlocks())
 	s.mux.HandleFunc("/head", s.handleHead())
+	s.mux.HandleFunc("/orders", s.handleOrders())
 }
 
 func (s *Server) handleBlock() http.HandlerFunc {
@@ -204,41 +206,6 @@ func (s *Server) handleBlocks() http.HandlerFunc {
 		case "GET":
 			t := r.FormValue("type")
 			switch t {
-			// case "":
-			// 	var blocks []tradeblocks.NetworkBlock
-			// 	s.store.AccountBlocks(func(hash string, b *tradeblocks.AccountBlock) bool {
-			// 		block := tradeblocks.NetworkBlock{
-			// 			Block: b,
-			// 			Type:  "account",
-			// 		}
-			// 		blocks = append(blocks, block)
-			// 		return true
-			// 	})
-			// 	s.store.SwapBlocks(func(hash string, b *tradeblocks.SwapBlock) bool {
-			// 		block := tradeblocks.NetworkBlock{
-			// 			Block: b,
-			// 			Type:  "swap",
-			// 		}
-			// 		blocks = append(blocks, block)
-			// 		return true
-			// 	})
-			// 	s.store.OrderBlocks(func(hash string, b *tradeblocks.OrderBlock) bool {
-			// 		block := tradeblocks.NetworkBlock{
-			// 			Block: b,
-			// 			Type:  "order",
-			// 		}
-			// 		blocks = append(blocks, block)
-			// 		return true
-			// 	})
-			// 	sort.Slice(blocks, func(i, j int) bool {
-			// 		a := blocks[i].Hash()
-			// 		b := blocks[j].Hash()
-			// 		return s.store.SequenceLess(a, b)
-			// 	})
-			// 	if err := json.NewEncoder(w).Encode(blocks); err != nil {
-			// 		serverError(w, "error encoding blocks: "+err.Error(), http.StatusInternalServerError)
-			// 		return
-			// 	}
 			case "account":
 				result := make(map[string]tradeblocks.NetworkAccountBlock)
 				s.store.AccountBlocks(func(sequence int, b *tradeblocks.AccountBlock) bool {
@@ -287,6 +254,36 @@ func (s *Server) handleBlocks() http.HandlerFunc {
 
 		default:
 			serverError(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func (s *Server) handleOrders() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		base := r.FormValue("base")
+		ppu, err := strconv.ParseFloat(r.FormValue("ppu"), 64)
+		if err != nil {
+			serverError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		quote := r.FormValue("quote")
+		side := r.FormValue("side")
+		var result []*tradeblocks.OrderBlock
+		if side == "buy" {
+			s.store.MatchBuyOrders(base, ppu, quote, func(b *tradeblocks.OrderBlock) {
+				result = append(result, b)
+			})
+		} else if side == "sell" {
+			s.store.MatchSellOrders(base, ppu, quote, func(b *tradeblocks.OrderBlock) {
+				result = append(result, b)
+			})
+		} else {
+			serverError(w, "unknown 'side' param '"+side+"'", http.StatusBadRequest)
+			return
+		}
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			serverError(w, "error encoding blocks: "+err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }

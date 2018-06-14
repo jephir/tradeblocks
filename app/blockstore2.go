@@ -218,6 +218,42 @@ func (s *BlockStore2) GetOrderHead(account, id string) *tradeblocks.OrderBlock {
 	return s.orderHeads[orderHeadKey(account, id)]
 }
 
+// MatchBuyOrders returns orders that meet the specified criteria
+func (s *BlockStore2) MatchBuyOrders(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, b := range s.orderBlocks {
+		if b.Token != quote {
+			continue
+		}
+		if b.Price < ppu {
+			continue
+		}
+		if b.Quote != base {
+			continue
+		}
+		f(b)
+	}
+}
+
+// MatchSellOrders returns orders that meet the specified criteria
+func (s *BlockStore2) MatchSellOrders(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, b := range s.orderBlocks {
+		if b.Token != base {
+			continue
+		}
+		if b.Price > ppu {
+			continue
+		}
+		if b.Quote != quote {
+			continue
+		}
+		f(b)
+	}
+}
+
 func accountHeadKey(account, token string) string {
 	return account + ":" + token
 }

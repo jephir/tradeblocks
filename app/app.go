@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -172,4 +173,15 @@ func SerializeAccountBlock(block *tradeblocks.AccountBlock) (string, error) {
 		return "", err
 	}
 	return string(b), nil
+}
+
+// UniqueID returns a unique ID for creating a swap or order blockchain
+func UniqueID() string {
+	// https://stackoverflow.com/a/25736155
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }

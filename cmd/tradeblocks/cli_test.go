@@ -192,10 +192,10 @@ func TestLimitOrders(t *testing.T) {
 	x.exec("tradeblocks", "login", "t2")
 	x.exec("tradeblocks", "issue", "1000")
 
-	// Sell 100 units of t2 coin for 200 units t1 coin (2 price per unit)
+	// Sell 100 units of t2 coin for t1 coin at 2 price per unit (200 t1)
 	x.exec("tradeblocks", "sell", "100", t2, "2", t1)
 
-	// Buy 100 units of t2 coin for 200 units of t1 coin (2 price per unit)
+	// Buy 100 units of t2 coin for of t1 coin at 2 price per unit (200 t1)
 	x.exec("tradeblocks", "login", "t1")
 	x.exec("tradeblocks", "buy", "100", t2, "2", t1)
 }

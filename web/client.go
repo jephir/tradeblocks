@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/jephir/tradeblocks"
@@ -177,7 +178,30 @@ func (c *Client) newGetHeadRequest(t string) (r *http.Request, err error) {
 	q.Add("type", t)
 	r.URL.RawQuery = q.Encode()
 	return
+}
 
+// NewGetBuyOrdersRequest returns matching buy orders for the specified parameters
+func (c *Client) NewGetBuyOrdersRequest(base string, ppu float64, quote string) (r *http.Request, err error) {
+	r, err = c.newRequest("GET", "/orders", nil)
+	q := r.URL.Query()
+	q.Add("side", "buy")
+	q.Add("base", base)
+	q.Add("ppu", strconv.FormatFloat(ppu, 'E', -1, 64))
+	q.Add("quote", quote)
+	r.URL.RawQuery = q.Encode()
+	return
+}
+
+// NewGetSellOrdersRequest returns matching sell orders for the specified parameters
+func (c *Client) NewGetSellOrdersRequest(base string, ppu float64, quote string) (r *http.Request, err error) {
+	r, err = c.newRequest("GET", "/orders", nil)
+	q := r.URL.Query()
+	q.Add("side", "sell")
+	q.Add("base", base)
+	q.Add("ppu", strconv.FormatFloat(ppu, 'E', -1, 64))
+	q.Add("quote", quote)
+	r.URL.RawQuery = q.Encode()
+	return
 }
 
 // DecodeAccountBlockResponse returns the result of an account block request
@@ -242,6 +266,14 @@ func (c *Client) DecodeGetOrderBlocksResponse(res *http.Response) (result map[st
 	}
 	err = json.NewDecoder(res.Body).Decode(&result)
 	return
+}
+
+// DecodeGetOrdersArrayResponse returns the result of a blocks request
+func (c *Client) DecodeGetOrdersArrayResponse(res *http.Response, result []*tradeblocks.OrderBlock) error {
+	if err := c.checkResponse(res); err != nil {
+		return err
+	}
+	return json.NewDecoder(res.Body).Decode(&result)
 }
 
 func (c *Client) newRequest(method, path string, body io.Reader) (r *http.Request, err error) {
