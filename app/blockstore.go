@@ -271,7 +271,7 @@ func orderHeadKey(account, id string) string {
 
 // GetVariableBlock returns a block of any block type. Used currently for receive Links
 // which can link to sendor commit swap
-func (s *BlockStore) GetVariableBlock(hash string) interface{} {
+func (s *BlockStore) GetVariableBlock(hash string) tradeblocks.Block {
 	if accountBlock := s.GetAccountBlock(hash); accountBlock != nil {
 		return accountBlock
 	}
