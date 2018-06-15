@@ -24,7 +24,7 @@ type blockHashMap map[string]struct{}
 // Node represents a node in the TradeBlocks network
 type Node struct {
 	dir     string
-	store   *app.BlockStore2
+	store   *app.BlockStore
 	storage *fs.BlockStorage
 	client  *http.Client
 	server  *web.Server
@@ -39,7 +39,7 @@ type Node struct {
 
 // NewNode creates a new node that bootstraps from the specified URL. An error is returned if boostrapping fails.
 func NewNode(dir string) (n *Node, err error) {
-	store := app.NewBlockStore2()
+	store := app.NewBlockStore()
 	storage := fs.NewBlockStorage(store, blocksDir(dir))
 	server := web.NewServer(store)
 	c := &http.Client{}
@@ -252,7 +252,7 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 	// Check if block matches an open order
 	if b.T == "swap" {
 		if err := n.handleSwap(b.SwapBlock); err != nil {
-			log.Println(err)
+			log.Printf("node: swap error: %s", err.Error())
 		}
 	}
 
@@ -323,12 +323,12 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 		}
 
 		link := tradeblocks.SwapAddress(b.Account, b.ID)
-		send := tradeblocks.NewAcceptOrderBlock(order, link, b.Quantity)
+		send := tradeblocks.NewAcceptOrderBlock(order, link, order.Balance-b.Quantity)
 		if err := send.SignBlock(n.priv); err != nil {
 			return err
 		}
 		if err := n.store.AddOrderBlock(send); err != nil {
-			return err
+			return fmt.Errorf("error adding order send: %s", err.Error())
 		}
 		n.server.BlockHandler(app.TypedBlock{
 			OrderBlock: send,
@@ -340,7 +340,7 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 			return err
 		}
 		if err := n.store.AddSwapBlock(commit); err != nil {
-			return err
+			return fmt.Errorf("error adding swap: %s", err.Error())
 		}
 		n.server.BlockHandler(app.TypedBlock{
 			SwapBlock: commit,

@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -64,14 +62,24 @@ func Send(publicKey io.Reader, previous *tradeblocks.AccountBlock, to string, am
 	return tradeblocks.NewSendBlock(previous, to, amount), nil
 }
 
-// Open creates a new account blockchain
-func Open(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64) (*tradeblocks.AccountBlock, error) {
+// OpenFromSend creates a new account blockchain from a send
+func OpenFromSend(publicKey io.Reader, send *tradeblocks.AccountBlock, balance float64) (*tradeblocks.AccountBlock, error) {
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return tradeblocks.NewOpenBlockFromSend(address, send, balance), nil
+}
+
+// OpenFromSwap creates a new account blockchain from a swap
+func OpenFromSwap(publicKey io.Reader, token string, swap *tradeblocks.SwapBlock, balance float64) (*tradeblocks.AccountBlock, error) {
+	address, err := PublicKeyToAddress(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return tradeblocks.NewOpenBlockFromSwap(address, token, swap, balance), nil
 }
 
 // Receive receives tokens from a send transaction
@@ -130,7 +138,23 @@ func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	if err != nil {
 		return "", err
 	}
-	return addressPrefix + base64.RawURLEncoding.EncodeToString(buf), nil
+
+	block, _ := pem.Decode(buf)
+
+	return addressPrefix + base64.RawURLEncoding.EncodeToString(block.Bytes), nil
+}
+
+// AddressToPublicKey returns the byte array of the specified address
+func AddressToPublicKey(address string) (publicKey []byte, err error) {
+	addressNoPrefix := strings.TrimPrefix(address, addressPrefix)
+	bytesKey, err := base64.RawURLEncoding.DecodeString(addressNoPrefix)
+
+	p := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: bytesKey,
+	})
+
+	return p, err
 }
 
 // PrivateKeyToAddress returns the string serialization of the specified private key
@@ -144,26 +168,6 @@ func PrivateKeyToAddress(priv *rsa.PrivateKey) (address string, err error) {
 		Bytes: b,
 	}))
 	return PublicKeyToAddress(r)
-}
-
-// AddressToPublicKey returns the byte array of the specified address
-func AddressToPublicKey(address string) (publicKey []byte, err error) {
-	addressNoPrefix := strings.TrimPrefix(address, addressPrefix)
-	byteKey, err := base64.RawURLEncoding.DecodeString(addressNoPrefix)
-	return byteKey, err
-}
-
-// AccountBlockHash returns the hash of the specified account block
-func AccountBlockHash(block *tradeblocks.AccountBlock) (string, error) {
-	b, err := json.Marshal(block)
-	if err != nil {
-		return "", err
-	}
-	hash := sha256.New()
-	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
-		return "", err
-	}
-	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil)), nil
 }
 
 // SerializeAccountBlock returns the string representation of the specified account block

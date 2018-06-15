@@ -1,30 +1,37 @@
 package fs
 
 import (
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 )
 
 func TestFS(t *testing.T) {
-	store1 := app.NewBlockStore2()
+	store1 := app.NewBlockStore()
+	key, address := app.CreateAccount(t)
+	key2, address2 := app.CreateAccount(t)
 
-	b1 := tradeblocks.NewIssueBlock("xtb:test1", 100)
-	h1, err := app.AccountBlockHash(b1)
-	if err != nil {
+	b1 := tradeblocks.NewIssueBlock(address, 100)
+	h1 := b1.Hash()
+
+	if err := b1.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := store1.AddAccountBlock(b1); err != nil {
 		t.Fatal(err)
 	}
 
-	b2 := tradeblocks.NewIssueBlock("xtb:test2", 100)
-	h2, err := app.AccountBlockHash(b2)
-	if err != nil {
+	b2 := tradeblocks.NewIssueBlock(address2, 100)
+	h2 := b2.Hash()
+
+	if err := b2.SignBlock(key2); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := store1.AddAccountBlock(b2); err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +47,7 @@ func TestFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store2 := app.NewBlockStore2()
+	store2 := app.NewBlockStore()
 	bs2 := NewBlockStorage(store2, dir)
 	if err := bs2.Load(); err != nil {
 		t.Fatal(err)

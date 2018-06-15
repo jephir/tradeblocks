@@ -151,6 +151,7 @@ func TestIssue(t *testing.T) {
 }
 
 func TestDemo(t *testing.T) {
+	t.Skip()
 	_, s := newNode(t, "")
 	defer s.Close()
 

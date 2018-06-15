@@ -15,7 +15,7 @@ func TestSSE(t *testing.T) {
 	p, a := app.CreateAccount(t)
 
 	// Setup test
-	store := app.NewBlockStore2()
+	store := app.NewBlockStore()
 	issue, err := tradeblocks.SignedAccountBlock(tradeblocks.NewIssueBlock(a, 100), p)
 	if err != nil {
 		t.Fatal(err)

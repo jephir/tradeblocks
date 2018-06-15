@@ -7,20 +7,20 @@ import (
 func registerInputValidation(args []string) (goodInputs bool, addInfo string) {
 	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
-		"Run this command with $ tradeblocks register <name>"
+		"Run this command with $ tradeblocks register <name: string>"
 	return
 }
 
 func loginInputValidation(args []string) (goodInputs bool, addInfo string) {
 	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
-		"Run this command with $ tradeblocks login <name>"
+		"Run this command with $ tradeblocks login <name: string>"
 	return
 }
 
 func issueInputValidation(args []string) (goodInputs bool, addInfo string) {
 	addInfo = "CLI args invalid length.\n" +
-		"Run this command with $ tradeblocks issue <balance>"
+		"Run this command with $ tradeblocks issue <balance: float64>"
 	goodInputs = false
 	if len(args) == 3 {
 		goodInputs = true
@@ -49,17 +49,24 @@ func sendInputValidation(args []string) (goodInputs bool, addInfo string) {
 	return
 }
 
-func openInputValidation(args []string) (goodInputs bool, addInfo string) {
+func openFromSendInputValidation(args []string) (goodInputs bool, addInfo string) {
 	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
-		"Run this command with $ tradeblocks open <send_tx>"
+		"Run this command with $ tradeblocks open-from-send <send_tx: string>"
+	return
+}
+
+func openFromSwapInputValidation(args []string) (goodInputs bool, addInfo string) {
+	goodInputs = len(args) == 3
+	addInfo = "CLI args invalid length.\n" +
+		"Run this command with $ tradeblocks open-from-swap <swap_tx: string>"
 	return
 }
 
 func receiveInputValidation(args []string) (goodInputs bool, addInfo string) {
 	goodInputs = len(args) == 3
 	addInfo = "CLI args invalid length.\n" +
-		"Run this command with $ tradeblocks receive <send_tx>"
+		"Run this command with $ tradeblocks receive <send_tx: string>"
 	return
 }
 

@@ -2,21 +2,22 @@ package fs
 
 import (
 	"encoding/json"
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 )
 
 // BlockStorage saves and loads blocks on the filesystem
 type BlockStorage struct {
-	blockstore *app.BlockStore2
+	blockstore *app.BlockStore
 	dir        string
 }
 
 // NewBlockStorage returns a new storage adapter for the specified blockstore and data directory
-func NewBlockStorage(blockstore *app.BlockStore2, dir string) *BlockStorage {
+func NewBlockStorage(blockstore *app.BlockStore, dir string) *BlockStorage {
 	return &BlockStorage{
 		blockstore: blockstore,
 		dir:        dir,
