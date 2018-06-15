@@ -324,6 +324,9 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 
 		link := tradeblocks.SwapAddress(b.Account, b.ID)
 		send := tradeblocks.NewAcceptOrderBlock(order, link, b.Quantity)
+		if err := send.SignBlock(n.priv); err != nil {
+			return err
+		}
 		if err := n.store.AddOrderBlock(send); err != nil {
 			return err
 		}
@@ -333,6 +336,9 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 		})
 
 		commit := tradeblocks.NewCommitBlock(b, send)
+		if err := commit.SignBlock(n.priv); err != nil {
+			return err
+		}
 		if err := n.store.AddSwapBlock(commit); err != nil {
 			return err
 		}
