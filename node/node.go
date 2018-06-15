@@ -233,12 +233,18 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 		if err := n.server.BroadcastBlock(b.AccountBlock); err != nil {
 			log.Println(err)
 		}
+		if err := n.confirmBlock(b.AccountBlock); err != nil {
+			log.Printf("node: confirm error: %s", err.Error())
+		}
 	case "swap":
 		if err := n.storage.SaveSwapBlock(b.SwapBlock); err != nil {
 			log.Println(err)
 		}
 		if err := n.server.BroadcastBlock(b.SwapBlock); err != nil {
 			log.Println(err)
+		}
+		if err := n.confirmBlock(b.SwapBlock); err != nil {
+			log.Printf("node: confirm error: %s", err.Error())
 		}
 	case "order":
 		if err := n.storage.SaveOrderBlock(b.OrderBlock); err != nil {
@@ -247,6 +253,10 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 		if err := n.server.BroadcastBlock(b.OrderBlock); err != nil {
 			log.Println(err)
 		}
+		if err := n.confirmBlock(b.OrderBlock); err != nil {
+			log.Printf("node: confirm error: %s", err.Error())
+		}
+		// TODO save confirm blocks
 	}
 
 	// Check if block matches an open order
@@ -347,6 +357,24 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 			T:         "swap",
 		})
 	}
+	return nil
+}
+
+func (n *Node) confirmBlock(b tradeblocks.Block) error {
+	address := b.Address()
+	previous := n.store.GetConfirmHead(n.address, address)
+	hash := b.Hash()
+	cb := tradeblocks.NewConfirmBlock(previous, n.address, address, hash)
+	if err := cb.SignBlock(n.priv); err != nil {
+		return err
+	}
+	if err := n.store.AddConfirmBlock(cb); err != nil {
+		return fmt.Errorf("error adding confirm: %s", err.Error())
+	}
+	n.server.BlockHandler(app.TypedBlock{
+		ConfirmBlock: cb,
+		T:            "confirm",
+	})
 	return nil
 }
 

@@ -17,6 +17,7 @@ import (
 // Block represents any block type
 type Block interface {
 	Hash() string
+	Address() string
 	SignBlock(*rsa.PrivateKey) error
 }
 
@@ -64,6 +65,11 @@ func (ab *AccountBlock) Hash() string {
 		panic(err)
 	}
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
+}
+
+// Address returns the address of this block
+func (ab *AccountBlock) Address() string {
+	return ab.Account
 }
 
 // SignBlock signs the block, returns just the error
@@ -287,6 +293,11 @@ func (ab *SwapBlock) Hash() string {
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
 }
 
+// Address returns the address of this block
+func (ab *SwapBlock) Address() string {
+	return SwapAddress(ab.Account, ab.ID)
+}
+
 // SignBlock signs the block, returns just the error
 func (ab *SwapBlock) SignBlock(priv *rsa.PrivateKey) error {
 	rng := rand.Reader
@@ -469,6 +480,11 @@ func (ab *OrderBlock) Hash() string {
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
 }
 
+// Address returns the address of this block
+func (ab *OrderBlock) Address() string {
+	return OrderAddress(ab.Account, ab.ID)
+}
+
 // SignBlock signs the block, returns just the error
 func (ab *OrderBlock) SignBlock(priv *rsa.PrivateKey) error {
 	rng := rand.Reader
@@ -630,4 +646,124 @@ type NetworkSwapBlock struct {
 type NetworkOrderBlock struct {
 	*OrderBlock
 	Sequence int
+}
+
+// ConfirmBlock represents a block in the confirmation blockchain
+type ConfirmBlock struct {
+	Previous  string
+	Addr      string
+	Head      string
+	Account   string
+	Signature string
+}
+
+// Normalize trims all whitespace in the block
+func (b *ConfirmBlock) Normalize() {
+	b.Previous = strings.TrimSpace(b.Previous)
+	b.Addr = strings.TrimSpace(b.Addr)
+	b.Head = strings.TrimSpace(b.Head)
+	b.Account = strings.TrimSpace(b.Account)
+	b.Signature = strings.TrimSpace(b.Signature)
+}
+
+// Hash returns the hash of this block
+func (b *ConfirmBlock) Hash() string {
+	withoutSig := &ConfirmBlock{
+		Previous:  b.Previous,
+		Addr:      b.Addr,
+		Head:      b.Head,
+		Account:   b.Account,
+		Signature: "",
+	}
+	by, err := json.Marshal(withoutSig)
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, bytes.NewReader(by)); err != nil {
+		panic(err)
+	}
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
+}
+
+// Address returns the address of this block
+func (b *ConfirmBlock) Address() string {
+	return b.Account + ":confirm:" + b.Addr
+}
+
+// SignBlock signs the block, returns just the error
+func (b *ConfirmBlock) SignBlock(priv *rsa.PrivateKey) error {
+	rng := rand.Reader
+	hashed := b.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	signature, err := rsa.SignPKCS1v15(rng, priv, crypto.SHA256, hashedBytes[:])
+	if err != nil {
+		return err
+	}
+
+	b.Signature = base64.StdEncoding.EncodeToString(signature)
+	return nil
+}
+
+// VerifyBlock signs the block, returns just the error
+func (b *ConfirmBlock) VerifyBlock(pubKey *rsa.PublicKey) error {
+	hashed := b.Hash()
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(hashed)
+	if err != nil {
+		return err
+	}
+
+	hashedBytes := []byte(decoded)
+
+	decodedSig, err := base64.StdEncoding.DecodeString(b.Signature)
+	if err != nil {
+		return err
+	}
+
+	errVerify := rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hashedBytes[:], decodedSig)
+	if errVerify != nil {
+		return errVerify
+	}
+	return nil
+}
+
+// Equals returns an error if this block doesn't equal the specified block
+func (b *ConfirmBlock) Equals(o *ConfirmBlock) error {
+	if o.Previous != b.Previous {
+		return fmt.Errorf("blockgraph: previous '%s' doesn't equal '%s'", o.Previous, b.Previous)
+	}
+	if o.Addr != b.Addr {
+		return fmt.Errorf("blockgraph: addr '%s' doesn't equal '%s'", o.Addr, b.Addr)
+	}
+	if o.Head != b.Head {
+		return fmt.Errorf("blockgraph: head '%s' doesn't equal '%s'", o.Head, b.Head)
+	}
+	if o.Account != b.Account {
+		return fmt.Errorf("blockgraph: account '%s' doesn't equal '%s'", o.Account, b.Account)
+	}
+	if o.Signature != b.Signature {
+		return fmt.Errorf("blockgraph: signature '%s' doesn't equal '%s'", o.Signature, b.Signature)
+	}
+	return nil
+}
+
+// NewConfirmBlock initializes a confirmation block
+func NewConfirmBlock(previous *ConfirmBlock, account, address, head string) *ConfirmBlock {
+	var hash string
+	if previous != nil {
+		hash = previous.Hash()
+	}
+	return &ConfirmBlock{
+		Previous:  hash,
+		Addr:      address,
+		Head:      head,
+		Account:   account,
+		Signature: "",
+	}
 }

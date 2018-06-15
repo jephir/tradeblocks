@@ -49,6 +49,7 @@ type TypedBlock struct {
 	*tradeblocks.AccountBlock
 	*tradeblocks.SwapBlock
 	*tradeblocks.OrderBlock
+	*tradeblocks.ConfirmBlock
 	T string
 }
 

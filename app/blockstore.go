@@ -18,6 +18,9 @@ type SwapBlocks map[string]*tradeblocks.SwapBlock
 // OrderBlocks maps a context-specific identifier to an order block
 type OrderBlocks map[string]*tradeblocks.OrderBlock
 
+// ConfirmBlocks maps a context-specific identifier to a confirm block
+type ConfirmBlocks map[string]*tradeblocks.ConfirmBlock
+
 // BlockStore is a concurrency-safe block store
 type BlockStore struct {
 	mu sync.RWMutex
@@ -41,6 +44,11 @@ type BlockStore struct {
 	orderBlocks OrderBlocks
 	// Keyed by account:id
 	orderHeads OrderBlocks
+
+	// Keyed by hash
+	confirmBlocks ConfirmBlocks
+	// Keyed by account:address
+	confirmHeads ConfirmBlocks
 }
 
 // NewBlockStore allocates and returns a new BlockStore
@@ -54,6 +62,8 @@ func NewBlockStore() *BlockStore {
 		swapHeads:     make(SwapBlocks),
 		orderBlocks:   make(OrderBlocks),
 		orderHeads:    make(OrderBlocks),
+		confirmBlocks: make(ConfirmBlocks),
+		confirmHeads:  make(ConfirmBlocks),
 	}
 }
 
@@ -99,6 +109,22 @@ func (s *BlockStore) AddOrderBlock(b *tradeblocks.OrderBlock) error {
 	s.orderBlocks[h] = b
 	s.orderHeads[orderHeadKey(b.Account, b.ID)] = b
 	s.setBlockSequence(h)
+	return nil
+}
+
+// AddConfirmBlock verifies and adds the specified confirm block to this store
+func (s *BlockStore) AddConfirmBlock(b *tradeblocks.ConfirmBlock) error {
+	// if err := ValidateConfirmBlock(s, b); err != nil {
+	// 	return err
+	// }
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h := b.Hash()
+	s.blocks[h] = b
+	s.confirmBlocks[h] = b
+	s.confirmHeads[confirmHeadKey(b.Account, b.Addr)] = b
+	// TODO replicate confirm blocks
+	// s.setBlockSequence(h)
 	return nil
 }
 
@@ -218,6 +244,13 @@ func (s *BlockStore) GetOrderHead(account, id string) *tradeblocks.OrderBlock {
 	return s.orderHeads[orderHeadKey(account, id)]
 }
 
+// GetConfirmHead returns the head block for the specified account-address pair
+func (s *BlockStore) GetConfirmHead(account, address string) *tradeblocks.ConfirmBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.confirmHeads[confirmHeadKey(account, address)]
+}
+
 // MatchOrdersForBuy returns orders that meet the specified criteria
 func (s *BlockStore) MatchOrdersForBuy(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
 	s.mu.RLock()
@@ -267,6 +300,10 @@ func swapHeadKey(account, id string) string {
 
 func orderHeadKey(account, id string) string {
 	return account + ":" + id
+}
+
+func confirmHeadKey(account, address string) string {
+	return address + "@" + account
 }
 
 // GetVariableBlock returns a block of any block type. Used currently for receive Links
