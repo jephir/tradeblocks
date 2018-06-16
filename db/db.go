@@ -41,8 +41,7 @@ func (m *DB) init() (err error) {
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
 		FOREIGN KEY (previous) REFERENCES accounts(hash),
-		FOREIGN KEY (representative, token) REFERENCES accounts(account, token),
-		PRIMARY KEY (account, token)
+		PRIMARY KEY (hash)
 		);`
 	s["createSwapsTable"] = `CREATE TABLE IF NOT EXISTS swaps(
 		action TEXT NOT NULL CHECK (action IN ('offer', 'commit', 'refund-left', 'refund-right')),
@@ -67,7 +66,7 @@ func (m *DB) init() (err error) {
 		FOREIGN KEY (counterparty) REFERENCES accounts(account),
 		FOREIGN KEY (want) REFERENCES accounts(token),
 		FOREIGN KEY (executor) REFERENCES orders(executor),
-		PRIMARY KEY (account, id)
+		PRIMARY KEY (hash)
 		);`
 	s["createOrdersTable"] = `CREATE TABLE IF NOT EXISTS orders(
 		action TEXT NOT NULL CHECK (action IN ('create-order', 'accept-order', 'refund-order')),
@@ -89,7 +88,7 @@ func (m *DB) init() (err error) {
 		FOREIGN KEY (previous) REFERENCES orders(hash),
 		FOREIGN KEY (quote) REFERENCES accounts(account),
 		FOREIGN KEY (executor) REFERENCES accounts(account),
-		PRIMARY KEY (account, id)
+		PRIMARY KEY (hash)
 		);`
 	s["createConfirmsTable"] = `CREATE TABLE IF NOT EXISTS confirms(
 		previous TEXT,
@@ -161,4 +160,25 @@ func (m *DB) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 		b.Signature,
 		b.Hash())
 	return err
+}
+
+// GetAccountBlock gets a block with the specified parameters
+func (m *DB) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
+	var b tradeblocks.AccountBlock
+	var previous sql.NullString
+	row := m.db.QueryRow(`SELECT
+		action,
+		account,
+		token,
+		previous,
+		representative,
+		balance,
+		link,
+		signature
+		FROM accounts WHERE hash = $1`, hash)
+	err := row.Scan(&b.Action, &b.Account, &b.Token, &previous, &b.Representative, &b.Balance, &b.Link, &b.Signature)
+	if previous.Valid {
+		b.Previous = previous.String
+	}
+	return &b, err
 }

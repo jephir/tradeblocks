@@ -42,4 +42,12 @@ func TestInsertAccountBlock(t *testing.T) {
 	if err := db.InsertAccountBlock(b); err != nil {
 		t.Fatal(err)
 	}
+
+	check, err := db.GetAccountBlock(b.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Equals(check); err != nil {
+		t.Fatal(err)
+	}
 }
