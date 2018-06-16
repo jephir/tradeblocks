@@ -1124,12 +1124,11 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO causing CLI limit test to fail
-	// err = validator.ValidateSwapBlock(swap2)
-	// expectedError = "counter send not found"
-	// if err == nil || err.Error() != expectedError {
-	// 	t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	// }
+	err = validator.ValidateSwapBlock(swap2)
+	expectedError = "counter send not found"
+	if err == nil || err.Error() != expectedError {
+		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
+	}
 
 	// counter send doesn't exist
 	swap, swap2, _, validator, err = swapOfferSetup(keyList, addressList, t)
@@ -1148,12 +1147,11 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO causing CLI limit test to fail
-	// err = validator.ValidateSwapBlock(swap2)
-	// expectedError = "counter send prev not found"
-	// if err == nil || err.Error() != expectedError {
-	// 	t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	// }
+	err = validator.ValidateSwapBlock(swap2)
+	expectedError = "counter send prev not found"
+	if err == nil || err.Error() != expectedError {
+		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
+	}
 
 	// counter send doesn't exist
 	swap, swap2, _, validator, err = swapOfferSetup(keyList, addressList, t)
@@ -1171,12 +1169,11 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO causing CLI limit test to fail
-	// err = validator.ValidateSwapBlock(swap2)
-	// expectedError = "amount/token requested not sent"
-	// if err == nil || err.Error() != expectedError {
-	// 	t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	// }
+	err = validator.ValidateSwapBlock(swap2)
+	expectedError = "amount/token requested not sent"
+	if err == nil || err.Error() != expectedError {
+		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
+	}
 }
 
 func swapRefundLeftSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.SwapBlock, *tradeblocks.SwapBlock, *tradeblocks.AccountBlock, *SwapBlockValidator, error) {
@@ -1798,10 +1795,10 @@ func acceptOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 	send := tradeblocks.NewSendBlock(i, address[0]+":order:test-ID", 50.0)
 	order := tradeblocks.NewCreateOrderBlock(address[0], send, 50, "test-ID", false, address[1], 10.0, "", 0.0)
 
-	i2 := tradeblocks.NewIssueBlock(address[1], 100.0)
-	send2 := tradeblocks.NewSendBlock(i2, address[2]+":swap:test-ID", 5)
+	i2 := tradeblocks.NewIssueBlock(address[1], 500.0)
+	send2 := tradeblocks.NewSendBlock(i2, address[2]+":swap:test-ID", 500)
 	swap := tradeblocks.NewOfferBlock(address[2], send2, "test-ID", address[0], address[0], 50, "", 0.0)
-	order2 := tradeblocks.NewAcceptOrderBlock(order, swap.Hash(), 0)
+	order2 := tradeblocks.NewAcceptOrderBlock(order, address[2]+":swap:test-ID", 0)
 
 	err := i.SignBlock(key[0])
 	if err != nil {
@@ -1873,7 +1870,7 @@ func TestAcceptOrderValidation(t *testing.T) {
 	keyList := []*rsa.PrivateKey{key, key2, key3, key4}
 	addressList := []string{address, address2, address3, address4}
 
-	_, createOrder, acceptOrder, swap, validator, err := acceptOrderSetup(keyList, addressList, t)
+	_, createOrder, acceptOrder, _, validator, err := acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2033,7 +2030,7 @@ func TestAcceptOrderValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	acceptOrder.Link = badAddress
+	acceptOrder.Link = badAddress + ":swap:test-bad"
 	err = acceptOrder.SignBlock(key)
 	if err != nil {
 		t.Fatal(err)
@@ -2046,13 +2043,19 @@ func TestAcceptOrderValidation(t *testing.T) {
 	}
 
 	// linked swap doesn't point to offer
-	_, _, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
+	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	swap.Counterparty = badAddress
-	err = swap.SignBlock(key3)
+	createOrder.Account = address4
+	err = createOrder.SignBlock(key4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	acceptOrder.Account = address4
+	err = acceptOrder.SignBlock(key4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2064,14 +2067,18 @@ func TestAcceptOrderValidation(t *testing.T) {
 	}
 
 	// linked swap bad ID
-	_, _, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
+	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	swap.ID = "bad ID"
-	err = swap.SignBlock(key3)
-	if err != nil {
+	createOrder.ID = "bad ID"
+	if err = createOrder.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
+
+	acceptOrder.ID = "bad ID"
+	if err = acceptOrder.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2082,32 +2089,18 @@ func TestAcceptOrderValidation(t *testing.T) {
 	}
 
 	// mismatched token type v1
-	_, _, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
+	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	swap.Want = badAddress
-	err = swap.SignBlock(key3)
-	if err != nil {
+	createOrder.Token = "bad Token"
+	if err = createOrder.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
-	err = validator.ValidateOrderBlock(acceptOrder)
-	expectedError = "Swap and Order token mismatch"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// mismatched token type v2
-	_, _, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	swap.Token = badAddress
-	err = swap.SignBlock(key3)
-	if err != nil {
+	acceptOrder.Token = "bad Token"
+	if err = acceptOrder.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2118,7 +2111,7 @@ func TestAcceptOrderValidation(t *testing.T) {
 	}
 
 	// balances don't line up
-	_, _, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
+	_, _, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2136,7 +2129,7 @@ func TestAcceptOrderValidation(t *testing.T) {
 	}
 
 	// Non accepting partial given partial
-	_, _, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
+	_, _, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2154,7 +2147,7 @@ func TestAcceptOrderValidation(t *testing.T) {
 	}
 
 	// order not given full amount
-	_, createOrder, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
+	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2172,28 +2165,9 @@ func TestAcceptOrderValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO causing CLI limit test to fail
-	// err = validator.ValidateOrderBlock(acceptOrder)
-	// expectedError = "Balance sent to order is invalid"
-	// if err == nil || !strings.Contains(err.Error(), expectedError) {
-	// 	t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	// }
-
-	// swap not given full amount
-	_, _, acceptOrder, swap, validator, err = acceptOrderSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	swap.Quantity = 5
-	err = swap.SignBlock(key3)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	err = validator.ValidateOrderBlock(acceptOrder)
-	expectedError = "Balance sent to swap is invalid"
-	if err == nil || !strings.Contains(err.Error(), "Balance sent to swap is invalid") {
+	expectedError = "Balance sent to order is invalid"
+	if err == nil || !strings.Contains(err.Error(), expectedError) {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 }

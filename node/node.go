@@ -4,15 +4,16 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
-	"github.com/jephir/tradeblocks/fs"
-	"github.com/jephir/tradeblocks/web"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/fs"
+	"github.com/jephir/tradeblocks/web"
 )
 
 const keySize = 2048
@@ -327,6 +328,7 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 		if err := send.SignBlock(n.priv); err != nil {
 			return err
 		}
+
 		if err := n.store.AddOrderBlock(send); err != nil {
 			return fmt.Errorf("error adding order send: %s", err.Error())
 		}
