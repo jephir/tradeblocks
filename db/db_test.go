@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/mattn/go-sqlite3"
+	"github.com/jephir/tradeblocks"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -17,13 +17,29 @@ func TestInit(t *testing.T) {
 	dataSourceName := f.Name()
 	db, err := NewDB(dataSourceName)
 	if err != nil {
-		if err, ok := err.(sqlite3.Error); ok {
-			t.Fatal(err.ExtendedCode.Error())
-		}
 		t.Fatal(err)
 	}
 
 	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+func TestInsertAccountBlock(t *testing.T) {
+	f, err := ioutil.TempFile("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	dataSourceName := f.Name()
+	db, err := NewDB(dataSourceName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	b := tradeblocks.NewIssueBlock("xtb:test", 500)
+	if err := db.InsertAccountBlock(b); err != nil {
 		t.Fatal(err)
 	}
 }

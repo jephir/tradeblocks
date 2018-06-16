@@ -22,7 +22,7 @@ func TestBlockStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := `{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
+	expect := `{"Action":"issue","Account":"` + address + `","Token":"` + address + `","Previous":"","Representative":"` + address + `","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
 
 	if err := s.AddAccountBlock(b); err != nil {
 		t.Fatal(err)

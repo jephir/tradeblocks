@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/jephir/tradeblocks"
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
@@ -40,7 +41,7 @@ func (m *DB) init() (err error) {
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
 		FOREIGN KEY (previous) REFERENCES accounts(hash),
-		FOREIGN KEY (representative) REFERENCES accounts(account),
+		FOREIGN KEY (representative, token) REFERENCES accounts(account, token),
 		PRIMARY KEY (account, token)
 		);`
 	s["createSwapsTable"] = `CREATE TABLE IF NOT EXISTS swaps(
@@ -129,4 +130,35 @@ func (m *DB) init() (err error) {
 // Close releases all resources used by this database
 func (m *DB) Close() error {
 	return m.db.Close()
+}
+
+// InsertAccountBlock inserts the specified block into the database
+func (m *DB) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
+	var previousOrNil interface{}
+	if b.Previous != "" {
+		previousOrNil = b.Previous
+	} else {
+		previousOrNil = nil
+	}
+	_, err := m.db.Exec(`INSERT INTO accounts (
+		action,
+		account,
+		token,
+		previous,
+		representative,
+		balance,
+		link,
+		signature,
+		hash
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		b.Action,
+		b.Account,
+		b.Token,
+		previousOrNil,
+		b.Representative,
+		b.Balance,
+		b.Link,
+		b.Signature,
+		b.Hash())
+	return err
 }

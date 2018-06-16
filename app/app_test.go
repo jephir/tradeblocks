@@ -31,7 +31,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestIssue(t *testing.T) {
-	expect := `{"Action":"issue","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":""}`
+	expect := `{"Action":"issue","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"","Representative":"xtb:` + accountAddress + `","Balance":100,"Link":"","Signature":""}`
 	publicKey.Seek(0, io.SeekStart)
 	issue, err := Issue(publicKey, 100)
 	if err != nil {
@@ -48,8 +48,8 @@ func TestIssue(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
-	previousText := "L6ZDZYGG6PKGLNRKS4JXUFGXPHUCSDLWB46NVKSVOTINC3HU6FLA"
-	expect := `{"Action":"send","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"` + previousText + `","Representative":"","Balance":50,"Link":"xtb:testreceiver","Signature":""}`
+	previousText := "LTWNQGFK7UJSZE7HZKFIJKORRUJ3FTWSTGQGAAKVO3VB6NLHT7XA"
+	expect := `{"Action":"send","Account":"xtb:` + accountAddress + `","Token":"xtb:` + accountAddress + `","Previous":"` + previousText + `","Representative":"xtb:` + accountAddress + `","Balance":50,"Link":"xtb:testreceiver","Signature":""}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -72,8 +72,8 @@ func TestSend(t *testing.T) {
 }
 
 func TestOpenFromSend(t *testing.T) {
-	linkText := "ZT5TYX3FE5WY7WGVAEFHYMWMDNQYEGHSXS42N4HZTYAPZZNB3QTQ"
-	expect := `{"Action":"open","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"","Representative":"","Balance":50,"Link":"` + linkText + `","Signature":""}`
+	linkText := "R4UHAP3NDCEAV7WON3L7NAGGTFYYSPVZADWCMSD5O4VD7IFE534Q"
+	expect := `{"Action":"open","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"","Representative":"xtb:` + accountAddress + `","Balance":50,"Link":"` + linkText + `","Signature":""}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
@@ -128,7 +128,7 @@ func TestOpenFromSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := string(s)
-	expect := `{"Action":"open","Account":"` + address2 + `","Token":"` + address + `","Previous":"","Representative":"","Balance":50,"Link":"` + swap2.Hash() + `","Signature":"` + open.Signature + `"}`
+	expect := `{"Action":"open","Account":"` + address2 + `","Token":"` + address + `","Previous":"","Representative":"` + address2 + `","Balance":50,"Link":"` + swap2.Hash() + `","Signature":"` + open.Signature + `"}`
 
 	if got != expect {
 		t.Fatalf("Issue was incorrect, got: %s,\nwant: %s", got, expect)
@@ -136,9 +136,9 @@ func TestOpenFromSwap(t *testing.T) {
 }
 
 func TestReceive(t *testing.T) {
-	previousText := "ZNFSRJWX6SQVZAZ2RQJWJBZHK55GRO6DXF4PUW4HWV6WEDPWFNNA"
-	linkText := "ZT5TYX3FE5WY7WGVAEFHYMWMDNQYEGHSXS42N4HZTYAPZZNB3QTQ"
-	expect := `{"Action":"receive","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"` + previousText + `","Representative":"","Balance":75,"Link":"` + linkText + `","Signature":""}`
+	previousText := "A56LDHHQFZJP4XYZXMBIEEULNQX72DFT6OF5FATZYBTEZU6EEXYA"
+	linkText := "R4UHAP3NDCEAV7WON3L7NAGGTFYYSPVZADWCMSD5O4VD7IFE534Q"
+	expect := `{"Action":"receive","Account":"xtb:` + accountAddress + `","Token":"xtb:sender","Previous":"` + previousText + `","Representative":"xtb:` + accountAddress + `","Balance":75,"Link":"` + linkText + `","Signature":""}`
 	publicKey.Seek(0, io.SeekStart)
 	address, err := PublicKeyToAddress(publicKey)
 	if err != nil {
