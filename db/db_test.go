@@ -81,3 +81,33 @@ func TestInsertSwapBlock(t *testing.T) {
 		t.Fatalf("block not found")
 	}
 }
+
+func TestInsertOrderBlock(t *testing.T) {
+	f, err := ioutil.TempFile("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	dataSourceName := f.Name()
+	db, err := NewDB(dataSourceName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	issue := tradeblocks.NewIssueBlock("xtb:issuer", 100)
+	send := tradeblocks.NewSendBlock(issue, "xtb:test", 100)
+	b := tradeblocks.NewCreateOrderBlock("xtb:test", send, 100, "test", false, "xtb:quote", 12.5, "", 0)
+	if err := db.InsertOrderBlock(b); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := db.GetOrderBlock(b.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Hash() != check.Hash() {
+		t.Fatalf("block not found")
+	}
+}

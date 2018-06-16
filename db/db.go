@@ -309,3 +309,103 @@ func (m *DB) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
 	}
 	return &b, err
 }
+
+// InsertOrderBlock inserts the specified block into the database
+func (m *DB) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
+	var previous interface{}
+	if b.Previous != "" {
+		previous = b.Previous
+	} else {
+		previous = nil
+	}
+	var executor interface{}
+	if b.Executor != "" {
+		executor = b.Executor
+	} else {
+		executor = nil
+	}
+	var fee interface{}
+	if b.Fee != 0 {
+		fee = b.Fee
+	} else {
+		fee = nil
+	}
+	_, err := m.db.Exec(`INSERT INTO orders (
+		action,
+		account,
+		token,
+		id,
+		previous,
+		balance,
+		quote,
+		price,
+		link,
+		partial,
+		executor,
+		fee,
+		signature,
+		hash
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+		b.Action,
+		b.Account,
+		b.Token,
+		b.ID,
+		previous,
+		b.Balance,
+		b.Quote,
+		b.Price,
+		b.Link,
+		b.Partial,
+		executor,
+		fee,
+		b.Signature,
+		b.Hash())
+	return err
+}
+
+// GetOrderBlock gets a block with the specified parameters
+func (m *DB) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
+	var b tradeblocks.OrderBlock
+	var previous sql.NullString
+	var executor sql.NullString
+	var fee sql.NullFloat64
+	row := m.db.QueryRow(`SELECT
+		action,
+		account,
+		token,
+		id,
+		previous,
+		balance,
+		quote,
+		price,
+		link,
+		partial,
+		executor,
+		fee,
+		signature
+		FROM orders WHERE hash = $1`, hash)
+	err := row.Scan(
+		&b.Action,
+		&b.Account,
+		&b.Token,
+		&b.ID,
+		&previous,
+		&b.Balance,
+		&b.Quote,
+		&b.Price,
+		&b.Link,
+		&b.Partial,
+		&executor,
+		&fee,
+		&b.Signature)
+	if previous.Valid {
+		b.Previous = previous.String
+	}
+	if executor.Valid {
+		b.Executor = executor.String
+	}
+	if fee.Valid {
+		b.Fee = fee.Float64
+	}
+	return &b, err
+}
