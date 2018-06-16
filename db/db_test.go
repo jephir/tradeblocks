@@ -14,7 +14,7 @@ func TestInit(t *testing.T) {
 	}
 	defer os.Remove(f.Name())
 
-	dataSourceName := f.Name() + "?_foreign_keys=true"
+	dataSourceName := f.Name()
 	db, err := NewDB(dataSourceName)
 	if err != nil {
 		if err, ok := err.(sqlite3.Error); ok {

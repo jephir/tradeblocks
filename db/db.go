@@ -13,6 +13,7 @@ type DB struct {
 
 // NewDB connects to the specified data source
 func NewDB(dataSourceName string) (*DB, error) {
+	dataSourceName += "?_foreign_keys=true"
 	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, err
