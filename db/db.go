@@ -409,3 +409,51 @@ func (m *DB) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
 	}
 	return &b, err
 }
+
+// InsertConfirmBlock inserts the specified block into the database
+func (m *DB) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
+	var previous interface{}
+	if b.Previous != "" {
+		previous = b.Previous
+	} else {
+		previous = nil
+	}
+	_, err := m.db.Exec(`INSERT INTO confirms (
+		previous,
+		addr,
+		head,
+		account,
+		signature,
+		hash
+		) VALUES ($1, $2, $3, $4, $5, $6)`,
+		previous,
+		b.Addr,
+		b.Head,
+		b.Account,
+		b.Signature,
+		b.Hash())
+	return err
+}
+
+// GetConfirmBlock gets a block with the specified parameters
+func (m *DB) GetConfirmBlock(hash string) (*tradeblocks.ConfirmBlock, error) {
+	var b tradeblocks.ConfirmBlock
+	var previous sql.NullString
+	row := m.db.QueryRow(`SELECT
+		previous,
+		addr,
+		head,
+		account,
+		signature
+		FROM confirms WHERE hash = $1`, hash)
+	err := row.Scan(
+		&previous,
+		&b.Addr,
+		&b.Head,
+		&b.Account,
+		&b.Signature)
+	if previous.Valid {
+		b.Previous = previous.String
+	}
+	return &b, err
+}

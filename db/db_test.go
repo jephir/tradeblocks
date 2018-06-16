@@ -111,3 +111,31 @@ func TestInsertOrderBlock(t *testing.T) {
 		t.Fatalf("block not found")
 	}
 }
+
+func TestInsertConfirmBlock(t *testing.T) {
+	f, err := ioutil.TempFile("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	dataSourceName := f.Name()
+	db, err := NewDB(dataSourceName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	b := tradeblocks.NewConfirmBlock(nil, "xtb:test", "xtb:addr", "123abc")
+	if err := db.InsertConfirmBlock(b); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := db.GetConfirmBlock(b.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Hash() != check.Hash() {
+		t.Fatalf("block not found")
+	}
+}
