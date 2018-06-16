@@ -13,79 +13,95 @@ type DB struct {
 
 // NewDB connects to the specified data source
 func NewDB(dataSourceName string) (*DB, error) {
-	db, err := sql.Open("sqlite", dataSourceName)
+	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, err
 	}
-	return &DB{
+	d := &DB{
 		db: db,
-	}, nil
+	}
+	if err := d.init(); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
-func (db *DB) init() (err error) {
+func (m *DB) init() (err error) {
 	s := make(map[string]string)
 	s["createAccountsTable"] = `CREATE TABLE IF NOT EXISTS accounts(
 		action TEXT NOT NULL CHECK (action IN ('open', 'issue', 'send', 'receive')),
-		account TEXT NOT NULL CHECK (account LIKE xtb:%),
-		token TEXT NOT NULL CHECK (token LIKE xtb:%),
+		account TEXT NOT NULL CHECK (account LIKE 'xtb:%'),
+		token TEXT NOT NULL CHECK (token LIKE 'xtb:%'),
 		previous TEXT UNIQUE,
-			FOREIGN KEY (previous) REFERENCES accounts(hash),
-		representative TEXT NOT NULL CHECK (representative LIKE xtb:%),
-			FOREIGN KEY (representative) REFERENCES accounts(account),
+		representative TEXT NOT NULL CHECK (representative LIKE 'xtb:%'),
 		balance REAL NOT NULL CHECK (balance >= 0),
 		link TEXT UNIQUE,
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
+		FOREIGN KEY (previous) REFERENCES accounts(hash),
+		FOREIGN KEY (representative) REFERENCES accounts(account),
 		PRIMARY KEY (account, token)
 		);`
 	s["createSwapsTable"] = `CREATE TABLE IF NOT EXISTS swaps(
 		action TEXT NOT NULL CHECK (action IN ('offer', 'commit', 'refund-left', 'refund-right')),
-		account TEXT NOT NULL CHECK (account LIKE xtb:%),
-			FOREIGN KEY (account) REFERENCES accounts(account),
-		token TEXT NOT NULL CHECK (token LIKE xtb:%),
-			FOREIGN KEY (token) REFERENCES accounts(token),
+		account TEXT NOT NULL CHECK (account LIKE 'xtb:%'),
+		token TEXT NOT NULL CHECK (token LIKE 'xtb:%'),
 		id TEXT NOT NULL,
 		previous TEXT UNIQUE,
-			FOREIGN KEY (previous) REFERENCES swaps(hash),
 		left TEXT UNIQUE NOT NULL,
 		right TEXT UNIQUE,
-		refund_left TEXT CHECK (refund_left LIKE xtb:%),
-		refund_right TEXT CHECK (refund_right LIKE xtb:%),
-		counterparty TEXT NOT NULL CHECK (counterparty LIKE xtb:%),
-			FOREIGN KEY (counterparty) REFERENCES accounts(account),
-		want TEXT NOT NULL CHECK (want LIKE xtb:%),
-			FOREIGN KEY (want) REFERENCES accounts(token),
+		refund_left TEXT CHECK (refund_left LIKE 'xtb:%'),
+		refund_right TEXT CHECK (refund_right LIKE 'xtb:%'),
+		counterparty TEXT NOT NULL CHECK (counterparty LIKE 'xtb:%'),
+		want TEXT NOT NULL CHECK (want LIKE 'xtb:%'),
 		quantity REAL NOT NULL CHECK (quantity >= 0),
-		executor TEXT CHECK (executor LIKE xtb:%),
-			FOREIGN KEY executor REFERENCES orders(executor),
+		executor TEXT CHECK (executor LIKE 'xtb:%'),
 		fee REAL,
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
+		FOREIGN KEY (account) REFERENCES accounts(account),
+		FOREIGN KEY (token) REFERENCES accounts(token),
+		FOREIGN KEY (previous) REFERENCES swaps(hash),
+		FOREIGN KEY (counterparty) REFERENCES accounts(account),
+		FOREIGN KEY (want) REFERENCES accounts(token),
+		FOREIGN KEY (executor) REFERENCES orders(executor),
 		PRIMARY KEY (account, id)
 		);`
 	s["createOrdersTable"] = `CREATE TABLE IF NOT EXISTS orders(
 		action TEXT NOT NULL CHECK (action IN ('create-order', 'accept-order', 'refund-order')),
-		account TEXT NOT NULL CHECK (account LIKE xtb:%),
-			FOREIGN KEY (account) REFERENCES accounts(account),
-		token TEXT NOT NULL CHECK (token LIKE xtb:%),
-			FOREIGN KEY (token) REFERENCES accounts(token),
+		account TEXT NOT NULL CHECK (account LIKE 'xtb:%'),
+		token TEXT NOT NULL CHECK (token LIKE 'xtb:%'),
 		id TEXT NOT NULL,
 		previous TEXT,
-			FOREIGN KEY (previous) REFERENCES orders(hash),
 		balance REAL NOT NULL CHECK (balance >= 0),
 		quote TEXT NOT NULL,
-			FOREIGN KEY (quote) REFERENCES accounts(account),
 		price REAL NOT NULL CHECK (price >= 0),
 		link TEXT NOT NULL,
 		partial INTEGER NOT NULL,
-		executor TEXT CHECK (executor LIKE xtb:%),
-			FOREIGN KEY executor REFERENCES accounts(account),
+		executor TEXT CHECK (executor LIKE 'xtb:%'),
 		fee REAL,
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
-		PRIMARY KEY (account, id)`
+		FOREIGN KEY (account) REFERENCES accounts(account),
+		FOREIGN KEY (token) REFERENCES accounts(token),
+		FOREIGN KEY (previous) REFERENCES orders(hash),
+		FOREIGN KEY (quote) REFERENCES accounts(account),
+		FOREIGN KEY (executor) REFERENCES accounts(account),
+		PRIMARY KEY (account, id)
+		);`
+	s["createConfirmsTable"] = `CREATE TABLE IF NOT EXISTS confirms(
+		previous TEXT,
+		addr TEXT NOT NULL CHECK (addr LIKE 'xtb:%'),
+		head TEXT NOT NULL,
+		account TEXT NOT NULL CHECK (account LIKE 'xtb:%'),
+		signature TEXT NOT NULL UNIQUE,
+		hash TEXT NOT NULL UNIQUE,
+		FOREIGN KEY (previous) REFERENCES confirms(hash),
+		FOREIGN KEY (account) REFERENCES accounts(account),
+		PRIMARY KEY (account, addr)
+		);`
 
-	tx, err := db.db.Begin()
+	tx, err := m.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -110,6 +126,6 @@ func (db *DB) init() (err error) {
 }
 
 // Close releases all resources used by this database
-func (db *DB) Close() error {
-	return db.Close()
+func (m *DB) Close() error {
+	return m.db.Close()
 }
