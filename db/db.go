@@ -60,12 +60,7 @@ func (m *DB) init() (err error) {
 		fee REAL,
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
-		FOREIGN KEY (account) REFERENCES accounts(account),
-		FOREIGN KEY (token) REFERENCES accounts(token),
 		FOREIGN KEY (previous) REFERENCES swaps(hash),
-		FOREIGN KEY (counterparty) REFERENCES accounts(account),
-		FOREIGN KEY (want) REFERENCES accounts(token),
-		FOREIGN KEY (executor) REFERENCES orders(executor),
 		PRIMARY KEY (hash)
 		);`
 	s["createOrdersTable"] = `CREATE TABLE IF NOT EXISTS orders(
@@ -83,11 +78,7 @@ func (m *DB) init() (err error) {
 		fee REAL,
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
-		FOREIGN KEY (account) REFERENCES accounts(account),
-		FOREIGN KEY (token) REFERENCES accounts(token),
 		FOREIGN KEY (previous) REFERENCES orders(hash),
-		FOREIGN KEY (quote) REFERENCES accounts(account),
-		FOREIGN KEY (executor) REFERENCES accounts(account),
 		PRIMARY KEY (hash)
 		);`
 	s["createConfirmsTable"] = `CREATE TABLE IF NOT EXISTS confirms(
@@ -98,8 +89,7 @@ func (m *DB) init() (err error) {
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
 		FOREIGN KEY (previous) REFERENCES confirms(hash),
-		FOREIGN KEY (account) REFERENCES accounts(account),
-		PRIMARY KEY (account, addr)
+		PRIMARY KEY (hash)
 		);`
 
 	tx, err := m.db.Begin()
@@ -179,6 +169,143 @@ func (m *DB) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	err := row.Scan(&b.Action, &b.Account, &b.Token, &previous, &b.Representative, &b.Balance, &b.Link, &b.Signature)
 	if previous.Valid {
 		b.Previous = previous.String
+	}
+	return &b, err
+}
+
+// InsertSwapBlock inserts the specified block into the database
+func (m *DB) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
+	var previous interface{}
+	if b.Previous != "" {
+		previous = b.Previous
+	} else {
+		previous = nil
+	}
+	var right interface{}
+	if b.Right != "" {
+		right = b.Right
+	} else {
+		right = nil
+	}
+	var refundLeft interface{}
+	if b.RefundLeft != "" {
+		refundLeft = b.RefundLeft
+	} else {
+		refundLeft = nil
+	}
+	var refundRight interface{}
+	if b.RefundRight != "" {
+		refundRight = b.RefundRight
+	} else {
+		refundRight = nil
+	}
+	var executor interface{}
+	if b.Executor != "" {
+		executor = b.Executor
+	} else {
+		executor = nil
+	}
+	var fee interface{}
+	if b.Fee != 0 {
+		fee = b.Fee
+	} else {
+		fee = nil
+	}
+	_, err := m.db.Exec(`INSERT INTO swaps (
+		action,
+		account,
+		token,
+		id,
+		previous,
+		left,
+		right,
+		refund_left,
+		refund_right,
+		counterparty,
+		want,
+		quantity,
+		executor,
+		fee,
+		signature,
+		hash
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+		b.Action,
+		b.Account,
+		b.Token,
+		b.ID,
+		previous,
+		b.Left,
+		right,
+		refundLeft,
+		refundRight,
+		b.Counterparty,
+		b.Want,
+		b.Quantity,
+		executor,
+		fee,
+		b.Signature,
+		b.Hash())
+	return err
+}
+
+// GetSwapBlock gets a block with the specified parameters
+func (m *DB) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
+	var b tradeblocks.SwapBlock
+	var previous sql.NullString
+	var right sql.NullString
+	var refundLeft sql.NullString
+	var refundRight sql.NullString
+	var executor sql.NullString
+	var fee sql.NullFloat64
+	row := m.db.QueryRow(`SELECT
+		action,
+		account,
+		token,
+		id,
+		previous,
+		left,
+		right,
+		refund_left,
+		refund_right,
+		counterparty,
+		want,
+		quantity,
+		executor,
+		fee,
+		signature
+		FROM swaps WHERE hash = $1`, hash)
+	err := row.Scan(&b.Action,
+		&b.Account,
+		&b.Token,
+		&b.ID,
+		&previous,
+		&b.Left,
+		&right,
+		&refundLeft,
+		&refundRight,
+		&b.Counterparty,
+		&b.Want,
+		&b.Quantity,
+		&executor,
+		&fee,
+		&b.Signature)
+	if previous.Valid {
+		b.Previous = previous.String
+	}
+	if right.Valid {
+		b.Right = right.String
+	}
+	if refundLeft.Valid {
+		b.RefundLeft = refundLeft.String
+	}
+	if refundRight.Valid {
+		b.RefundRight = refundRight.String
+	}
+	if executor.Valid {
+		b.Executor = executor.String
+	}
+	if fee.Valid {
+		b.Fee = fee.Float64
 	}
 	return &b, err
 }
