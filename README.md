@@ -120,6 +120,7 @@ $ XTB_RECEIVE1 = "$(tradeblocks receive $XTB_SWAP_COMMIT)"
 ## Running Tests
 
 ```sh
+$ go get ./...
 $ go test -v ./...
 ```
 
