@@ -1,6 +1,9 @@
 package app
 
 import (
+	"crypto/rand"
+	"fmt"
+
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/db"
 )
@@ -13,13 +16,26 @@ type BlockStore struct {
 
 // NewBlockStore allocates and returns a new BlockStore
 func NewBlockStore() *BlockStore {
-	db, err := db.NewDB("file::memory:?mode=memory&cache=shared")
+	x := randString(16)
+	s := fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=true", x)
+	db, err := db.NewDB(s)
 	if err != nil {
 		panic(err)
 	}
 	return &BlockStore{
 		db: db,
 	}
+}
+
+// https://stackoverflow.com/a/12772666
+func randString(n int) string {
+	const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	var bytes = make([]byte, n)
+	rand.Read(bytes)
+	for i, b := range bytes {
+		bytes[i] = alphanum[b%byte(len(alphanum))]
+	}
+	return string(bytes)
 }
 
 // Err returns the current error or nil
