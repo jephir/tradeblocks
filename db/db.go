@@ -658,6 +658,42 @@ func (m *Transaction) GetOrderHead(account, id string) (*tradeblocks.OrderBlock,
 	return scanOrder(row)
 }
 
+// GetLimitOrders returns orders with the specified parameters
+func (m *Transaction) GetLimitOrders(base, condition string, ppu float64, quote string) ([]*tradeblocks.OrderBlock, error) {
+	if condition != ">=" && condition != "<=" {
+		return nil, fmt.Errorf("db: condition must be >= or <=")
+	}
+	q := fmt.Sprintf(`SELECT
+		action,
+		account,
+		token,
+		id,
+		previous,
+		balance,
+		quote,
+		price,
+		link,
+		partial,
+		executor,
+		fee,
+		signature
+		FROM orders WHERE token = $1 AND price %s $2 AND quote = $3`, condition)
+	rows, err := m.tx.Query(q, base, ppu, quote)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []*tradeblocks.OrderBlock
+	for rows.Next() {
+		b, err := scanOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, b)
+	}
+	return result, rows.Err()
+}
+
 func scanOrder(s scanner) (*tradeblocks.OrderBlock, error) {
 	var b tradeblocks.OrderBlock
 	var previous sql.NullString
