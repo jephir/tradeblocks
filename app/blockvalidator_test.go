@@ -95,6 +95,7 @@ func TestOpenBlockValidator(t *testing.T) {
 	}
 
 	// test for send prev not existing
+	t.Skip("TODO Block has to be modified before added to blockstore")
 	open, send, validator, err = openSetup(key, address, t)
 	if err != nil {
 		t.Fatal(err)

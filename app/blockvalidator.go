@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	tb "github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/db"
 )
 
 // ValidateAccountBlock returns an error if validation fails for the specified account block
@@ -85,11 +86,11 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 
 	// check if the block referenced exists, get it if it does
 	link, err := blockStore.GetVariableBlock(block.Link)
+	if err == db.ErrNotFound {
+		return errors.New("link field references invalid block")
+	}
 	if err != nil {
 		return err
-	}
-	if link == nil {
-		return errors.New("link field references invalid block")
 	}
 
 	switch link := link.(type) {
@@ -175,6 +176,8 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 				return errors.New("Mismatched balances receiving by committer")
 			}
 		}
+	default:
+		return errors.New("Invalid link type")
 	}
 	return nil
 }
@@ -440,9 +443,9 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 
 	// originating block of swap
 	if action == "offer" {
-		if prevBlock != nil {
-			return errors.New("prev and right must be null together")
-		}
+		// if prevBlock != nil {
+		// 	return errors.New("prev and right must be null together")
+		// }
 
 		// check if the send block referenced exists, don't get it if it does
 		left, errLeft := getAndVerifyAccount(block.Left, blockStore)

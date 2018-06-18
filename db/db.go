@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/jephir/tradeblocks"
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
@@ -17,6 +18,11 @@ const (
 type scanner interface {
 	Scan(dest ...interface{}) error
 }
+
+var (
+	// ErrNotFound is returned when data is not found
+	ErrNotFound = errors.New("db: not found")
+)
 
 // DB represents a database
 type DB struct {
@@ -269,7 +275,11 @@ func (m *Transaction) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, e
 		link,
 		signature
 		FROM accounts WHERE hash = $1`, hash)
-	return scanAccount(row)
+	b, err := scanAccount(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 // GetAccountHead gets the head block for the specified parameters
@@ -286,7 +296,11 @@ func (m *Transaction) GetAccountHead(account, token string) (*tradeblocks.Accoun
 		FROM accounts WHERE hash = (
 			SELECT hash FROM heads WHERE account = $1 AND key = $2
 		)`, account, token)
-	return scanAccount(row)
+	b, err := scanAccount(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 func scanAccount(s scanner) (*tradeblocks.AccountBlock, error) {
@@ -412,7 +426,11 @@ func (m *Transaction) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) 
 		fee,
 		signature
 		FROM swaps WHERE hash = $1`, hash)
-	return scanSwap(row)
+	b, err := scanSwap(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 // GetSwapBlocks gets all swap blocks
@@ -470,7 +488,11 @@ func (m *Transaction) GetSwapHead(account, id string) (*tradeblocks.SwapBlock, e
 		FROM swaps WHERE hash = (
 			SELECT hash FROM heads WHERE account = $1 AND key = $2
 		)`, account, id)
-	return scanSwap(row)
+	b, err := scanSwap(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 func scanSwap(s scanner) (*tradeblocks.SwapBlock, error) {
@@ -606,7 +628,11 @@ func (m *Transaction) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error
 		fee,
 		signature
 		FROM orders WHERE hash = $1`, hash)
-	return scanOrder(row)
+	b, err := scanOrder(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 // GetOrderBlocks gets all order blocks
@@ -660,7 +686,11 @@ func (m *Transaction) GetOrderHead(account, id string) (*tradeblocks.OrderBlock,
 		FROM orders WHERE hash = (
 			SELECT hash FROM heads WHERE account = $1 AND key = $2
 		)`, account, id)
-	return scanOrder(row)
+	b, err := scanOrder(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 // GetLimitOrders returns orders with the specified parameters
@@ -783,7 +813,11 @@ func (m *Transaction) GetConfirmBlock(hash string) (*tradeblocks.ConfirmBlock, e
 		account,
 		signature
 		FROM confirms WHERE hash = $1`, hash)
-	return scanConfirm(row)
+	b, err := scanConfirm(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 // GetConfirmBlocks gets all confirm blocks
@@ -821,7 +855,11 @@ func (m *Transaction) GetConfirmHead(account, addr string) (*tradeblocks.Confirm
 		FROM confirms WHERE hash = (
 			SELECT hash FROM heads WHERE account = $1 AND key = $2
 		)`, account, addr)
-	return scanConfirm(row)
+	b, err := scanConfirm(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return b, err
 }
 
 func scanConfirm(s scanner) (*tradeblocks.ConfirmBlock, error) {
@@ -843,7 +881,11 @@ func scanConfirm(s scanner) (*tradeblocks.ConfirmBlock, error) {
 func (m *Transaction) GetBlock(hash string) (tradeblocks.Block, error) {
 	var tag int
 	row := m.tx.QueryRow(`SELECT tag FROM blocks WHERE hash = $1`, hash)
-	if err := row.Scan(&tag); err != nil {
+	err := row.Scan(&tag)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	if err != nil {
 		return nil, err
 	}
 	return m.getBlock(tag, hash)
