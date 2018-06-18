@@ -47,7 +47,7 @@ func (m *DB) init() (err error) {
 		previous TEXT UNIQUE,
 		representative TEXT NOT NULL CHECK (representative LIKE 'xtb:%'),
 		balance REAL NOT NULL CHECK (balance >= 0),
-		link TEXT UNIQUE,
+		link TEXT,
 		signature TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL UNIQUE,
 		FOREIGN KEY (previous) REFERENCES accounts(hash),
