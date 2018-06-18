@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/db"
 	"github.com/jephir/tradeblocks/fs"
 	"github.com/jephir/tradeblocks/web"
 	"log"
@@ -367,7 +368,11 @@ func (n *Node) confirmBlock(b tradeblocks.Block) error {
 	address := b.Address()
 	previous, err := n.store.GetConfirmHead(n.address, address)
 	if err != nil {
-		return err
+		if err == db.ErrNotFound {
+			previous = nil
+		} else {
+			return err
+		}
 	}
 	hash := b.Hash()
 	cb := tradeblocks.NewConfirmBlock(previous, n.address, address, hash)

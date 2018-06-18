@@ -87,7 +87,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					return
 				}
 				if err := s.store.AddAccountBlock(&b); err != nil {
-					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					serverError(w, "can't add account block: "+err.Error(), http.StatusBadRequest)
 					return
 				}
 				if err := json.NewEncoder(w).Encode(b); err != nil {
@@ -107,7 +107,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					return
 				}
 				if err := s.store.AddSwapBlock(&b); err != nil {
-					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					serverError(w, "can't add swap block: "+err.Error(), http.StatusBadRequest)
 					return
 				}
 				if err := json.NewEncoder(w).Encode(b); err != nil {
@@ -127,7 +127,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					return
 				}
 				if err := s.store.AddOrderBlock(&b); err != nil {
-					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					serverError(w, "can't add order block: "+err.Error(), http.StatusBadRequest)
 					return
 				}
 				if err := json.NewEncoder(w).Encode(b); err != nil {
