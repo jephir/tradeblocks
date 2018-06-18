@@ -7,6 +7,13 @@ import (
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
+const (
+	accountTag = 0
+	swapTag    = 1
+	orderTag   = 2
+	confirmTag = 3
+)
+
 type scanner interface {
 	Scan(dest ...interface{}) error
 }
@@ -96,7 +103,7 @@ func (m *DB) init() (err error) {
 		PRIMARY KEY (hash)
 		);`
 	s["createHeadsTable"] = `CREATE TABLE IF NOT EXISTS heads(
-		type INTEGER NOT NULL CHECK (type IN (0, 1, 2, 3)),
+		tag INTEGER NOT NULL CHECK (tag BETWEEN 0 AND 3),
 		account TEXT NOT NULL CHECK (account LIKE 'xtb:%'),
 		token TEXT CHECK (token LIKE 'xtb:%'),
 		id TEXT,
@@ -167,6 +174,7 @@ func (m *Transaction) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 	} else {
 		previousOrNil = nil
 	}
+	hash := b.Hash()
 	_, m.err = m.tx.Exec(`INSERT INTO accounts (
 		action,
 		account,
@@ -186,7 +194,22 @@ func (m *Transaction) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 		b.Balance,
 		b.Link,
 		b.Signature,
-		b.Hash())
+		hash)
+	if m.err != nil {
+		return m.err
+	}
+	_, m.err = m.tx.Exec(`INSERT INTO heads (
+			tag,
+			account,
+			token,
+			id,
+			head
+			) VALUES ($1, $2, $3, $4, $5)`,
+		accountTag,
+		b.Account,
+		b.Token,
+		nil,
+		hash)
 	return m.err
 }
 
@@ -280,6 +303,7 @@ func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 	} else {
 		fee = nil
 	}
+	hash := b.Hash()
 	_, m.err = m.tx.Exec(`INSERT INTO swaps (
 		action,
 		account,
@@ -313,7 +337,19 @@ func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 		executor,
 		fee,
 		b.Signature,
-		b.Hash())
+		hash)
+	_, m.err = m.tx.Exec(`INSERT INTO heads (
+			tag,
+			account,
+			token,
+			id,
+			head
+			) VALUES ($1, $2, $3, $4, $5)`,
+		swapTag,
+		b.Account,
+		nil,
+		b.ID,
+		hash)
 	return m.err
 }
 
@@ -437,6 +473,7 @@ func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 	} else {
 		fee = nil
 	}
+	hash := b.Hash()
 	_, m.err = m.tx.Exec(`INSERT INTO orders (
 		action,
 		account,
@@ -466,7 +503,19 @@ func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 		executor,
 		fee,
 		b.Signature,
-		b.Hash())
+		hash)
+	_, m.err = m.tx.Exec(`INSERT INTO heads (
+			tag,
+			account,
+			token,
+			id,
+			head
+			) VALUES ($1, $2, $3, $4, $5)`,
+		orderTag,
+		b.Account,
+		nil,
+		b.ID,
+		hash)
 	return m.err
 }
 
@@ -561,6 +610,7 @@ func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 	} else {
 		previous = nil
 	}
+	hash := b.Hash()
 	_, m.err = m.tx.Exec(`INSERT INTO confirms (
 		previous,
 		addr,
@@ -574,7 +624,19 @@ func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 		b.Head,
 		b.Account,
 		b.Signature,
-		b.Hash())
+		hash)
+	_, m.err = m.tx.Exec(`INSERT INTO heads (
+			tag,
+			account,
+			token,
+			id,
+			head
+			) VALUES ($1, $2, $3, $4, $5)`,
+		confirmTag,
+		b.Account,
+		nil,
+		b.Addr,
+		hash)
 	return m.err
 }
 
