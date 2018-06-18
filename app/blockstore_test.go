@@ -27,7 +27,10 @@ func TestBlockStore(t *testing.T) {
 	if err := s.AddAccountBlock(b); err != nil {
 		t.Fatal(err)
 	}
-	res := s.GetAccountBlock(b.Hash())
+	res, err := s.GetAccountBlock(b.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
 	ss, err := json.Marshal(res)
 	if err != nil {
 		t.Fatal(err)

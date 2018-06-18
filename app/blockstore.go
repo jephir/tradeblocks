@@ -10,8 +10,7 @@ import (
 
 // BlockStore is a concurrency-safe block store
 type BlockStore struct {
-	db  *db.DB
-	err error
+	db *db.DB
 }
 
 // NewBlockStore allocates and returns a new BlockStore
@@ -36,11 +35,6 @@ func randString(n int) string {
 		bytes[i] = alphanum[b%byte(len(alphanum))]
 	}
 	return string(bytes)
-}
-
-// Err returns the current error or nil
-func (s *BlockStore) Err() error {
-	return s.err
 }
 
 // AddAccountBlock verifies and adds the specified account block to this store
@@ -184,131 +178,83 @@ func (s *BlockStore) Blocks(f func(sequence int, b tradeblocks.Block) bool) erro
 }
 
 // Block returns the block with the specified hash or nil if it's not found
-func (s *BlockStore) Block(hash string) tradeblocks.Block {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) Block(hash string) (tradeblocks.Block, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b tradeblocks.Block
-	b, s.err = tx.GetBlock(hash)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetBlock(hash)
 }
 
 // GetAccountBlock returns the account block for the specified hash or nil if it's not found
-func (s *BlockStore) GetAccountBlock(hash string) *tradeblocks.AccountBlock {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b *tradeblocks.AccountBlock
-	b, s.err = tx.GetAccountBlock(hash)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetAccountBlock(hash)
 }
 
 // GetSwapBlock returns the swap block for the specified hash or nil if it's not found
-func (s *BlockStore) GetSwapBlock(hash string) *tradeblocks.SwapBlock {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b *tradeblocks.SwapBlock
-	b, s.err = tx.GetSwapBlock(hash)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetSwapBlock(hash)
 }
 
 // GetOrderBlock returns the order block for the specified hash or nil if it's not found
-func (s *BlockStore) GetOrderBlock(hash string) *tradeblocks.OrderBlock {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b *tradeblocks.OrderBlock
-	b, s.err = tx.GetOrderBlock(hash)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetOrderBlock(hash)
 }
 
 // GetAccountHead returns the head block for the specified account-token pair
-func (s *BlockStore) GetAccountHead(account, token string) *tradeblocks.AccountBlock {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) GetAccountHead(account, token string) (*tradeblocks.AccountBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b *tradeblocks.AccountBlock
-	b, s.err = tx.GetAccountHead(account, token)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetAccountHead(account, token)
 }
 
 // GetSwapHead returns the head block for the specified account-id pair
-func (s *BlockStore) GetSwapHead(account, id string) *tradeblocks.SwapBlock {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) GetSwapHead(account, id string) (*tradeblocks.SwapBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b *tradeblocks.SwapBlock
-	b, s.err = tx.GetSwapHead(account, id)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetSwapHead(account, id)
 }
 
 // GetOrderHead returns the head block for the specified account-id pair
-func (s *BlockStore) GetOrderHead(account, id string) *tradeblocks.OrderBlock {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) GetOrderHead(account, id string) (*tradeblocks.OrderBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b *tradeblocks.OrderBlock
-	b, s.err = tx.GetOrderHead(account, id)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetOrderHead(account, id)
 }
 
 // GetConfirmHead returns the head block for the specified account-address pair
-func (s *BlockStore) GetConfirmHead(account, address string) *tradeblocks.ConfirmBlock {
-	var tx *db.Transaction
-	tx, s.err = s.db.NewTransaction()
-	if s.err != nil {
-		return nil
+func (s *BlockStore) GetConfirmHead(account, address string) (*tradeblocks.ConfirmBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
 	}
 	defer tx.Commit()
-	var b *tradeblocks.ConfirmBlock
-	b, s.err = tx.GetConfirmHead(account, address)
-	if s.err != nil {
-		return nil
-	}
-	return b
+	return tx.GetConfirmHead(account, address)
 }
 
 // MatchOrdersForBuy returns orders that meet the specified criteria
@@ -347,6 +293,6 @@ func (s *BlockStore) MatchOrdersForSell(base string, ppu float64, quote string, 
 
 // GetVariableBlock returns a block of any block type. Used currently for receive Links
 // which can link to sendor commit swap
-func (s *BlockStore) GetVariableBlock(hash string) tradeblocks.Block {
+func (s *BlockStore) GetVariableBlock(hash string) (tradeblocks.Block, error) {
 	return s.Block(hash)
 }

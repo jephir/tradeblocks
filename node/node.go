@@ -324,7 +324,10 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 
 func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 	if b.Action == "offer" && b.Executor == n.address {
-		order := n.store.GetOrderHead(b.Counterparty, b.ID)
+		order, err := n.store.GetOrderHead(b.Counterparty, b.ID)
+		if err != nil {
+			return err
+		}
 		if order == nil {
 			return fmt.Errorf("node: no order found for '%s:%s'", b.Counterparty, b.ID)
 		}
@@ -362,7 +365,10 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 
 func (n *Node) confirmBlock(b tradeblocks.Block) error {
 	address := b.Address()
-	previous := n.store.GetConfirmHead(n.address, address)
+	previous, err := n.store.GetConfirmHead(n.address, address)
+	if err != nil {
+		return err
+	}
 	hash := b.Hash()
 	cb := tradeblocks.NewConfirmBlock(previous, n.address, address, hash)
 	if err := cb.SignBlock(n.priv); err != nil {

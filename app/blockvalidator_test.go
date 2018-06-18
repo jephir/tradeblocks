@@ -1137,7 +1137,10 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	send2 := validator.blockStore.GetAccountBlock(swap2.Right)
+	send2, err := validator.blockStore.GetAccountBlock(swap2.Right)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if send2 == nil {
 		t.Fatal("Block not found")
 	}
@@ -1161,7 +1164,10 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	send2 = validator.blockStore.GetAccountBlock(swap2.Right)
+	send2, err = validator.blockStore.GetAccountBlock(swap2.Right)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if send2 == nil {
 		t.Fatal("Block not found")
 	}

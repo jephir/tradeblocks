@@ -84,7 +84,10 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	}
 
 	// check if the block referenced exists, get it if it does
-	link := blockStore.GetVariableBlock(block.Link)
+	link, err := blockStore.GetVariableBlock(block.Link)
+	if err != nil {
+		return err
+	}
 	if link == nil {
 		return errors.New("link field references invalid block")
 	}
@@ -281,7 +284,10 @@ func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlo
 	}
 
 	// check if the block referenced exists, get it if it does
-	link := blockStore.GetVariableBlock(block.Link)
+	link, err := blockStore.GetVariableBlock(block.Link)
+	if err != nil {
+		return err
+	}
 	if link == nil {
 		return errors.New("link field references invalid block")
 	}
@@ -811,7 +817,10 @@ func addressToRsaKey(hash string) (*rsa.PublicKey, error) {
 
 func getAndVerifyAccount(hash string, chain *BlockStore) (*tb.AccountBlock, error) {
 	// check if the previous block exists
-	block := chain.GetAccountBlock(hash)
+	block, err := chain.GetAccountBlock(hash)
+	if err != nil {
+		return nil, err
+	}
 	if block == nil {
 		return nil, errors.New("Getting block failed for hash: " + hash)
 	}
@@ -831,7 +840,10 @@ func getAndVerifyAccount(hash string, chain *BlockStore) (*tb.AccountBlock, erro
 
 func getAndVerifySwap(hash string, chain *BlockStore) (*tb.SwapBlock, error) {
 	// check if the previous block exists
-	block := chain.GetSwapBlock(hash)
+	block, err := chain.GetSwapBlock(hash)
+	if err != nil {
+		return nil, err
+	}
 	if block == nil {
 		return nil, errors.New("Getting block failed for hash: " + hash)
 	}
@@ -861,7 +873,10 @@ func getAndVerifySwap(hash string, chain *BlockStore) (*tb.SwapBlock, error) {
 func getAndVerifySwapByLink(link string, chain *BlockStore) (*tb.SwapBlock, error) {
 	// check if the previous block exists
 	account, id := tb.SwapAddressAccountID(link)
-	block := chain.GetSwapHead(account, id)
+	block, err := chain.GetSwapHead(account, id)
+	if err != nil {
+		return nil, err
+	}
 	if block == nil {
 		return nil, errors.New("Getting block failed for address: " + link)
 	}
@@ -871,7 +886,10 @@ func getAndVerifySwapByLink(link string, chain *BlockStore) (*tb.SwapBlock, erro
 
 func getAndVerifyOrder(hash string, chain *BlockStore) (*tb.OrderBlock, error) {
 	// check if the previous block exists
-	block := chain.GetOrderBlock(hash)
+	block, err := chain.GetOrderBlock(hash)
+	if err != nil {
+		return nil, err
+	}
 	if block == nil {
 		return nil, errors.New("Getting block failed for hash: " + hash)
 	}
