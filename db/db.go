@@ -7,6 +7,10 @@ import (
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
+type scanner interface {
+	Scan(dest ...interface{}) error
+}
+
 // DB represents a database
 type DB struct {
 	db *sql.DB
@@ -152,10 +156,35 @@ func (m *DB) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 	return err
 }
 
+// GetAccountBlocks gets all account blocks
+func (m *DB) GetAccountBlocks() ([]*tradeblocks.AccountBlock, error) {
+	rows, err := m.db.Query(`SELECT
+		action,
+		account,
+		token,
+		previous,
+		representative,
+		balance,
+		link,
+		signature
+		FROM accounts`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []*tradeblocks.AccountBlock
+	for rows.Next() {
+		b, err := scanAccount(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, b)
+	}
+	return result, rows.Err()
+}
+
 // GetAccountBlock gets a block with the specified parameters
 func (m *DB) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	var b tradeblocks.AccountBlock
-	var previous sql.NullString
 	row := m.db.QueryRow(`SELECT
 		action,
 		account,
@@ -166,7 +195,13 @@ func (m *DB) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
 		link,
 		signature
 		FROM accounts WHERE hash = $1`, hash)
-	err := row.Scan(&b.Action, &b.Account, &b.Token, &previous, &b.Representative, &b.Balance, &b.Link, &b.Signature)
+	return scanAccount(row)
+}
+
+func scanAccount(s scanner) (*tradeblocks.AccountBlock, error) {
+	var b tradeblocks.AccountBlock
+	var previous sql.NullString
+	err := s.Scan(&b.Action, &b.Account, &b.Token, &previous, &b.Representative, &b.Balance, &b.Link, &b.Signature)
 	if previous.Valid {
 		b.Previous = previous.String
 	}
@@ -250,13 +285,6 @@ func (m *DB) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 
 // GetSwapBlock gets a block with the specified parameters
 func (m *DB) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
-	var b tradeblocks.SwapBlock
-	var previous sql.NullString
-	var right sql.NullString
-	var refundLeft sql.NullString
-	var refundRight sql.NullString
-	var executor sql.NullString
-	var fee sql.NullFloat64
 	row := m.db.QueryRow(`SELECT
 		action,
 		account,
@@ -274,7 +302,52 @@ func (m *DB) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
 		fee,
 		signature
 		FROM swaps WHERE hash = $1`, hash)
-	err := row.Scan(&b.Action,
+	return scanSwap(row)
+}
+
+// GetSwapBlocks gets all swap blocks
+func (m *DB) GetSwapBlocks() ([]*tradeblocks.SwapBlock, error) {
+	rows, err := m.db.Query(`SELECT
+		action,
+		account,
+		token,
+		id,
+		previous,
+		left,
+		right,
+		refund_left,
+		refund_right,
+		counterparty,
+		want,
+		quantity,
+		executor,
+		fee,
+		signature
+		FROM swaps`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []*tradeblocks.SwapBlock
+	for rows.Next() {
+		b, err := scanSwap(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, b)
+	}
+	return result, rows.Err()
+}
+
+func scanSwap(s scanner) (*tradeblocks.SwapBlock, error) {
+	var b tradeblocks.SwapBlock
+	var previous sql.NullString
+	var right sql.NullString
+	var refundLeft sql.NullString
+	var refundRight sql.NullString
+	var executor sql.NullString
+	var fee sql.NullFloat64
+	err := s.Scan(&b.Action,
 		&b.Account,
 		&b.Token,
 		&b.ID,
@@ -365,10 +438,6 @@ func (m *DB) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 
 // GetOrderBlock gets a block with the specified parameters
 func (m *DB) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
-	var b tradeblocks.OrderBlock
-	var previous sql.NullString
-	var executor sql.NullString
-	var fee sql.NullFloat64
 	row := m.db.QueryRow(`SELECT
 		action,
 		account,
@@ -384,7 +453,47 @@ func (m *DB) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
 		fee,
 		signature
 		FROM orders WHERE hash = $1`, hash)
-	err := row.Scan(
+	return scanOrder(row)
+}
+
+// GetOrderBlocks gets all order blocks
+func (m *DB) GetOrderBlocks() ([]*tradeblocks.OrderBlock, error) {
+	rows, err := m.db.Query(`SELECT
+		action,
+		account,
+		token,
+		id,
+		previous,
+		balance,
+		quote,
+		price,
+		link,
+		partial,
+		executor,
+		fee,
+		signature
+		FROM orders`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []*tradeblocks.OrderBlock
+	for rows.Next() {
+		b, err := scanOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, b)
+	}
+	return result, rows.Err()
+}
+
+func scanOrder(s scanner) (*tradeblocks.OrderBlock, error) {
+	var b tradeblocks.OrderBlock
+	var previous sql.NullString
+	var executor sql.NullString
+	var fee sql.NullFloat64
+	err := s.Scan(
 		&b.Action,
 		&b.Account,
 		&b.Token,
@@ -437,8 +546,6 @@ func (m *DB) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 
 // GetConfirmBlock gets a block with the specified parameters
 func (m *DB) GetConfirmBlock(hash string) (*tradeblocks.ConfirmBlock, error) {
-	var b tradeblocks.ConfirmBlock
-	var previous sql.NullString
 	row := m.db.QueryRow(`SELECT
 		previous,
 		addr,
@@ -446,7 +553,37 @@ func (m *DB) GetConfirmBlock(hash string) (*tradeblocks.ConfirmBlock, error) {
 		account,
 		signature
 		FROM confirms WHERE hash = $1`, hash)
-	err := row.Scan(
+	return scanConfirm(row)
+}
+
+// GetConfirmBlocks gets all confirm blocks
+func (m *DB) GetConfirmBlocks() ([]*tradeblocks.ConfirmBlock, error) {
+	rows, err := m.db.Query(`SELECT
+		previous,
+		addr,
+		head,
+		account,
+		signature
+		FROM confirms`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []*tradeblocks.ConfirmBlock
+	for rows.Next() {
+		b, err := scanConfirm(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, b)
+	}
+	return result, rows.Err()
+}
+
+func scanConfirm(s scanner) (*tradeblocks.ConfirmBlock, error) {
+	var b tradeblocks.ConfirmBlock
+	var previous sql.NullString
+	err := s.Scan(
 		&previous,
 		&b.Addr,
 		&b.Head,
