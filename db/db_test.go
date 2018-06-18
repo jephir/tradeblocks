@@ -32,11 +32,21 @@ func TestInsertAccountBlock(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	dataSourceName := f.Name()
-	db, err := NewDB(dataSourceName)
+	d, err := NewDB(dataSourceName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer d.Close()
+
+	db, err := d.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := db.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	b := tradeblocks.NewIssueBlock("xtb:test", 500)
 	if err := db.InsertAccountBlock(b); err != nil {
@@ -60,11 +70,21 @@ func TestInsertSwapBlock(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	dataSourceName := f.Name()
-	db, err := NewDB(dataSourceName)
+	d, err := NewDB(dataSourceName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer d.Close()
+
+	db, err := d.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := db.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	issue := tradeblocks.NewIssueBlock("xtb:issuer", 100)
 	send := tradeblocks.NewSendBlock(issue, "xtb:test", 100)
@@ -90,11 +110,21 @@ func TestInsertOrderBlock(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	dataSourceName := f.Name()
-	db, err := NewDB(dataSourceName)
+	d, err := NewDB(dataSourceName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer d.Close()
+
+	db, err := d.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := db.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	issue := tradeblocks.NewIssueBlock("xtb:issuer", 100)
 	send := tradeblocks.NewSendBlock(issue, "xtb:test", 100)
@@ -120,11 +150,21 @@ func TestInsertConfirmBlock(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	dataSourceName := f.Name()
-	db, err := NewDB(dataSourceName)
+	d, err := NewDB(dataSourceName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer d.Close()
+
+	db, err := d.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := db.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	b := tradeblocks.NewConfirmBlock(nil, "xtb:test", "xtb:addr", "123abc")
 	if err := db.InsertConfirmBlock(b); err != nil {

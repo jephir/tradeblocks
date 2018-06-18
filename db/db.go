@@ -95,7 +95,13 @@ func (m *DB) init() (err error) {
 		FOREIGN KEY (previous) REFERENCES confirms(hash),
 		PRIMARY KEY (hash)
 		);`
-
+	s["createHeadsTable"] = `CREATE TABLE IF NOT EXISTS heads(
+		type INTEGER NOT NULL CHECK (type IN (0, 1, 2, 3)),
+		account TEXT NOT NULL CHECK (account LIKE 'xtb:%'),
+		token TEXT CHECK (token LIKE 'xtb:%'),
+		id TEXT,
+		head TEXT NOT NULL
+		);`
 	tx, err := m.db.Begin()
 	if err != nil {
 		return err
@@ -125,15 +131,43 @@ func (m *DB) Close() error {
 	return m.db.Close()
 }
 
+// NewTransaction initializes a new transaction. It must be finished with a call to Commit().
+func (m *DB) NewTransaction() (*Transaction, error) {
+	tx, err := m.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &Transaction{
+		tx: tx,
+	}, nil
+}
+
+// Transaction represents a database transaction
+type Transaction struct {
+	tx  *sql.Tx
+	err error
+}
+
+// Commit commits the transaction or does a rollback if there's an error
+func (m *Transaction) Commit() error {
+	if m.err != nil {
+		if err := m.tx.Rollback(); err != nil {
+			fmt.Printf("db: error doing rollback: %s", err.Error())
+		}
+		return m.err
+	}
+	return m.tx.Commit()
+}
+
 // InsertAccountBlock inserts the specified block into the database
-func (m *DB) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
+func (m *Transaction) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 	var previousOrNil interface{}
 	if b.Previous != "" {
 		previousOrNil = b.Previous
 	} else {
 		previousOrNil = nil
 	}
-	_, err := m.db.Exec(`INSERT INTO accounts (
+	_, m.err = m.tx.Exec(`INSERT INTO accounts (
 		action,
 		account,
 		token,
@@ -153,12 +187,12 @@ func (m *DB) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 		b.Link,
 		b.Signature,
 		b.Hash())
-	return err
+	return m.err
 }
 
 // GetAccountBlocks gets all account blocks
-func (m *DB) GetAccountBlocks() ([]*tradeblocks.AccountBlock, error) {
-	rows, err := m.db.Query(`SELECT
+func (m *Transaction) GetAccountBlocks() ([]*tradeblocks.AccountBlock, error) {
+	rows, err := m.tx.Query(`SELECT
 		action,
 		account,
 		token,
@@ -184,10 +218,10 @@ func (m *DB) GetAccountBlocks() ([]*tradeblocks.AccountBlock, error) {
 }
 
 // GetAccountBlock gets a block with the specified parameters
-func (m *DB) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
-	row := m.db.QueryRow(`SELECT
+func (m *Transaction) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
+	row := m.tx.QueryRow(`SELECT
 		action,
-		account,
+		account, 
 		token,
 		previous,
 		representative,
@@ -209,7 +243,7 @@ func scanAccount(s scanner) (*tradeblocks.AccountBlock, error) {
 }
 
 // InsertSwapBlock inserts the specified block into the database
-func (m *DB) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
+func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 	var previous interface{}
 	if b.Previous != "" {
 		previous = b.Previous
@@ -246,7 +280,7 @@ func (m *DB) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 	} else {
 		fee = nil
 	}
-	_, err := m.db.Exec(`INSERT INTO swaps (
+	_, m.err = m.tx.Exec(`INSERT INTO swaps (
 		action,
 		account,
 		token,
@@ -280,12 +314,12 @@ func (m *DB) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 		fee,
 		b.Signature,
 		b.Hash())
-	return err
+	return m.err
 }
 
 // GetSwapBlock gets a block with the specified parameters
-func (m *DB) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
-	row := m.db.QueryRow(`SELECT
+func (m *Transaction) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
+	row := m.tx.QueryRow(`SELECT
 		action,
 		account,
 		token,
@@ -306,8 +340,8 @@ func (m *DB) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
 }
 
 // GetSwapBlocks gets all swap blocks
-func (m *DB) GetSwapBlocks() ([]*tradeblocks.SwapBlock, error) {
-	rows, err := m.db.Query(`SELECT
+func (m *Transaction) GetSwapBlocks() ([]*tradeblocks.SwapBlock, error) {
+	rows, err := m.tx.Query(`SELECT
 		action,
 		account,
 		token,
@@ -384,7 +418,7 @@ func scanSwap(s scanner) (*tradeblocks.SwapBlock, error) {
 }
 
 // InsertOrderBlock inserts the specified block into the database
-func (m *DB) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
+func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 	var previous interface{}
 	if b.Previous != "" {
 		previous = b.Previous
@@ -403,7 +437,7 @@ func (m *DB) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 	} else {
 		fee = nil
 	}
-	_, err := m.db.Exec(`INSERT INTO orders (
+	_, m.err = m.tx.Exec(`INSERT INTO orders (
 		action,
 		account,
 		token,
@@ -433,12 +467,12 @@ func (m *DB) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 		fee,
 		b.Signature,
 		b.Hash())
-	return err
+	return m.err
 }
 
 // GetOrderBlock gets a block with the specified parameters
-func (m *DB) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
-	row := m.db.QueryRow(`SELECT
+func (m *Transaction) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
+	row := m.tx.QueryRow(`SELECT
 		action,
 		account,
 		token,
@@ -457,8 +491,8 @@ func (m *DB) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
 }
 
 // GetOrderBlocks gets all order blocks
-func (m *DB) GetOrderBlocks() ([]*tradeblocks.OrderBlock, error) {
-	rows, err := m.db.Query(`SELECT
+func (m *Transaction) GetOrderBlocks() ([]*tradeblocks.OrderBlock, error) {
+	rows, err := m.tx.Query(`SELECT
 		action,
 		account,
 		token,
@@ -520,14 +554,14 @@ func scanOrder(s scanner) (*tradeblocks.OrderBlock, error) {
 }
 
 // InsertConfirmBlock inserts the specified block into the database
-func (m *DB) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
+func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 	var previous interface{}
 	if b.Previous != "" {
 		previous = b.Previous
 	} else {
 		previous = nil
 	}
-	_, err := m.db.Exec(`INSERT INTO confirms (
+	_, m.err = m.tx.Exec(`INSERT INTO confirms (
 		previous,
 		addr,
 		head,
@@ -541,12 +575,12 @@ func (m *DB) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 		b.Account,
 		b.Signature,
 		b.Hash())
-	return err
+	return m.err
 }
 
 // GetConfirmBlock gets a block with the specified parameters
-func (m *DB) GetConfirmBlock(hash string) (*tradeblocks.ConfirmBlock, error) {
-	row := m.db.QueryRow(`SELECT
+func (m *Transaction) GetConfirmBlock(hash string) (*tradeblocks.ConfirmBlock, error) {
+	row := m.tx.QueryRow(`SELECT
 		previous,
 		addr,
 		head,
@@ -557,8 +591,8 @@ func (m *DB) GetConfirmBlock(hash string) (*tradeblocks.ConfirmBlock, error) {
 }
 
 // GetConfirmBlocks gets all confirm blocks
-func (m *DB) GetConfirmBlocks() ([]*tradeblocks.ConfirmBlock, error) {
-	rows, err := m.db.Query(`SELECT
+func (m *Transaction) GetConfirmBlocks() ([]*tradeblocks.ConfirmBlock, error) {
+	rows, err := m.tx.Query(`SELECT
 		previous,
 		addr,
 		head,
