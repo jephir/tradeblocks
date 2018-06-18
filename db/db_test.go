@@ -60,6 +60,14 @@ func TestInsertAccountBlock(t *testing.T) {
 	if err := b.Equals(check); err != nil {
 		t.Fatal(err)
 	}
+
+	head, err := db.GetAccountHead(b.Account, b.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Equals(head); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestInsertSwapBlock(t *testing.T) {
@@ -99,6 +107,14 @@ func TestInsertSwapBlock(t *testing.T) {
 	}
 	if b.Hash() != check.Hash() {
 		t.Fatalf("block not found")
+	}
+
+	head, err := db.GetSwapHead(b.Account, b.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Hash() != head.Hash() {
+		t.Fatal(err)
 	}
 }
 
@@ -140,6 +156,14 @@ func TestInsertOrderBlock(t *testing.T) {
 	if b.Hash() != check.Hash() {
 		t.Fatalf("block not found")
 	}
+
+	head, err := db.GetOrderHead(b.Account, b.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Hash() != head.Hash() {
+		t.Fatal(err)
+	}
 }
 
 func TestInsertConfirmBlock(t *testing.T) {
@@ -177,5 +201,13 @@ func TestInsertConfirmBlock(t *testing.T) {
 	}
 	if b.Hash() != check.Hash() {
 		t.Fatalf("block not found")
+	}
+
+	head, err := db.GetConfirmHead(b.Account, b.Addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Hash() != head.Hash() {
+		t.Fatal(err)
 	}
 }

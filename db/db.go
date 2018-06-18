@@ -267,6 +267,23 @@ func (m *Transaction) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, e
 	return scanAccount(row)
 }
 
+// GetAccountHead gets the head block for the specified parameters
+func (m *Transaction) GetAccountHead(account, token string) (*tradeblocks.AccountBlock, error) {
+	row := m.tx.QueryRow(`SELECT
+		action,
+		account, 
+		token,
+		previous,
+		representative,
+		balance,
+		link,
+		signature
+		FROM accounts WHERE hash = (
+			SELECT hash FROM heads WHERE account = $1 AND key = $2
+		)`, account, token)
+	return scanAccount(row)
+}
+
 func scanAccount(s scanner) (*tradeblocks.AccountBlock, error) {
 	var b tradeblocks.AccountBlock
 	var previous sql.NullString
@@ -425,6 +442,30 @@ func (m *Transaction) GetSwapBlocks() ([]*tradeblocks.SwapBlock, error) {
 		result = append(result, b)
 	}
 	return result, rows.Err()
+}
+
+// GetSwapHead gets the head block for the specified parameters
+func (m *Transaction) GetSwapHead(account, id string) (*tradeblocks.SwapBlock, error) {
+	row := m.tx.QueryRow(`SELECT
+		action,
+		account,
+		token,
+		id,
+		previous,
+		left,
+		right,
+		refund_left,
+		refund_right,
+		counterparty,
+		want,
+		quantity,
+		executor,
+		fee,
+		signature
+		FROM swaps WHERE hash = (
+			SELECT hash FROM heads WHERE account = $1 AND key = $2
+		)`, account, id)
+	return scanSwap(row)
 }
 
 func scanSwap(s scanner) (*tradeblocks.SwapBlock, error) {
@@ -595,6 +636,28 @@ func (m *Transaction) GetOrderBlocks() ([]*tradeblocks.OrderBlock, error) {
 	return result, rows.Err()
 }
 
+// GetOrderHead gets the head block for the specified parameters
+func (m *Transaction) GetOrderHead(account, id string) (*tradeblocks.OrderBlock, error) {
+	row := m.tx.QueryRow(`SELECT
+		action,
+		account,
+		token,
+		id,
+		previous,
+		balance,
+		quote,
+		price,
+		link,
+		partial,
+		executor,
+		fee,
+		signature
+		FROM orders WHERE hash = (
+			SELECT hash FROM heads WHERE account = $1 AND key = $2
+		)`, account, id)
+	return scanOrder(row)
+}
+
 func scanOrder(s scanner) (*tradeblocks.OrderBlock, error) {
 	var b tradeblocks.OrderBlock
 	var previous sql.NullString
@@ -704,6 +767,20 @@ func (m *Transaction) GetConfirmBlocks() ([]*tradeblocks.ConfirmBlock, error) {
 		result = append(result, b)
 	}
 	return result, rows.Err()
+}
+
+// GetConfirmHead gets the head block for the specified parameters
+func (m *Transaction) GetConfirmHead(account, addr string) (*tradeblocks.ConfirmBlock, error) {
+	row := m.tx.QueryRow(`SELECT
+		previous,
+		addr,
+		head,
+		account,
+		signature
+		FROM confirms WHERE hash = (
+			SELECT hash FROM heads WHERE account = $1 AND key = $2
+		)`, account, addr)
+	return scanConfirm(row)
 }
 
 func scanConfirm(s scanner) (*tradeblocks.ConfirmBlock, error) {
