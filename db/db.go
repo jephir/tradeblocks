@@ -204,6 +204,13 @@ func (m *Transaction) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 	if m.err != nil {
 		return m.err
 	}
+	_, m.err = m.tx.Exec(`INSERT INTO blocks (
+		tag,
+		hash
+		) VALUES ($1, $2)`, accountTag, hash)
+	if m.err != nil {
+		return m.err
+	}
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
@@ -343,6 +350,13 @@ func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 		fee,
 		b.Signature,
 		hash)
+	_, m.err = m.tx.Exec(`INSERT INTO blocks (
+			tag,
+			hash
+			) VALUES ($1, $2)`, swapTag, hash)
+	if m.err != nil {
+		return m.err
+	}
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
@@ -508,6 +522,13 @@ func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 		fee,
 		b.Signature,
 		hash)
+	_, m.err = m.tx.Exec(`INSERT INTO blocks (
+			tag,
+			hash
+			) VALUES ($1, $2)`, orderTag, hash)
+	if m.err != nil {
+		return m.err
+	}
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
@@ -628,6 +649,13 @@ func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 		b.Account,
 		b.Signature,
 		hash)
+	_, m.err = m.tx.Exec(`INSERT INTO blocks (
+			tag,
+			hash
+			) VALUES ($1, $2)`, confirmTag, hash)
+	if m.err != nil {
+		return m.err
+	}
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
