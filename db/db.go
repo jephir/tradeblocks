@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/app"
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
@@ -102,12 +103,17 @@ func (m *DB) init() (err error) {
 		FOREIGN KEY (previous) REFERENCES confirms(hash),
 		PRIMARY KEY (hash)
 		);`
+	s["createBlocksTable"] = `CREATE TABLE IF NOT EXISTS blocks(
+		tag INTEGER NOT NULL CHECK (tag BETWEEN 0 AND 3),
+		hash TEXT NOT NULL,
+		PRIMARY KEY (hash)
+		);`
 	s["createHeadsTable"] = `CREATE TABLE IF NOT EXISTS heads(
 		tag INTEGER NOT NULL CHECK (tag BETWEEN 0 AND 3),
 		account TEXT NOT NULL CHECK (account LIKE 'xtb:%'),
-		token TEXT CHECK (token LIKE 'xtb:%'),
-		id TEXT,
-		head TEXT NOT NULL
+		key TEXT NOT NULL,
+		head TEXT NOT NULL,
+		PRIMARY KEY (tag, account, key)
 		);`
 	tx, err := m.db.Begin()
 	if err != nil {
@@ -201,14 +207,13 @@ func (m *Transaction) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
-			token,
-			id,
+			key,
 			head
-			) VALUES ($1, $2, $3, $4, $5)`,
+			) VALUES ($1, $2, $3, $4)
+				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
 		accountTag,
 		b.Account,
 		b.Token,
-		nil,
 		hash)
 	return m.err
 }
@@ -341,13 +346,12 @@ func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
-			token,
-			id,
+			key,
 			head
-			) VALUES ($1, $2, $3, $4, $5)`,
+			) VALUES ($1, $2, $3, $4)
+				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
 		swapTag,
 		b.Account,
-		nil,
 		b.ID,
 		hash)
 	return m.err
@@ -507,13 +511,12 @@ func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
-			token,
-			id,
+			key,
 			head
-			) VALUES ($1, $2, $3, $4, $5)`,
+			) VALUES ($1, $2, $3, $4)
+				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
 		orderTag,
 		b.Account,
-		nil,
 		b.ID,
 		hash)
 	return m.err
@@ -628,13 +631,12 @@ func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO heads (
 			tag,
 			account,
-			token,
-			id,
+			key,
 			head
-			) VALUES ($1, $2, $3, $4, $5)`,
+			) VALUES ($1, $2, $3, $4)
+				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
 		confirmTag,
 		b.Account,
-		nil,
 		b.Addr,
 		hash)
 	return m.err
@@ -689,4 +691,52 @@ func scanConfirm(s scanner) (*tradeblocks.ConfirmBlock, error) {
 		b.Previous = previous.String
 	}
 	return &b, err
+}
+
+// GetBlock returns a block by hash
+func (m *Transaction) GetBlock(hash string) (*app.TypedBlock, error) {
+	var tag int
+	row := m.tx.QueryRow(`SELECT tag FROM blocks WHERE hash = $1`, hash)
+	if err := row.Scan(&tag); err != nil {
+		return nil, err
+	}
+	switch tag {
+	case accountTag:
+		b, err := m.GetAccountBlock(hash)
+		if err != nil {
+			return nil, err
+		}
+		return &app.TypedBlock{
+			AccountBlock: b,
+			T:            "account",
+		}, nil
+	case swapTag:
+		b, err := m.GetSwapBlock(hash)
+		if err != nil {
+			return nil, err
+		}
+		return &app.TypedBlock{
+			SwapBlock: b,
+			T:         "swap",
+		}, nil
+	case orderTag:
+		b, err := m.GetOrderBlock(hash)
+		if err != nil {
+			return nil, err
+		}
+		return &app.TypedBlock{
+			OrderBlock: b,
+			T:          "order",
+		}, nil
+	case confirmTag:
+		b, err := m.GetConfirmBlock(hash)
+		if err != nil {
+			return nil, err
+		}
+		return &app.TypedBlock{
+			ConfirmBlock: b,
+			T:            "confirm",
+		}, nil
+	}
+	return nil, fmt.Errorf("db: unknown tag %d for hash %s", tag, hash)
 }
