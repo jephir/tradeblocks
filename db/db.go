@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/app"
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
@@ -157,19 +156,26 @@ func (m *DB) NewTransaction() (*Transaction, error) {
 
 // Transaction represents a database transaction
 type Transaction struct {
-	tx  *sql.Tx
-	err error
+	tx     *sql.Tx
+	err    error
+	closed bool
 }
 
 // Commit commits the transaction or does a rollback if there's an error
 func (m *Transaction) Commit() error {
+	if m.closed {
+		return nil
+	}
 	if m.err != nil {
 		if err := m.tx.Rollback(); err != nil {
 			fmt.Printf("db: error doing rollback: %s", err.Error())
 		}
+		m.closed = true
 		return m.err
 	}
-	return m.tx.Commit()
+	err := m.tx.Commit()
+	m.closed = true
+	return err
 }
 
 // InsertAccountBlock inserts the specified block into the database
@@ -835,49 +841,50 @@ func scanConfirm(s scanner) (*tradeblocks.ConfirmBlock, error) {
 }
 
 // GetBlock returns a block by hash
-func (m *Transaction) GetBlock(hash string) (*app.TypedBlock, error) {
+func (m *Transaction) GetBlock(hash string) (tradeblocks.Block, error) {
 	var tag int
 	row := m.tx.QueryRow(`SELECT tag FROM blocks WHERE hash = $1`, hash)
 	if err := row.Scan(&tag); err != nil {
 		return nil, err
 	}
+	return m.getBlock(tag, hash)
+}
+
+// GetBlocks returns all blocks
+func (m *Transaction) GetBlocks() ([]tradeblocks.Block, error) {
+	// TODO Don't do m*n query
+	fmt.Println("db: GetBlocks is currently an expensive call")
+	rows, err := m.tx.Query(`SELECT tag, hash FROM blocks`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []tradeblocks.Block
+	for rows.Next() {
+		var tag int
+		var hash string
+		if err := rows.Scan(&tag, &hash); err != nil {
+			return nil, err
+		}
+		b, err := m.getBlock(tag, hash)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, b)
+	}
+	return result, rows.Err()
+}
+
+func (m *Transaction) getBlock(tag int, hash string) (tradeblocks.Block, error) {
 	switch tag {
 	case accountTag:
-		b, err := m.GetAccountBlock(hash)
-		if err != nil {
-			return nil, err
-		}
-		return &app.TypedBlock{
-			AccountBlock: b,
-			T:            "account",
-		}, nil
+		return m.GetAccountBlock(hash)
 	case swapTag:
-		b, err := m.GetSwapBlock(hash)
-		if err != nil {
-			return nil, err
-		}
-		return &app.TypedBlock{
-			SwapBlock: b,
-			T:         "swap",
-		}, nil
+		return m.GetSwapBlock(hash)
 	case orderTag:
-		b, err := m.GetOrderBlock(hash)
-		if err != nil {
-			return nil, err
-		}
-		return &app.TypedBlock{
-			OrderBlock: b,
-			T:          "order",
-		}, nil
+		return m.GetOrderBlock(hash)
 	case confirmTag:
-		b, err := m.GetConfirmBlock(hash)
-		if err != nil {
-			return nil, err
-		}
-		return &app.TypedBlock{
-			ConfirmBlock: b,
-			T:            "confirm",
-		}, nil
+		return m.GetConfirmBlock(hash)
 	}
 	return nil, fmt.Errorf("db: unknown tag %d for hash %s", tag, hash)
 }
