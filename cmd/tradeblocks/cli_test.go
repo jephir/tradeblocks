@@ -210,5 +210,5 @@ func (x *executor) exec(cmd ...string) string {
 	if err := x.c.dispatch(cmd); err != nil {
 		x.t.Fatalf("%s: %s", strings.Join(cmd, " "), err.Error())
 	}
-	return output.String()
+	return strings.TrimSpace(output.String())
 }

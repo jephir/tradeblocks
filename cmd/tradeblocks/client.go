@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,6 +19,12 @@ import (
 	"github.com/jephir/tradeblocks/app"
 	"github.com/jephir/tradeblocks/web"
 )
+
+var verifyLocalSigning = flag.Bool("verifylocalsigning", true, "verify signing of local blocks before sending to node")
+
+func init() {
+	flag.Parse()
+}
 
 type client struct {
 	dir     string
@@ -116,7 +123,7 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 	// create the send block
 	send, err := c.signAccount(tradeblocks.NewSendBlock(previous, to, amount))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error creating send: %s", err.Error())
 	}
 
 	if err := c.postAccountBlock(send); err != nil {
@@ -449,7 +456,7 @@ func (c *client) sell(quantity float64, base string, ppu float64, quote string) 
 
 	send, err := c.send(link, base, quantity)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error creating send for sell: %s", err.Error())
 	}
 
 	r, err := c.api.NewGetAddressRequest()
@@ -720,7 +727,19 @@ func (c *client) signAccount(b *tradeblocks.AccountBlock) (*tradeblocks.AccountB
 		return nil, err
 	}
 	b.Normalize()
-	return b, b.SignBlock(priv)
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	if *verifyLocalSigning {
+		pub, err := app.AddressToRSAKey(b.Account)
+		if err != nil {
+			return nil, err
+		}
+		if err := b.VerifyBlock(pub); err != nil {
+			return nil, fmt.Errorf("client: verification error: %s", err.Error())
+		}
+	}
+	return b, nil
 }
 
 func (c *client) signSwap(b *tradeblocks.SwapBlock) (*tradeblocks.SwapBlock, error) {
@@ -729,7 +748,19 @@ func (c *client) signSwap(b *tradeblocks.SwapBlock) (*tradeblocks.SwapBlock, err
 		return nil, err
 	}
 	b.Normalize()
-	return b, b.SignBlock(priv)
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	if *verifyLocalSigning {
+		pub, err := app.AddressToRSAKey(b.Account)
+		if err != nil {
+			return nil, err
+		}
+		if err := b.VerifyBlock(pub); err != nil {
+			return nil, fmt.Errorf("client: verification error: %s", err.Error())
+		}
+	}
+	return b, nil
 }
 
 func (c *client) signOrder(b *tradeblocks.OrderBlock) (*tradeblocks.OrderBlock, error) {
@@ -738,7 +769,19 @@ func (c *client) signOrder(b *tradeblocks.OrderBlock) (*tradeblocks.OrderBlock, 
 		return nil, err
 	}
 	b.Normalize()
-	return b, b.SignBlock(priv)
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	if *verifyLocalSigning {
+		pub, err := app.AddressToRSAKey(b.Account)
+		if err != nil {
+			return nil, err
+		}
+		if err := b.VerifyBlock(pub); err != nil {
+			return nil, fmt.Errorf("client: verification error: %s", err.Error())
+		}
+	}
+	return b, nil
 }
 
 func (c *client) getPrivateKey() (*rsa.PrivateKey, error) {
