@@ -69,7 +69,7 @@ func (cli *cli) dispatch(args []string) error {
 		} else {
 			cmd.badInputs("send", addInfo)
 		}
-	case "open-from-send":
+	case "open":
 		goodInputs, addInfo := openFromSendInputValidation(args)
 		if goodInputs {
 			block, err = cmd.openFromSend(args[2])
