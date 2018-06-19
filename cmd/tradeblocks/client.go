@@ -115,9 +115,9 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 		return nil, err
 	}
 
-	previous, err := c.getHeadBlock(account, token)
+	previous, err := c.getAccountHeadBlock(account, token)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for send: %s", err.Error())
 	}
 
 	// create the send block
@@ -172,7 +172,7 @@ func (c *client) openFromSwap(link string) (*tradeblocks.AccountBlock, error) {
 	// get the linked send
 	swap, err := c.getSwapBlock(link)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for openFromSwap: %s", err.Error())
 	}
 
 	var send *tradeblocks.AccountBlock
@@ -226,9 +226,9 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 	amount := sendParent.Balance - send.Balance
 
 	// get the previous block on this chain
-	previous, err := c.getHeadBlock(account, send.Token)
+	previous, err := c.getAccountHeadBlock(account, send.Token)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for receive: %s", err.Error())
 	}
 
 	// create the receive
@@ -279,7 +279,7 @@ func (c *client) commit(offer string, send string) (*tradeblocks.SwapBlock, erro
 	// get the original offer block
 	offerBlock, err := c.getSwapBlock(offer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for commit: %s", err.Error())
 	}
 
 	// create the commit
@@ -295,7 +295,7 @@ func (c *client) refundLeft(offer string) (*tradeblocks.SwapBlock, error) {
 	// get the original offer block
 	offerBlock, err := c.getSwapBlock(offer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for refundLeft: %s", err.Error())
 	}
 
 	// get the original send
@@ -324,7 +324,7 @@ func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) 
 	// get the original offer block
 	refundLeftBlock, err := c.getSwapBlock(refundLeft)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for refundRight: %s", err.Error())
 	}
 
 	// get the counterparty send
@@ -397,7 +397,7 @@ func (c *client) acceptOrder(swap string, link string) (*tradeblocks.OrderBlock,
 	// get the swap by address
 	swapBlock, err := c.getSwapBlock(swap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for acceptOrder: %s", err.Error())
 	}
 
 	// balance of the order
@@ -562,7 +562,7 @@ func openPrivateKey() (*os.File, error) {
 	return os.Open(string(user) + ".pem")
 }
 
-func (c *client) getHeadBlock(address, token string) (*tradeblocks.AccountBlock, error) {
+func (c *client) getAccountHeadBlock(address, token string) (*tradeblocks.AccountBlock, error) {
 	r, err := c.api.NewGetAccountHeadRequest(address, token)
 	if err != nil {
 		return nil, err
