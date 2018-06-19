@@ -2,6 +2,8 @@ package app
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -160,5 +162,47 @@ func TestReceive(t *testing.T) {
 	got := string(s)
 	if got != expect {
 		t.Fatalf("Issue was incorrect, got: %s,\nwant: %s", got, expect)
+	}
+}
+
+func TestAddress(t *testing.T) {
+	priv, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr, err := PrivateKeyToAddress(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := AddressToPublicKey(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	block, _ := pem.Decode(b)
+	if block == nil {
+		t.Fatal("no block")
+	}
+
+	var pub *rsa.PublicKey
+	p, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub, ok := p.(*rsa.PublicKey)
+	if !ok {
+		t.Fatal("key not an RSA key")
+	}
+
+	expect := priv.PublicKey
+
+	if pub.E != expect.E {
+		t.Fatalf("E doesn't match; expected %d, got %d", expect.E, pub.E)
+	}
+
+	if pub.N.Cmp(expect.N) != 0 {
+		t.Fatalf("N doesn't match; expected %d, got %d (diff %d)", expect.N, pub.N, pub.N.Cmp(expect.N))
 	}
 }
