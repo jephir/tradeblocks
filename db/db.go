@@ -294,8 +294,8 @@ func (m *Transaction) GetAccountHead(account, token string) (*tradeblocks.Accoun
 		link,
 		signature
 		FROM accounts WHERE hash = (
-			SELECT hash FROM heads WHERE account = $1 AND key = $2
-		)`, account, token)
+			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
+		)`, accountTag, account, token)
 	b, err := scanAccount(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -486,8 +486,8 @@ func (m *Transaction) GetSwapHead(account, id string) (*tradeblocks.SwapBlock, e
 		fee,
 		signature
 		FROM swaps WHERE hash = (
-			SELECT hash FROM heads WHERE account = $1 AND key = $2
-		)`, account, id)
+			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
+		)`, swapTag, account, id)
 	b, err := scanSwap(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -684,8 +684,8 @@ func (m *Transaction) GetOrderHead(account, id string) (*tradeblocks.OrderBlock,
 		fee,
 		signature
 		FROM orders WHERE hash = (
-			SELECT hash FROM heads WHERE account = $1 AND key = $2
-		)`, account, id)
+			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
+		)`, orderTag, account, id)
 	b, err := scanOrder(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -853,8 +853,8 @@ func (m *Transaction) GetConfirmHead(account, addr string) (*tradeblocks.Confirm
 		account,
 		signature
 		FROM confirms WHERE hash = (
-			SELECT hash FROM heads WHERE account = $1 AND key = $2
-		)`, account, addr)
+			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
+		)`, confirmTag, account, addr)
 	b, err := scanConfirm(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
