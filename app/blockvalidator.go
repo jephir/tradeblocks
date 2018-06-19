@@ -69,7 +69,7 @@ func (validator OpenBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 
 	//get the chain
 	blockStore := validator.blockStore
-	publicKey, err := addressToRsaKey(block.Account)
+	publicKey, err := AddressToRSAKey(block.Account)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func (validator IssueBlockValidator) ValidateAccountBlock(block *tb.AccountBlock
 	// I don't think we need to validate this after creation, this should be spawned
 	// by an account creation, most fields are generated there
 	// No actionable fields to check on, besides signature
-	publicKey, err := addressToRsaKey(block.Account)
+	publicKey, err := AddressToRSAKey(block.Account)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func (validator SendBlockValidator) ValidateAccountBlock(block *tb.AccountBlock)
 	//get the chain
 	blockStore := validator.blockStore
 
-	publicKey, err := addressToRsaKey(block.Account)
+	publicKey, err := AddressToRSAKey(block.Account)
 	if err != nil {
 		return err
 	}
@@ -271,7 +271,7 @@ func (validator ReceiveBlockValidator) ValidateAccountBlock(block *tb.AccountBlo
 	blockStore := validator.blockStore
 	account := block.Account
 
-	publicKey, err := addressToRsaKey(block.Account)
+	publicKey, err := AddressToRSAKey(block.Account)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 	// Standard signing for offer and refund left
 	if action == "commit" || action == "refund-right" {
 		if block.Executor != "" {
-			executorKey, err := addressToRsaKey(block.Executor)
+			executorKey, err := AddressToRSAKey(block.Executor)
 			if err != nil {
 				return err
 			}
@@ -418,7 +418,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 				return errVerify
 			}
 		} else {
-			publicKey, err := addressToRsaKey(block.Counterparty)
+			publicKey, err := AddressToRSAKey(block.Counterparty)
 			if err != nil {
 				return err
 			}
@@ -428,7 +428,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 			}
 		}
 	} else {
-		publicKey, err := addressToRsaKey(block.Account)
+		publicKey, err := AddressToRSAKey(block.Account)
 		if err != nil {
 			return err
 		}
@@ -603,7 +603,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 	switch action {
 	case "create-order":
 		// check the signature
-		publicKey, err := addressToRsaKey(block.Account)
+		publicKey, err := AddressToRSAKey(block.Account)
 		if err != nil {
 			return err
 		}
@@ -643,7 +643,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 	case "accept-order":
 		// check the signature
 		if block.Executor != "" {
-			executorKey, err := addressToRsaKey(block.Executor)
+			executorKey, err := AddressToRSAKey(block.Executor)
 			if err != nil {
 				return err
 			}
@@ -653,7 +653,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 				return errVerify
 			}
 		} else {
-			publicKey, err := addressToRsaKey(block.Account)
+			publicKey, err := AddressToRSAKey(block.Account)
 			if err != nil {
 				return err
 			}
@@ -744,7 +744,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 	case "refund-order":
-		publicKey, err := addressToRsaKey(block.Account)
+		publicKey, err := AddressToRSAKey(block.Account)
 		if err != nil {
 			return err
 		}
@@ -792,7 +792,8 @@ func orderRefundAlignment(block *tb.OrderBlock, prevBlock *tb.OrderBlock) bool {
 		block.Partial != prevBlock.Partial || block.Executor != prevBlock.Executor || block.Fee != prevBlock.Fee
 }
 
-func addressToRsaKey(hash string) (*rsa.PublicKey, error) {
+// AddressToRSAKey returns the public key for the given address
+func AddressToRSAKey(hash string) (*rsa.PublicKey, error) {
 	publicKeyBytes, err := AddressToPublicKey(hash)
 	if err != nil {
 		return nil, err
@@ -828,7 +829,7 @@ func getAndVerifyAccount(hash string, chain *BlockStore) (*tb.AccountBlock, erro
 		return nil, errors.New("Getting block failed for hash: " + hash)
 	}
 
-	publicKey, err := addressToRsaKey(block.Account)
+	publicKey, err := AddressToRSAKey(block.Account)
 	if err != nil {
 		return nil, err
 	}
@@ -860,7 +861,7 @@ func getAndVerifySwap(hash string, chain *BlockStore) (*tb.SwapBlock, error) {
 		}
 	}
 
-	publicKey, err := addressToRsaKey(address)
+	publicKey, err := AddressToRSAKey(address)
 	if err != nil {
 		return nil, err
 	}
@@ -902,7 +903,7 @@ func getAndVerifyOrder(hash string, chain *BlockStore) (*tb.OrderBlock, error) {
 		address = block.Executor
 	}
 
-	publicKey, err := addressToRsaKey(address)
+	publicKey, err := AddressToRSAKey(address)
 	if err != nil {
 		return nil, err
 	}

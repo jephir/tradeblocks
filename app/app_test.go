@@ -176,24 +176,13 @@ func TestAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := AddressToPublicKey(addr)
-	if err != nil {
-		t.Fatal(err)
+	if !strings.Contains(addr, addressPrefix) {
+		t.Fatal("missing prefix " + addressPrefix)
 	}
 
-	block, _ := pem.Decode(b)
-	if block == nil {
-		t.Fatal("no block")
-	}
-
-	var pub *rsa.PublicKey
-	p, err := x509.ParsePKIXPublicKey(block.Bytes)
+	pub, err := AddressToRSAKey(addr)
 	if err != nil {
 		t.Fatal(err)
-	}
-	pub, ok := p.(*rsa.PublicKey)
-	if !ok {
-		t.Fatal("key not an RSA key")
 	}
 
 	expect := priv.PublicKey
@@ -204,5 +193,32 @@ func TestAddress(t *testing.T) {
 
 	if pub.N.Cmp(expect.N) != 0 {
 		t.Fatalf("N doesn't match; expected %d, got %d (diff %d)", expect.N, pub.N, pub.N.Cmp(expect.N))
+	}
+}
+
+func TestValidation(t *testing.T) {
+	priv, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr, err := PrivateKeyToAddress(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b := tradeblocks.NewIssueBlock(addr, 100)
+
+	if err := b.SignBlock(priv); err != nil {
+		t.Fatal(err)
+	}
+
+	pub, err := AddressToRSAKey(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := b.VerifyBlock(pub); err != nil {
+		t.Fatal(err)
 	}
 }
