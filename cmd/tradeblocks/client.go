@@ -119,24 +119,6 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 		return nil, err
 	}
 
-	p, err := app.AddressToRSAKey(send.Account)
-	if err != nil {
-		panic(err)
-	}
-	// if _, err := privateKey.Seek(0, io.SeekStart); err != nil {
-	// 	return nil, err
-	// }
-	// priv, err := parsePrivateKey(privateKey)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	if err := send.VerifyBlock(p); err != nil {
-		panic(err)
-	} else {
-		fmt.Println("VERIFIED")
-	}
-
 	if err := c.postAccountBlock(send); err != nil {
 		return nil, err
 	}
