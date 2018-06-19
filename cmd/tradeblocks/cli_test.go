@@ -308,7 +308,7 @@ func (x *executor) exec(cmd ...string) string {
 	output := &bytes.Buffer{}
 	x.c.out = output
 	if err := x.c.dispatch(cmd); err != nil {
-		x.t.Fatal(err)
+		x.t.Fatalf("%s: %s", strings.Join(cmd, " "), err.Error())
 	}
 	return output.String()
 }
