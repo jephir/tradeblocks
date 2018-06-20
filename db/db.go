@@ -35,6 +35,7 @@ func NewDB(dataSourceName string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(1)
 	d := &DB{
 		db: db,
 	}
@@ -65,8 +66,8 @@ func (m *DB) init() (err error) {
 		token TEXT NOT NULL CHECK (token LIKE 'xtb:%'),
 		id TEXT NOT NULL,
 		previous TEXT UNIQUE,
-		left TEXT UNIQUE NOT NULL,
-		right TEXT UNIQUE,
+		left TEXT NOT NULL,
+		right TEXT,
 		refund_left TEXT CHECK (refund_left LIKE 'xtb:%'),
 		refund_right TEXT CHECK (refund_right LIKE 'xtb:%'),
 		counterparty TEXT NOT NULL CHECK (counterparty LIKE 'xtb:%'),
@@ -172,6 +173,7 @@ func (m *Transaction) Commit() error {
 		return nil
 	}
 	if m.err != nil {
+		fmt.Println("db: rolling back")
 		if err := m.tx.Rollback(); err != nil {
 			fmt.Printf("db: error doing rollback: %s", err.Error())
 		}
@@ -180,6 +182,9 @@ func (m *Transaction) Commit() error {
 	}
 	err := m.tx.Commit()
 	m.closed = true
+	if err != nil {
+		fmt.Printf("db: error doing commit: %s", err.Error())
+	}
 	return err
 }
 
@@ -293,7 +298,7 @@ func (m *Transaction) GetAccountHead(account, token string) (*tradeblocks.Accoun
 		balance,
 		link,
 		signature
-		FROM accounts WHERE hash = (
+		FROM accounts WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
 		)`, accountTag, account, token)
 	b, err := scanAccount(row)
@@ -386,6 +391,9 @@ func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 		fee,
 		b.Signature,
 		hash)
+	if m.err != nil {
+		return m.err
+	}
 	_, m.err = m.tx.Exec(`INSERT INTO blocks (
 			tag,
 			hash
@@ -485,7 +493,7 @@ func (m *Transaction) GetSwapHead(account, id string) (*tradeblocks.SwapBlock, e
 		executor,
 		fee,
 		signature
-		FROM swaps WHERE hash = (
+		FROM swaps WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
 		)`, swapTag, account, id)
 	b, err := scanSwap(row)
@@ -503,7 +511,7 @@ func scanSwap(s scanner) (*tradeblocks.SwapBlock, error) {
 	var refundRight sql.NullString
 	var executor sql.NullString
 	var fee sql.NullFloat64
-	err := s.Scan(&b.Action,
+	if err := s.Scan(&b.Action,
 		&b.Account,
 		&b.Token,
 		&b.ID,
@@ -517,7 +525,9 @@ func scanSwap(s scanner) (*tradeblocks.SwapBlock, error) {
 		&b.Quantity,
 		&executor,
 		&fee,
-		&b.Signature)
+		&b.Signature); err != nil {
+		return nil, err
+	}
 	if previous.Valid {
 		b.Previous = previous.String
 	}
@@ -536,7 +546,7 @@ func scanSwap(s scanner) (*tradeblocks.SwapBlock, error) {
 	if fee.Valid {
 		b.Fee = fee.Float64
 	}
-	return &b, err
+	return &b, nil
 }
 
 // InsertOrderBlock inserts the specified block into the database
@@ -590,6 +600,9 @@ func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 		fee,
 		b.Signature,
 		hash)
+	if m.err != nil {
+		return m.err
+	}
 	_, m.err = m.tx.Exec(`INSERT INTO blocks (
 			tag,
 			hash
@@ -683,7 +696,7 @@ func (m *Transaction) GetOrderHead(account, id string) (*tradeblocks.OrderBlock,
 		executor,
 		fee,
 		signature
-		FROM orders WHERE hash = (
+		FROM orders WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
 		)`, orderTag, account, id)
 	b, err := scanOrder(row)
@@ -783,6 +796,9 @@ func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 		b.Account,
 		b.Signature,
 		hash)
+	if m.err != nil {
+		return m.err
+	}
 	_, m.err = m.tx.Exec(`INSERT INTO blocks (
 			tag,
 			hash
@@ -852,7 +868,7 @@ func (m *Transaction) GetConfirmHead(account, addr string) (*tradeblocks.Confirm
 		head,
 		account,
 		signature
-		FROM confirms WHERE hash = (
+		FROM confirms WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
 		)`, confirmTag, account, addr)
 	b, err := scanConfirm(row)
