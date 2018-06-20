@@ -1,11 +1,7 @@
 package app
 
 import (
-	"crypto/dsa"
-	"crypto/ecdsa"
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
@@ -794,29 +790,7 @@ func orderRefundAlignment(block *tb.OrderBlock, prevBlock *tb.OrderBlock) bool {
 
 // AddressToRSAKey returns the public key for the given address
 func AddressToRSAKey(hash string) (*rsa.PublicKey, error) {
-	publicKeyBytes, err := AddressToPublicKey(hash)
-	if err != nil {
-		return nil, err
-	}
-	block, _ := pem.Decode(publicKeyBytes)
-	if block == nil {
-		return nil, errors.New("failed to parse PEM block containing the public key")
-	}
-
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, errors.New("failed to parse DER encoded public key: " + err.Error())
-	}
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		return pub, nil
-	case *dsa.PublicKey:
-		return nil, errors.New("wrong public key type, have dsa, want rsa")
-	case *ecdsa.PublicKey:
-		return nil, errors.New("wrong public key type, have ecdsa, want rsa")
-	default:
-		return nil, errors.New("wrong public key type, have unknown, want rsa")
-	}
+	return AddressToPublicKey(hash)
 }
 
 func getAndVerifyAccount(hash string, chain *BlockStore) (*tb.AccountBlock, error) {

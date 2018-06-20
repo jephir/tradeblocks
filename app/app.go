@@ -5,18 +5,22 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
+	"encoding/base32"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"strings"
 
 	"github.com/jephir/tradeblocks"
 )
 
 const addressPrefix = "xtb:"
+
+var encoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // Register creates a new key pair with the specified local name
 func Register(privateKey io.Writer, publicKey io.Writer, name string, keySize int) (address string, err error) {
@@ -138,36 +142,54 @@ func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	if err != nil {
 		return "", err
 	}
-
 	block, _ := pem.Decode(buf)
-
-	return addressPrefix + base64.RawURLEncoding.EncodeToString(block.Bytes), nil
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return "", err
+	}
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		return PublicKeyRSAToAddress(pub)
+	default:
+		break // fall through
+	}
+	return "", fmt.Errorf("app: key type is not RSA")
 }
 
-// AddressToPublicKey returns the byte array of the specified address
-func AddressToPublicKey(address string) (publicKey []byte, err error) {
-	addressNoPrefix := strings.TrimPrefix(address, addressPrefix)
-	bytesKey, err := base64.RawURLEncoding.DecodeString(addressNoPrefix)
-
-	p := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: bytesKey,
-	})
-
-	return p, err
+// AddressToPublicKey decodes the specified address into a public key
+func AddressToPublicKey(address string) (*rsa.PublicKey, error) {
+	addr := strings.TrimPrefix(address, addressPrefix)
+	b, err := encoding.DecodeString(addr)
+	if err != nil {
+		return nil, err
+	}
+	buf := bytes.NewBuffer(b)
+	pub := new(rsa.PublicKey)
+	var e int32
+	if err := binary.Read(buf, binary.BigEndian, &e); err != nil {
+		return nil, err
+	}
+	pub.E = int(e)
+	pub.N = big.NewInt(0)
+	pub.N.SetBytes(buf.Bytes())
+	return pub, nil
 }
 
 // PrivateKeyToAddress returns the string serialization of the specified private key
-func PrivateKeyToAddress(priv *rsa.PrivateKey) (address string, err error) {
-	b, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	if err != nil {
-		return
+func PrivateKeyToAddress(priv *rsa.PrivateKey) (string, error) {
+	return PublicKeyRSAToAddress(&priv.PublicKey)
+}
+
+// PublicKeyRSAToAddress returns the string serialization of the specified public key
+func PublicKeyRSAToAddress(pub *rsa.PublicKey) (string, error) {
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.BigEndian, int32(pub.E)); err != nil {
+		return "", err
 	}
-	r := bytes.NewReader(pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: b,
-	}))
-	return PublicKeyToAddress(r)
+	if _, err := buf.Write(pub.N.Bytes()); err != nil {
+		return "", err
+	}
+	return addressPrefix + encoding.EncodeToString(buf.Bytes()), nil
 }
 
 // SerializeAccountBlock returns the string representation of the specified account block
