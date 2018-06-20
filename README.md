@@ -14,8 +14,6 @@ $ go install -i github.com/jephir/tradeblocks/cmd/tradeblocks
 
 ## Demo
 
-To view the created blocks by hash, browse the `data/blocks` directory.
-
 ### Limit Orders
 
 1.  Start the node server.
