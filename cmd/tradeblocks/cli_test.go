@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/web"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/jephir/tradeblocks/node"
@@ -164,6 +166,70 @@ func TestLimitOrders(t *testing.T) {
 	if send.Link != link {
 		t.Fatalf("expected link '%s', got '%s'", link, send.Link)
 	}
+}
+
+func TestNodeNetwork(t *testing.T) {
+	wg := new(sync.WaitGroup)
+	addrs := []string{"localhost:9000", "localhost:9001", "localhost:9002"}
+
+	wg.Add(1)
+	go nodeRoutine(t, wg, addrs[0], "")
+	wg.Add(1)
+	go nodeRoutine(t, wg, addrs[1], addrs[0])
+	wg.Add(1)
+	go nodeRoutine(t, wg, addrs[2], addrs[1])
+
+	const count = 3
+	var x [count]*executor
+	var dirs [count]string
+	var a [count]string
+	var issues [count]string
+	for i := 0; i < count; i++ {
+		x[i], dirs[i] = newExecutorDir(t, addrs[i])
+		a[i] = x[i].exec("tradeblocks", "register", "me")
+		x[i].exec("tradeblocks", "login", "me")
+		issues[i] = x[i].exec("tradeblocks", "issue", "100")
+	}
+
+	for i := 0; i < count; i++ {
+		for j := 0; j < count; j++ {
+			data := x[i].exec("tradeblocks", "cat", issues[j])
+			var b tradeblocks.AccountBlock
+			if err := json.Unmarshal([]byte(data), &b); err != nil {
+				t.Fatal(err)
+			}
+			if b.Hash() != issues[j] {
+				t.Fatalf("hash doesn't match; expected %s, got %s", issues[j], b.Hash())
+			}
+		}
+	}
+
+	wg.Wait()
+}
+
+func nodeRoutine(t *testing.T, wg *sync.WaitGroup, addr, bootstrap string) {
+	defer wg.Done()
+	dir, err := ioutil.TempDir("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	x := newExecutor(t, "http://"+addr, dir)
+	if bootstrap == "" {
+		x.exec("tradeblocks", "node", "-listen", addr)
+	} else {
+		x.exec("tradeblocks", "node", "-listen", addr, "-bootstrap", "http://"+bootstrap)
+	}
+}
+
+func newExecutorDir(t *testing.T, serverURL string) (*executor, string) {
+	dir, err := ioutil.TempDir("", "tradeblocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	x := newExecutor(t, serverURL, dir)
+	return x, dir
 }
 
 func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
