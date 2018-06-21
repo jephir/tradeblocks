@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -156,18 +157,21 @@ func PublicKeyToAddress(publicKey io.Reader) (address string, err error) {
 	return "", fmt.Errorf("app: key type is not RSA")
 }
 
+// ErrInvalidAddress is returned when the address is not in the correct format
+var ErrInvalidAddress = errors.New("app: invalid address")
+
 // AddressToPublicKey decodes the specified address into a public key
 func AddressToPublicKey(address string) (*rsa.PublicKey, error) {
 	addr := strings.TrimPrefix(address, addressPrefix)
 	b, err := encoding.DecodeString(addr)
 	if err != nil {
-		return nil, err
+		return nil, ErrInvalidAddress
 	}
 	buf := bytes.NewBuffer(b)
 	pub := new(rsa.PublicKey)
 	var e int32
 	if err := binary.Read(buf, binary.BigEndian, &e); err != nil {
-		return nil, err
+		return nil, ErrInvalidAddress
 	}
 	pub.E = int(e)
 	pub.N = big.NewInt(0)

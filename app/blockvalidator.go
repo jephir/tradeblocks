@@ -437,12 +437,12 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 	// check if the previous block exists
 	prevBlock, errPrev := getAndVerifySwap(block.Previous, blockStore)
 
+	if action == "offer" && errPrev != db.ErrNotFound {
+		return errors.New("prev and right must be null together")
+	}
+
 	// originating block of swap
 	if action == "offer" {
-		// if prevBlock != nil {
-		// 	return errors.New("prev and right must be null together")
-		// }
-
 		// check if the send block referenced exists, don't get it if it does
 		left, errLeft := getAndVerifyAccount(block.Left, blockStore)
 		if errLeft != nil || left == nil || left.Action != "send" {
