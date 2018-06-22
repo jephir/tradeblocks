@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/jephir/tradeblocks"
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
