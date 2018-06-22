@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/jephir/tradeblocks"
-	"github.com/jephir/tradeblocks/web"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
@@ -13,7 +11,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/node"
+	"github.com/jephir/tradeblocks/web"
 )
 
 func TestCLI(t *testing.T) {
@@ -185,7 +185,8 @@ func TestNodeNetwork(t *testing.T) {
 	var a [count]string
 	var issues [count]string
 	for i := 0; i < count; i++ {
-		x[i], dirs[i] = newExecutorDir(t, addrs[i])
+		x[i], dirs[i] = newExecutorDir(t, "http://"+addrs[i])
+		defer os.RemoveAll(dirs[i])
 		a[i] = x[i].exec("tradeblocks", "register", "me")
 		x[i].exec("tradeblocks", "login", "me")
 		issues[i] = x[i].exec("tradeblocks", "issue", "100")
@@ -227,7 +228,6 @@ func newExecutorDir(t *testing.T, serverURL string) (*executor, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
 	x := newExecutor(t, serverURL, dir)
 	return x, dir
 }
