@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/jephir/tradeblocks"
@@ -54,8 +53,9 @@ func TestCLI(t *testing.T) {
 }
 
 func TestDemo(t *testing.T) {
-	_, s := newNode(t, "")
+	dir, _, s := newNode(t, "")
 	defer s.Close()
+	defer os.RemoveAll(dir)
 
 	dir, err := ioutil.TempDir("", "tradeblocks")
 	if err != nil {
@@ -81,8 +81,9 @@ func TestDemo(t *testing.T) {
 }
 
 func TestLimitOrders(t *testing.T) {
-	n, s := newNode(t, "")
+	dir, n, s := newNode(t, "")
 	defer s.Close()
+	defer os.RemoveAll(dir)
 
 	dir, err := ioutil.TempDir("", "tradeblocks")
 	if err != nil {
@@ -173,23 +174,26 @@ func TestLimitOrders(t *testing.T) {
 }
 
 func TestNodeNetwork(t *testing.T) {
-	wg := new(sync.WaitGroup)
-	addrs := []string{"localhost:9000", "localhost:9001", "localhost:9002"}
-
-	wg.Add(1)
-	go nodeRoutine(t, wg, addrs[0], "")
-	wg.Add(1)
-	go nodeRoutine(t, wg, addrs[1], addrs[0])
-	wg.Add(1)
-	go nodeRoutine(t, wg, addrs[2], addrs[1])
-
 	const count = 3
+
+	var servers [count]*httptest.Server
+	for i := 0; i < count; i++ {
+		var dir string
+		var bootstrap string
+		if i != 0 {
+			bootstrap = servers[i-1].URL
+		}
+		dir, _, servers[i] = newNode(t, bootstrap)
+		defer servers[i].Close()
+		defer os.RemoveAll(dir)
+	}
+
 	var x [count]*executor
 	var dirs [count]string
 	var a [count]string
 	var issues [count]string
 	for i := 0; i < count; i++ {
-		x[i], dirs[i] = newExecutorDir(t, "http://"+addrs[i])
+		x[i], dirs[i] = newExecutorDir(t, servers[i].URL)
 		defer os.RemoveAll(dirs[i])
 		a[i] = x[i].exec("tradeblocks", "register", "me")
 		x[i].exec("tradeblocks", "login", "me")
@@ -208,23 +212,10 @@ func TestNodeNetwork(t *testing.T) {
 			}
 		}
 	}
-
-	wg.Wait()
 }
 
-func nodeRoutine(t *testing.T, wg *sync.WaitGroup, addr, bootstrap string) {
-	defer wg.Done()
-	dir, err := ioutil.TempDir("", "tradeblocks")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	x := newExecutor(t, "http://"+addr, dir)
-	if bootstrap == "" {
-		x.exec("tradeblocks", "node", "-dir", dir, "-listen", addr)
-	} else {
-		x.exec("tradeblocks", "node", "-dir", dir, "-listen", addr, "-bootstrap", "http://"+bootstrap)
-	}
+func TestNodeCommand(t *testing.T) {
+	t.Skip("TODO Implement `tradeblocks node` sanity test")
 }
 
 func newExecutorDir(t *testing.T, serverURL string) (*executor, string) {
@@ -236,24 +227,27 @@ func newExecutorDir(t *testing.T, serverURL string) (*executor, string) {
 	return x, dir
 }
 
-func newNode(t *testing.T, bootstrapURL string) (*node.Node, *httptest.Server) {
-	dir, err := ioutil.TempDir("", "tradeblocks")
+func newNode(t *testing.T, bootstrap string) (dir string, n *node.Node, s *httptest.Server) {
+	var err error
+	dir, err = ioutil.TempDir("", "tradeblocks")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	n, err := node.NewNode(dir)
+	n, err = node.NewNode(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := httptest.NewServer(n)
-	//t.Log(s.URL)
-	if bootstrapURL != "" {
-		if err := n.Bootstrap(s.URL, bootstrapURL); err != nil {
+
+	s = httptest.NewServer(n)
+
+	if bootstrap != "" {
+		if err := n.Bootstrap(s.URL, bootstrap); err != nil {
 			t.Fatal(err)
 		}
 	}
-	return n, s
+
+	return
 }
 
 type executor struct {

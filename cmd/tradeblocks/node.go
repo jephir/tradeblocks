@@ -27,8 +27,5 @@ func (cli *cli) handleNode() error {
 		}
 	}
 	fmt.Fprintln(cli.out, *addr)
-	if err := http.ListenAndServe(*addr, n); err != nil {
-		return err
-	}
-	return nil
+	return http.ListenAndServe(*addr, n)
 }
