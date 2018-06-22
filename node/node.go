@@ -38,7 +38,7 @@ type Node struct {
 	seenAccountBlocks blockHashMap
 }
 
-// NewNode creates a new node that bootstraps from the specified URL. An error is returned if boostrapping fails.
+// NewNode creates a new node or returns an error if it fails.
 func NewNode(dir string) (n *Node, err error) {
 	store := app.NewBlockStore()
 	storage := fs.NewBlockStorage(store, blocksDir(dir))

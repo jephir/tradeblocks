@@ -25,6 +25,10 @@ func (cli *cli) dispatch(args []string) error {
 
 	cmd := newClient(cli.dataDir, cli.serverURL, cli.keySize)
 	switch command {
+	case "node":
+		if err := cli.handleNode(); err != nil {
+			return err
+		}
 	case "register":
 		goodInputs, addInfo := registerInputValidation(args)
 		if goodInputs {
