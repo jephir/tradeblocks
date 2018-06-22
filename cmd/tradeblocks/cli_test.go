@@ -217,9 +217,9 @@ func nodeRoutine(t *testing.T, wg *sync.WaitGroup, addr, bootstrap string) {
 	defer os.RemoveAll(dir)
 	x := newExecutor(t, "http://"+addr, dir)
 	if bootstrap == "" {
-		x.exec("tradeblocks", "node", "-listen", addr)
+		x.exec("tradeblocks", "node", "-dir", dir, "-listen", addr)
 	} else {
-		x.exec("tradeblocks", "node", "-listen", addr, "-bootstrap", "http://"+bootstrap)
+		x.exec("tradeblocks", "node", "-dir", dir, "-listen", addr, "-bootstrap", "http://"+bootstrap)
 	}
 }
 
