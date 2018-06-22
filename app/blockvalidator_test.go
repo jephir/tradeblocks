@@ -1084,7 +1084,7 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	err = validator.ValidateSwapBlock(swap2)
-	expectedError = "db: not found"
+	expectedError = "counter send not found"
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
@@ -1104,31 +1104,23 @@ func TestSwapCommitValidation(t *testing.T) {
 	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
-
-	err = validator.ValidateSwapBlock(swap2)
-	expectedError = "counter send not found"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// counter send doesn't exist
-	swap, swap2, _, validator, err = swapOfferSetup(keyList, addressList, t)
-	if err != nil {
+	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 	if err := i2.SignBlock(key2); err != nil {
 		t.Fatal(err)
 	}
-
+	if err := send.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
 	send2.Balance = 0
 	if err := send2.SignBlock(key2); err != nil {
 		t.Fatal(err)
 	}
 
-	err = validator.ValidateSwapBlock(swap2)
-	expectedError = "counter send prev not found"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
+	swap2.Right = send2.Hash()
+	if err := swap2.SignBlock(key2); err != nil {
+		t.Fatal(err)
 	}
 
 	if err := blockStore.AddAccountBlock(i); err != nil {
