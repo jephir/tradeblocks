@@ -468,6 +468,7 @@ func (c *client) sell(quantity float64, base string, ppu float64, quote string) 
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	executor, err := c.api.DecodeGetAddressResponse(res)
 	if err != nil {
@@ -492,6 +493,7 @@ func (c *client) buy(quantity float64, base string, ppu float64, quote string) (
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	orders, err := c.api.DecodeGetOrdersArrayResponse(res)
 	if err != nil {
@@ -571,6 +573,7 @@ func (c *client) getAccountHeadBlock(address, token string) (*tradeblocks.Accoun
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	var result tradeblocks.AccountBlock
 	if err := c.api.DecodeAccountBlockResponse(res, &result); err != nil {
 		return nil, err
@@ -587,6 +590,7 @@ func (c *client) getHeadSwapBlock(address, id string) (*tradeblocks.SwapBlock, e
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	var result tradeblocks.SwapBlock
 	if err := c.api.DecodeSwapBlockResponse(res, &result); err != nil {
 		return nil, err
@@ -603,6 +607,7 @@ func (c *client) getHeadOrderBlock(address, id string) (*tradeblocks.OrderBlock,
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	var result tradeblocks.OrderBlock
 	if err := c.api.DecodeOrderBlockResponse(res, &result); err != nil {
 		return nil, err
@@ -619,6 +624,7 @@ func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	var result tradeblocks.AccountBlock
 	if err := c.api.DecodeAccountBlockResponse(res, &result); err != nil {
 		return nil, err
@@ -635,6 +641,7 @@ func (c *client) getSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	var result tradeblocks.SwapBlock
 	if err := c.api.DecodeSwapBlockResponse(res, &result); err != nil {
 		return nil, err
@@ -651,6 +658,7 @@ func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	var rb tradeblocks.AccountBlock
 	if err := c.api.DecodeAccountBlockResponse(res, &rb); err != nil {
 		return err
@@ -667,6 +675,7 @@ func (c *client) postSwapBlock(b *tradeblocks.SwapBlock) error {
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	var rb tradeblocks.SwapBlock
 	if err := c.api.DecodeSwapBlockResponse(res, &rb); err != nil {
 		return err
@@ -683,6 +692,7 @@ func (c *client) postOrderBlock(b *tradeblocks.OrderBlock) error {
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	var rb tradeblocks.OrderBlock
 	if err := c.api.DecodeOrderBlockResponse(res, &rb); err != nil {
 		return err

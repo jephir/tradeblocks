@@ -164,6 +164,7 @@ func (n *Node) bootstrapAccounts(hostURL string, client *web.Client) (map[string
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	// Decode response
 	return client.DecodeGetAccountBlocksResponse(res)
@@ -182,6 +183,7 @@ func (n *Node) bootstrapSwaps(hostURL string, client *web.Client) (map[string]tr
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	// Decode response
 	return client.DecodeGetSwapBlocksResponse(res)
@@ -200,6 +202,7 @@ func (n *Node) bootstrapOrders(hostURL string, client *web.Client) (map[string]t
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	// Decode response
 	return client.DecodeGetOrderBlocksResponse(res)
@@ -282,6 +285,7 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 				log.Println(err)
 				return
 			}
+			defer res.Body.Close()
 			var rb tradeblocks.AccountBlock
 			if err := c.DecodeAccountBlockResponse(res, &rb); err != nil {
 				log.Println(err)
@@ -298,6 +302,7 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 				log.Println(err)
 				return
 			}
+			defer res.Body.Close()
 			var rb tradeblocks.SwapBlock
 			if err := c.DecodeSwapBlockResponse(res, &rb); err != nil {
 				log.Println(err)
@@ -314,6 +319,7 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 				log.Println(err)
 				return
 			}
+			defer res.Body.Close()
 			var rb tradeblocks.OrderBlock
 			if err := c.DecodeOrderBlockResponse(res, &rb); err != nil {
 				log.Println(err)
@@ -395,60 +401,6 @@ func (n *Node) addPeer(address string) {
 
 	// TODO do connection check before adding peer
 	n.peers[address] = struct{}{}
-}
-
-// func (n *Node) accountChangeHandler() app.AccountChangeListener {
-// 	return func(hash string, b *tradeblocks.AccountBlock) {
-// 		n.mu.Lock()
-// 		defer n.mu.Unlock()
-
-// 		if err := n.storage.SaveBlock(hash, b); err != nil {
-// 			log.Printf("node: couldn't save block '%s': %s", hash, err.Error())
-// 		}
-
-// 		// Send block to account listeners
-// 		if err := n.server.BroadcastAccountBlock(b); err != nil {
-// 			log.Printf("node: couldn't broadcast account block: %s", err.Error())
-// 		}
-
-// 		// Broadcast block if not seen before
-// 		if _, found := n.seenAccountBlocks[hash]; !found {
-// 			n.seenAccountBlocks[hash] = struct{}{}
-// 			for address := range n.peers {
-// 				if err := n.broadcastAccountBlock(address, b); err != nil {
-// 					log.Println(err.Error())
-// 				}
-// 			}
-// 		}
-// 	}
-// }
-
-// func (n *Node) broadcastAccountBlock(address string, b *tradeblocks.AccountBlock) error {
-// 	c := web.NewClient(address)
-// 	r, err := c.NewPostAccountRequest(b)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	//ss, _ := app.SerializeAccountBlock(b)
-// 	//log.Printf("node: sending %s to %s: %s", hash, address, ss)
-// 	res, err := n.client.Do(r)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if res.StatusCode != http.StatusOK {
-// 		return fmt.Errorf("node: unexpected status code %d", res.StatusCode)
-// 	}
-// 	return nil
-// }
-
-func (n *Node) broadcastVote(address string, b *tradeblocks.AccountBlock) error {
-	// v := &tradeblocks.VoteBlock{
-	// 	Account: b.Account,
-	// 	Link: b.Hash(),
-	// 	Order: 0,
-	// 	Signature: "",
-	// }
-	return nil
 }
 
 // Sync flushes all unbroadcasted blocks to known peers

@@ -40,6 +40,7 @@ func TestAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 
 	addr, err := c.DecodeGetAddressResponse(res)
 	if err != nil {
@@ -191,6 +192,7 @@ func addAccountBlock(t *testing.T, c *web.Client, b *tb.AccountBlock) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	var rb tb.AccountBlock
 	if err := c.DecodeAccountBlockResponse(res, &rb); err != nil {
 		t.Fatal(err)
@@ -207,6 +209,7 @@ func addSwapBlock(t *testing.T, c *web.Client, b *tb.SwapBlock) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	var rb tb.SwapBlock
 	if err := c.DecodeSwapBlockResponse(res, &rb); err != nil {
 		t.Fatal(err)
@@ -223,6 +226,7 @@ func addOrderBlock(t *testing.T, c *web.Client, b *tb.OrderBlock) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	var rb tb.OrderBlock
 	if err := c.DecodeOrderBlockResponse(res, &rb); err != nil {
 		t.Fatal(err)
