@@ -4,16 +4,15 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"log"
+	"net/http"
+	"path/filepath"
+	"sync"
+
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
 	"github.com/jephir/tradeblocks/db"
-	"github.com/jephir/tradeblocks/fs"
 	"github.com/jephir/tradeblocks/web"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"sync"
 )
 
 const keySize = 2048
@@ -24,11 +23,9 @@ type blockHashMap map[string]struct{}
 
 // Node represents a node in the TradeBlocks network
 type Node struct {
-	dir     string
-	store   *app.BlockStore
-	storage *fs.BlockStorage
-	client  *http.Client
-	server  *web.Server
+	store  *app.BlockStore
+	client *http.Client
+	server *web.Server
 
 	priv    *rsa.PrivateKey
 	address string
@@ -40,8 +37,11 @@ type Node struct {
 
 // NewNode creates a new node or returns an error if it fails.
 func NewNode(dir string) (n *Node, err error) {
-	store := app.NewBlockStore()
-	storage := fs.NewBlockStorage(store, blocksDir(dir))
+	f := filepath.Join(dir, "tradeblocks.db")
+	store, err := app.NewPersistBlockStore(f)
+	if err != nil {
+		return nil, err
+	}
 	server := web.NewServer(store)
 	c := &http.Client{}
 
@@ -55,9 +55,7 @@ func NewNode(dir string) (n *Node, err error) {
 	}
 
 	n = &Node{
-		dir:               dir,
 		store:             store,
-		storage:           storage,
 		client:            c,
 		server:            server,
 		priv:              priv,
@@ -65,19 +63,11 @@ func NewNode(dir string) (n *Node, err error) {
 		peers:             make(peerMap),
 		seenAccountBlocks: make(blockHashMap),
 	}
-	err = n.initStorage()
 	if err != nil {
 		return
 	}
 	server.BlockHandler = n.handleBlock
 	return
-}
-
-func (n *Node) initStorage() error {
-	if err := os.MkdirAll(blocksDir(n.dir), 0700); err != nil {
-		return err
-	}
-	return n.storage.Load()
 }
 
 // Bootstrap registers with the specified server and downloads all blocks
@@ -121,7 +111,7 @@ func (n *Node) Bootstrap(hostURL, bootstrapURL string) error {
 		}
 		sequence++
 	}
-	return n.storage.Save()
+	return nil
 }
 
 func accountWithSequence(accounts map[string]tradeblocks.NetworkAccountBlock, sequence int) *tradeblocks.NetworkAccountBlock {
@@ -231,9 +221,6 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 	// Save block
 	switch b.T {
 	case "account":
-		if err := n.storage.SaveAccountBlock(b.AccountBlock); err != nil {
-			log.Println(err)
-		}
 		if err := n.server.BroadcastBlock(b.AccountBlock); err != nil {
 			log.Println(err)
 		}
@@ -241,9 +228,6 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 			log.Printf("node: confirm error: %s", err.Error())
 		}
 	case "swap":
-		if err := n.storage.SaveSwapBlock(b.SwapBlock); err != nil {
-			log.Println(err)
-		}
 		if err := n.server.BroadcastBlock(b.SwapBlock); err != nil {
 			log.Println(err)
 		}
@@ -251,9 +235,6 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 			log.Printf("node: confirm error: %s", err.Error())
 		}
 	case "order":
-		if err := n.storage.SaveOrderBlock(b.OrderBlock); err != nil {
-			log.Println(err)
-		}
 		if err := n.server.BroadcastBlock(b.OrderBlock); err != nil {
 			log.Println(err)
 		}

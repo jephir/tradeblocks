@@ -37,6 +37,18 @@ func randString(n int) string {
 	return string(bytes)
 }
 
+// NewPersistBlockStore allocates and returns a persistent block store
+func NewPersistBlockStore(file string) (*BlockStore, error) {
+	s := fmt.Sprintf("file:%s?_foreign_keys=true", file)
+	db, err := db.NewDB(s)
+	if err != nil {
+		return nil, err
+	}
+	return &BlockStore{
+		db: db,
+	}, nil
+}
+
 // AddAccountBlock verifies and adds the specified account block to this store
 func (s *BlockStore) AddAccountBlock(b *tradeblocks.AccountBlock) error {
 	if err := ValidateAccountBlock(s, b); err != nil {

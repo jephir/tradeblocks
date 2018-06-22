@@ -6,6 +6,11 @@ Decentralized exchange implementation for Binance Dexathon.
 
 **TradeBlocks** is a decentralized token exchange network that provides near-instant token trading with high scalability. This is achieved by utilizing a separate blockchain for each account-token pair in the network. To transfer tokens from one account to another, the sender creates a send transaction on their own blockchain, and the receiver creates a receive transaction on their own blockchain. This makes token transfers asynchronous and massively increases the throughput of the network. To trade one type of token for a different type, an initiator first sends tokens into a swap blockchain and creates an offer transaction. Next, a counterparty sends tokens into the swap blockchain and creates a commit transaction. Finally, the parties create receive transactions on their own account-token blockchains to receive the swapped tokens. If the counterparty doesn’t send tokens for the swap, the initiator can create a refund transaction to return their tokens back to their own account-token blockchain. If a fork occurs, the network uses a delegated proof-of-stake protocol to resolve the conflict.
 
+## Requirements
+
+- [Go 1.10](https://golang.org/)
+- [GCC 7.3](https://gcc.gnu.org/)
+
 ## Installation
 
 ```sh

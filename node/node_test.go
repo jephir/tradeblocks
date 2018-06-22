@@ -10,8 +10,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/jephir/tradeblocks/web"
@@ -106,10 +104,8 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Ensure that the new block is persisted
-	dir := node2.storage.Dir()
-	p := filepath.Join(dir, "accounts", h2)
-	if _, err := os.Stat(p); os.IsNotExist(err) {
-		t.Fatalf("N2 didn't persist block %s at %s", h2, p)
+	if _, err := node2.store.GetAccountBlock(h2); err != nil {
+		t.Fatalf("N2 didn't persist block %s", h2)
 	}
 
 	// Add block to seed node
@@ -128,10 +124,8 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Ensure that the new block is persisted
-	dir1 := node1.storage.Dir()
-	p1 := filepath.Join(dir1, "accounts", h3)
-	if _, err := os.Stat(p1); os.IsNotExist(err) {
-		t.Fatalf("N1 didn't persist block %s at %s", h3, p1)
+	if _, err := node1.store.GetAccountBlock(h3); err != nil {
+		t.Fatalf("N1 didn't persist block %s", h3)
 	}
 
 	// Check that connecting node 2 has new block
@@ -143,10 +137,8 @@ func TestBootstrapAndSync(t *testing.T) {
 	}
 
 	// Ensure that the new block is persisted
-	dir2 := node2.storage.Dir()
-	p2 := filepath.Join(dir2, "accounts", h3)
-	if _, err := os.Stat(p2); os.IsNotExist(err) {
-		t.Fatalf("N2 didn't persist block %s at %s", h3, p2)
+	if _, err := node2.store.GetAccountBlock(h3); err != nil {
+		t.Fatalf("N2 didn't persist block %s", h3)
 	}
 }
 
