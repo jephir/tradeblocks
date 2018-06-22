@@ -1,60 +1,40 @@
 package app
 
 import (
-	"sync"
+	"crypto/rand"
+	"fmt"
 
 	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/db"
 )
-
-// Blocks maps hashes to blocks
-type Blocks map[string]tradeblocks.Block
-
-// AccountBlocks maps a context-specific identifier to an account block
-type AccountBlocks map[string]*tradeblocks.AccountBlock
-
-// SwapBlocks maps a context-specific identifier to a swap block
-type SwapBlocks map[string]*tradeblocks.SwapBlock
-
-// OrderBlocks maps a context-specific identifier to an order block
-type OrderBlocks map[string]*tradeblocks.OrderBlock
 
 // BlockStore is a concurrency-safe block store
 type BlockStore struct {
-	mu sync.RWMutex
-
-	// Keyed by hash
-	blocks        Blocks
-	blockSequence map[string]int
-	sequence      int
-
-	// Keyed by hash
-	accountBlocks AccountBlocks
-	// Keyed by account:token
-	accountHeads AccountBlocks
-
-	// Keyed by hash
-	swapBlocks SwapBlocks
-	// Keyed by account:id
-	swapHeads SwapBlocks
-
-	// Keyed by hash
-	orderBlocks OrderBlocks
-	// Keyed by account:id
-	orderHeads OrderBlocks
+	db *db.DB
 }
 
 // NewBlockStore allocates and returns a new BlockStore
 func NewBlockStore() *BlockStore {
-	return &BlockStore{
-		blocks:        make(Blocks),
-		blockSequence: make(map[string]int),
-		accountBlocks: make(AccountBlocks),
-		accountHeads:  make(AccountBlocks),
-		swapBlocks:    make(SwapBlocks),
-		swapHeads:     make(SwapBlocks),
-		orderBlocks:   make(OrderBlocks),
-		orderHeads:    make(OrderBlocks),
+	x := randString(16)
+	s := fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=true", x)
+	db, err := db.NewDB(s)
+	if err != nil {
+		panic(err)
 	}
+	return &BlockStore{
+		db: db,
+	}
+}
+
+// https://stackoverflow.com/a/12772666
+func randString(n int) string {
+	const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	var bytes = make([]byte, n)
+	rand.Read(bytes)
+	for i, b := range bytes {
+		bytes[i] = alphanum[b%byte(len(alphanum))]
+	}
+	return string(bytes)
 }
 
 // AddAccountBlock verifies and adds the specified account block to this store
@@ -62,14 +42,15 @@ func (s *BlockStore) AddAccountBlock(b *tradeblocks.AccountBlock) error {
 	if err := ValidateAccountBlock(s, b); err != nil {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	h := b.Hash()
-	s.blocks[h] = b
-	s.accountBlocks[h] = b
-	s.accountHeads[accountHeadKey(b.Account, b.Token)] = b
-	s.setBlockSequence(h)
-	return nil
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	if err := tx.InsertAccountBlock(b); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // AddSwapBlock verifies and adds the specified swap block to this store
@@ -77,14 +58,15 @@ func (s *BlockStore) AddSwapBlock(b *tradeblocks.SwapBlock) error {
 	if err := ValidateSwapBlock(s, b); err != nil {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	h := b.Hash()
-	s.blocks[h] = b
-	s.swapBlocks[h] = b
-	s.swapHeads[swapHeadKey(b.Account, b.ID)] = b
-	s.setBlockSequence(h)
-	return nil
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	if err := tx.InsertSwapBlock(b); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // AddOrderBlock verifies and adds the specified order block to this store
@@ -92,194 +74,225 @@ func (s *BlockStore) AddOrderBlock(b *tradeblocks.OrderBlock) error {
 	if err := ValidateOrderBlock(s, b); err != nil {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	h := b.Hash()
-	s.blocks[h] = b
-	s.orderBlocks[h] = b
-	s.orderHeads[orderHeadKey(b.Account, b.ID)] = b
-	s.setBlockSequence(h)
-	return nil
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	if err := tx.InsertOrderBlock(b); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
-func (s *BlockStore) setBlockSequence(hash string) {
-	s.blockSequence[hash] = s.sequence
-	s.sequence++
-}
-
-// Sequence returns the sequence number of the block with the specified hash
-func (s *BlockStore) Sequence(hash string) int {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.blockSequence[hash]
-}
-
-// SequenceLess returns true if the sequence number of block i is less than block j
-func (s *BlockStore) SequenceLess(i, j string) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.blockSequence[i] < s.blockSequence[j]
+// AddConfirmBlock verifies and adds the specified confirm block to this store
+func (s *BlockStore) AddConfirmBlock(b *tradeblocks.ConfirmBlock) error {
+	// if err := ValidateConfirmBlock(s, b); err != nil {
+	// 	return err
+	// }
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	if err := tx.InsertConfirmBlock(b); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // AccountBlocks calls the specified function with every block in this store. Return false to stop iteration.
-func (s *BlockStore) AccountBlocks(f func(sequence int, b *tradeblocks.AccountBlock) bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for h, b := range s.accountBlocks {
-		seq := s.blockSequence[h]
-		if !f(seq, b) {
-			return
+func (s *BlockStore) AccountBlocks(f func(sequence int, b *tradeblocks.AccountBlock) bool) error {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	blocks, err := tx.GetAccountBlocks()
+	if err != nil {
+		return err
+	}
+	for i, b := range blocks {
+		if !f(i, b) {
+			return nil
 		}
 	}
+	return nil
 }
 
 // SwapBlocks calls the specified function with every block in this store. Return false to stop iteration.
-func (s *BlockStore) SwapBlocks(f func(sequence int, b *tradeblocks.SwapBlock) bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for h, b := range s.swapBlocks {
-		seq := s.blockSequence[h]
-		if !f(seq, b) {
-			return
+func (s *BlockStore) SwapBlocks(f func(sequence int, b *tradeblocks.SwapBlock) bool) error {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	blocks, err := tx.GetSwapBlocks()
+	if err != nil {
+		return err
+	}
+	for i, b := range blocks {
+		if !f(i, b) {
+			return nil
 		}
 	}
+	return nil
 }
 
 // OrderBlocks calls the specified function with every block in this store. Return false to stop iteration.
-func (s *BlockStore) OrderBlocks(f func(sequence int, b *tradeblocks.OrderBlock) bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for h, b := range s.orderBlocks {
-		seq := s.blockSequence[h]
-		if !f(seq, b) {
-			return
+func (s *BlockStore) OrderBlocks(f func(sequence int, b *tradeblocks.OrderBlock) bool) error {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	blocks, err := tx.GetOrderBlocks()
+	if err != nil {
+		return err
+	}
+	for i, b := range blocks {
+		if !f(i, b) {
+			return nil
 		}
 	}
+	return nil
 }
 
 // Blocks calls the specified function with every block in this store. Return false to stop iteration.
-func (s *BlockStore) Blocks(f func(sequence int, b tradeblocks.Block) bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for h, b := range s.blocks {
-		seq := s.blockSequence[h]
-		if !f(seq, b) {
-			return
+func (s *BlockStore) Blocks(f func(sequence int, b tradeblocks.Block) bool) error {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	blocks, err := tx.GetBlocks()
+	if err != nil {
+		return err
+	}
+	for i, b := range blocks {
+		if !f(i, b) {
+			return nil
 		}
 	}
+	return nil
 }
 
 // Block returns the block with the specified hash or nil if it's not found
-func (s *BlockStore) Block(hash string) tradeblocks.Block {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.blocks[hash]
+func (s *BlockStore) Block(hash string) (tradeblocks.Block, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetBlock(hash)
 }
 
 // GetAccountBlock returns the account block for the specified hash or nil if it's not found
-func (s *BlockStore) GetAccountBlock(hash string) *tradeblocks.AccountBlock {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.accountBlocks[hash]
+func (s *BlockStore) GetAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetAccountBlock(hash)
 }
 
 // GetSwapBlock returns the swap block for the specified hash or nil if it's not found
-func (s *BlockStore) GetSwapBlock(hash string) *tradeblocks.SwapBlock {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.swapBlocks[hash]
+func (s *BlockStore) GetSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetSwapBlock(hash)
 }
 
 // GetOrderBlock returns the order block for the specified hash or nil if it's not found
-func (s *BlockStore) GetOrderBlock(hash string) *tradeblocks.OrderBlock {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.orderBlocks[hash]
+func (s *BlockStore) GetOrderBlock(hash string) (*tradeblocks.OrderBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetOrderBlock(hash)
 }
 
 // GetAccountHead returns the head block for the specified account-token pair
-func (s *BlockStore) GetAccountHead(account, token string) *tradeblocks.AccountBlock {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.accountHeads[accountHeadKey(account, token)]
+func (s *BlockStore) GetAccountHead(account, token string) (*tradeblocks.AccountBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetAccountHead(account, token)
 }
 
 // GetSwapHead returns the head block for the specified account-id pair
-func (s *BlockStore) GetSwapHead(account, id string) *tradeblocks.SwapBlock {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.swapHeads[swapHeadKey(account, id)]
+func (s *BlockStore) GetSwapHead(account, id string) (*tradeblocks.SwapBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetSwapHead(account, id)
 }
 
 // GetOrderHead returns the head block for the specified account-id pair
-func (s *BlockStore) GetOrderHead(account, id string) *tradeblocks.OrderBlock {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.orderHeads[orderHeadKey(account, id)]
+func (s *BlockStore) GetOrderHead(account, id string) (*tradeblocks.OrderBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetOrderHead(account, id)
+}
+
+// GetConfirmHead returns the head block for the specified account-address pair
+func (s *BlockStore) GetConfirmHead(account, address string) (*tradeblocks.ConfirmBlock, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Commit()
+	return tx.GetConfirmHead(account, address)
 }
 
 // MatchOrdersForBuy returns orders that meet the specified criteria
-func (s *BlockStore) MatchOrdersForBuy(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for _, b := range s.orderHeads {
-		// fmt.Printf("%s %s %t\n", b.Token, base, b.Token != base)
-		// fmt.Printf("%f %f %t\n", b.Price, ppu, b.Price > ppu)
-		// fmt.Printf("%s %s %t\n", b.Quote, quote, b.Quote != quote)
-		if b.Token != base {
-			continue
-		}
-		if b.Price > ppu {
-			continue
-		}
-		if b.Quote != quote {
-			continue
-		}
+func (s *BlockStore) MatchOrdersForBuy(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) error {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	blocks, err := tx.GetLimitOrders(base, "<=", ppu, quote)
+	if err != nil {
+		return err
+	}
+	for _, b := range blocks {
 		f(b)
 	}
+	return nil
 }
 
 // MatchOrdersForSell returns orders that meet the specified criteria
-func (s *BlockStore) MatchOrdersForSell(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for _, b := range s.orderHeads {
-		if b.Token != base {
-			continue
-		}
-		if b.Price < ppu {
-			continue
-		}
-		if b.Quote != quote {
-			continue
-		}
+func (s *BlockStore) MatchOrdersForSell(base string, ppu float64, quote string, f func(b *tradeblocks.OrderBlock)) error {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	blocks, err := tx.GetLimitOrders(base, ">=", ppu, quote)
+	if err != nil {
+		return err
+	}
+	for _, b := range blocks {
 		f(b)
 	}
-}
-
-func accountHeadKey(account, token string) string {
-	return account + ":" + token
-}
-
-func swapHeadKey(account, id string) string {
-	return account + ":" + id
-}
-
-func orderHeadKey(account, id string) string {
-	return account + ":" + id
+	return nil
 }
 
 // GetVariableBlock returns a block of any block type. Used currently for receive Links
 // which can link to sendor commit swap
-func (s *BlockStore) GetVariableBlock(hash string) tradeblocks.Block {
-	if accountBlock := s.GetAccountBlock(hash); accountBlock != nil {
-		return accountBlock
-	}
-	if swapBlock := s.GetSwapBlock(hash); swapBlock != nil {
-		return swapBlock
-	}
-	if orderBlock := s.GetOrderBlock(hash); orderBlock != nil {
-		return orderBlock
-	}
-	return nil
+func (s *BlockStore) GetVariableBlock(hash string) (tradeblocks.Block, error) {
+	return s.Block(hash)
 }

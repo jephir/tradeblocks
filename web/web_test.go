@@ -25,7 +25,7 @@ func TestWeb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := `{"Action":"issue","Account":"` + a + `","Token":"` + a + `","Previous":"","Representative":"","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
+	expect := `{"Action":"issue","Account":"` + a + `","Token":"` + a + `","Previous":"","Representative":"` + a + `","Balance":100,"Link":"","Signature":"` + b.Signature + `"}`
 
 	req, err := client.NewPostAccountBlockRequest(b)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/db"
 )
 
 // Server implements a TradeBlocks node
@@ -61,10 +62,13 @@ func (s *Server) handleBlock() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			hash := r.FormValue("hash")
-			block := s.store.Block(hash)
-			if block == nil {
+			block, err := s.store.Block(hash)
+			if err == db.ErrNotFound {
 				serverError(w, "no block found with hash '"+hash+"'", http.StatusBadRequest)
 				return
+			}
+			if err != nil {
+				serverError(w, "error getting block: "+err.Error(), http.StatusInternalServerError)
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
@@ -84,7 +88,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					return
 				}
 				if err := s.store.AddAccountBlock(&b); err != nil {
-					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					serverError(w, "can't add account block: "+err.Error(), http.StatusBadRequest)
 					return
 				}
 				if err := json.NewEncoder(w).Encode(b); err != nil {
@@ -104,7 +108,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					return
 				}
 				if err := s.store.AddSwapBlock(&b); err != nil {
-					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					serverError(w, "can't add swap block: "+err.Error(), http.StatusBadRequest)
 					return
 				}
 				if err := json.NewEncoder(w).Encode(b); err != nil {
@@ -124,7 +128,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 					return
 				}
 				if err := s.store.AddOrderBlock(&b); err != nil {
-					serverError(w, "can't add block: "+err.Error(), http.StatusBadRequest)
+					serverError(w, "can't add order block: "+err.Error(), http.StatusBadRequest)
 					return
 				}
 				if err := json.NewEncoder(w).Encode(b); err != nil {
@@ -160,9 +164,14 @@ func (s *Server) handleHead() http.HandlerFunc {
 		case "account":
 			account := r.FormValue("account")
 			token := r.FormValue("token")
-			block := s.store.GetAccountHead(account, token)
-			if block == nil {
+			block, err := s.store.GetAccountHead(account, token)
+			if err == db.ErrNotFound {
 				serverError(w, "no account head found for account '"+account+"' and token '"+token+"'", http.StatusBadRequest)
+				return
+			}
+			if err != nil {
+				serverError(w, "error getting block: "+err.Error(), http.StatusInternalServerError)
+				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
@@ -171,9 +180,14 @@ func (s *Server) handleHead() http.HandlerFunc {
 		case "swap":
 			account := r.FormValue("account")
 			id := r.FormValue("id")
-			block := s.store.GetSwapHead(account, id)
-			if block == nil {
+			block, err := s.store.GetSwapHead(account, id)
+			if err == db.ErrNotFound {
 				serverError(w, "no swap head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
+				return
+			}
+			if err != nil {
+				serverError(w, "error getting block: "+err.Error(), http.StatusInternalServerError)
+				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
@@ -182,9 +196,14 @@ func (s *Server) handleHead() http.HandlerFunc {
 		case "order":
 			account := r.FormValue("account")
 			id := r.FormValue("id")
-			block := s.store.GetOrderHead(account, id)
-			if block == nil {
+			block, err := s.store.GetOrderHead(account, id)
+			if err == db.ErrNotFound {
 				serverError(w, "no order head found for account '"+account+"' and id '"+id+"'", http.StatusBadRequest)
+				return
+			}
+			if err != nil {
+				serverError(w, "error getting block: "+err.Error(), http.StatusInternalServerError)
+				return
 			}
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)

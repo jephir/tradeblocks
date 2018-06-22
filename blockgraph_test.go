@@ -10,7 +10,7 @@ import (
 )
 
 func TestHash(t *testing.T) {
-	expect := "VXF6FV3YI4MDD6T7AYHSD3JAUQ4GUXRTPVESHTDXUCFESS4BZGIA"
+	expect := "BQ7EKDYS6DKKU6RSLXNVCJNZK4JCOVMXDAJX5LT3AKWB4Q6CYHPA"
 	b := NewIssueBlock("xtb:test", 100)
 	h := b.Hash()
 	if h != expect {

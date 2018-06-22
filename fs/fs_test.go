@@ -53,12 +53,18 @@ func TestFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b1check := store2.GetAccountBlock(h1)
+	b1check, err := store2.GetAccountBlock(h1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if b1check == nil {
 		t.Fatalf("block [1] %s is missing", h1)
 	}
 
-	b2check := store2.GetAccountBlock(h2)
+	b2check, err := store2.GetAccountBlock(h2)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if b2check == nil {
 		t.Fatalf("block [2] %s is missing", h2)
 	}

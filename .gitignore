@@ -27,3 +27,4 @@ web/node_modules
 
 *.exe
 *.bin
+*.test

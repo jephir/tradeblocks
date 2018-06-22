@@ -12,6 +12,7 @@ import (
 
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/db"
 	"github.com/jephir/tradeblocks/fs"
 	"github.com/jephir/tradeblocks/web"
 )
@@ -234,12 +235,18 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 		if err := n.server.BroadcastBlock(b.AccountBlock); err != nil {
 			log.Println(err)
 		}
+		if err := n.confirmBlock(b.AccountBlock); err != nil {
+			log.Printf("node: confirm error: %s", err.Error())
+		}
 	case "swap":
 		if err := n.storage.SaveSwapBlock(b.SwapBlock); err != nil {
 			log.Println(err)
 		}
 		if err := n.server.BroadcastBlock(b.SwapBlock); err != nil {
 			log.Println(err)
+		}
+		if err := n.confirmBlock(b.SwapBlock); err != nil {
+			log.Printf("node: confirm error: %s", err.Error())
 		}
 	case "order":
 		if err := n.storage.SaveOrderBlock(b.OrderBlock); err != nil {
@@ -248,6 +255,10 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 		if err := n.server.BroadcastBlock(b.OrderBlock); err != nil {
 			log.Println(err)
 		}
+		if err := n.confirmBlock(b.OrderBlock); err != nil {
+			log.Printf("node: confirm error: %s", err.Error())
+		}
+		// TODO save confirm blocks
 	}
 
 	// Check if block matches an open order
@@ -315,7 +326,10 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 
 func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 	if b.Action == "offer" && b.Executor == n.address {
-		order := n.store.GetOrderHead(b.Counterparty, b.ID)
+		order, err := n.store.GetOrderHead(b.Counterparty, b.ID)
+		if err != nil {
+			return err
+		}
 		if order == nil {
 			return fmt.Errorf("node: no order found for '%s:%s'", b.Counterparty, b.ID)
 		}
@@ -349,6 +363,31 @@ func (n *Node) handleSwap(b *tradeblocks.SwapBlock) error {
 			T:         "swap",
 		})
 	}
+	return nil
+}
+
+func (n *Node) confirmBlock(b tradeblocks.Block) error {
+	address := b.Address()
+	previous, err := n.store.GetConfirmHead(n.address, address)
+	if err != nil {
+		if err == db.ErrNotFound {
+			previous = nil
+		} else {
+			return err
+		}
+	}
+	hash := b.Hash()
+	cb := tradeblocks.NewConfirmBlock(previous, n.address, address, hash)
+	if err := cb.SignBlock(n.priv); err != nil {
+		return err
+	}
+	if err := n.store.AddConfirmBlock(cb); err != nil {
+		return fmt.Errorf("error adding confirm: %s", err.Error())
+	}
+	n.server.BlockHandler(app.TypedBlock{
+		ConfirmBlock: cb,
+		T:            "confirm",
+	})
 	return nil
 }
 

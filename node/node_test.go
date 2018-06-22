@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -84,10 +85,10 @@ func TestBootstrapAndSync(t *testing.T) {
 	defer s1.Close()
 
 	// Check that connecting node 1 has all seed blocks
-	if node1.store.GetAccountBlock(h1) == nil {
+	if err := checkNotMissing(t, node1.store, h1); err != nil {
 		t.Fatalf("N1 missing existing block %s", h1)
 	}
-	if node1.store.GetAccountBlock(h2) == nil {
+	if err := checkNotMissing(t, node1.store, h2); err != nil {
 		t.Fatalf("N1 missing existing block %s", h2)
 	}
 
@@ -96,10 +97,10 @@ func TestBootstrapAndSync(t *testing.T) {
 	defer s2.Close()
 
 	// Check that connecting node 2 has all node 1 blocks
-	if node2.store.GetAccountBlock(h1) == nil {
+	if err := checkNotMissing(t, node2.store, h1); err != nil {
 		t.Fatalf("N2 missing existing block %s", h1)
 	}
-	if node2.store.GetAccountBlock(h2) == nil {
+	if err := checkNotMissing(t, node2.store, h2); err != nil {
 		t.Fatalf("N2 missing existing block %s", h2)
 	}
 
@@ -121,7 +122,7 @@ func TestBootstrapAndSync(t *testing.T) {
 	if err := seed.Sync(); err != nil {
 		t.Fatal(err)
 	}
-	if node1.store.GetAccountBlock(h3) == nil {
+	if err := checkNotMissing(t, node1.store, h3); err != nil {
 		t.Fatalf("N1 missing new block %s", h3)
 	}
 
@@ -136,7 +137,7 @@ func TestBootstrapAndSync(t *testing.T) {
 	if err := node1.Sync(); err != nil {
 		t.Fatal(err)
 	}
-	if node2.store.GetAccountBlock(h3) == nil {
+	if err := checkNotMissing(t, node2.store, h3); err != nil {
 		t.Fatalf("N2 missing new block %s", h3)
 	}
 
@@ -146,6 +147,17 @@ func TestBootstrapAndSync(t *testing.T) {
 	if _, err := os.Stat(p2); os.IsNotExist(err) {
 		t.Fatalf("N2 didn't persist block %s at %s", h3, p2)
 	}
+}
+
+func checkNotMissing(t *testing.T, store *app.BlockStore, hash string) error {
+	b, err := store.GetAccountBlock(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b == nil {
+		return fmt.Errorf("missing block %s", hash)
+	}
+	return nil
 }
 
 func newNode(t *testing.T, bootstrapURL string) (*Node, *httptest.Server) {
@@ -286,25 +298,25 @@ func TestSyncAllBlockTypes(t *testing.T) {
 			h := addBlockToNode(t, s1.URL, tt)
 			switch tt.T {
 			case "account":
-				if n2block := n2.store.GetAccountBlock(h); n2block == nil {
-					t.Fatalf("node2 missing block %s", h)
+				if n2block, err := n2.store.GetAccountBlock(h); n2block == nil || err != nil {
+					t.Fatalf("node2 missing block %s: %s", h, err)
 				}
-				if n3block := n3.store.GetAccountBlock(h); n3block == nil {
-					t.Fatalf("node3 missing block %s", h)
+				if n3block, err := n3.store.GetAccountBlock(h); n3block == nil || err != nil {
+					t.Fatalf("node3 missing block %s: %s", h, err)
 				}
 			case "swap":
-				if n2block := n2.store.GetSwapBlock(h); n2block == nil {
-					t.Fatalf("node2 missing block %s", h)
+				if n2block, err := n2.store.GetSwapBlock(h); n2block == nil || err != nil {
+					t.Fatalf("node2 missing block %s: %s", h, err)
 				}
-				if n3block := n3.store.GetSwapBlock(h); n3block == nil {
-					t.Fatalf("node3 missing block %s", h)
+				if n3block, err := n3.store.GetSwapBlock(h); n3block == nil || err != nil {
+					t.Fatalf("node3 missing block %s: %s", h, err)
 				}
 			case "order":
-				if n2block := n2.store.GetOrderBlock(h); n2block == nil {
-					t.Fatalf("node2 missing block %s", h)
+				if n2block, err := n2.store.GetOrderBlock(h); n2block == nil || err != nil {
+					t.Fatalf("node2 missing block %s: %s", h, err)
 				}
-				if n3block := n3.store.GetOrderBlock(h); n3block == nil {
-					t.Fatalf("node3 missing block %s", h)
+				if n3block, err := n3.store.GetOrderBlock(h); n3block == nil || err != nil {
+					t.Fatalf("node3 missing block %s: %s", h, err)
 				}
 			}
 		})

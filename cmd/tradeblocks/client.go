@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,11 +15,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jephir/tradeblocks/web"
-
 	"github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/app"
+	"github.com/jephir/tradeblocks/web"
 )
+
+var verifyLocalSigning = flag.Bool("verifylocalsigning", true, "verify signing of local blocks before sending to node")
+
+func init() {
+	flag.Parse()
+}
 
 type client struct {
 	dir     string
@@ -84,26 +90,14 @@ func (c *client) login(name string) (address string, err error) {
 }
 
 func (c *client) issue(balance float64) (*tradeblocks.AccountBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
-
 	// create the Issue block
-	issue, err := app.Issue(publicKey, balance)
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
 
-	// add the signature
-	if err := sign(privateKey, issue); err != nil {
+	issue, err := c.signAccount(tradeblocks.NewIssueBlock(account, balance))
+	if err != nil {
 		return nil, err
 	}
 
@@ -116,31 +110,20 @@ func (c *client) issue(balance float64) (*tradeblocks.AccountBlock, error) {
 
 func (c *client) send(to string, token string, amount float64) (*tradeblocks.AccountBlock, error) {
 	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
 
-	previous, err := c.getHeadBlock(publicKey, token)
+	previous, err := c.getAccountHeadBlock(account, token)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for send: %s", err.Error())
 	}
 
 	// create the send block
-	send, err := app.Send(publicKey, previous, to, amount)
+	send, err := c.signAccount(tradeblocks.NewSendBlock(previous, to, amount))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := sign(privateKey, send); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error creating send: %s", err.Error())
 	}
 
 	if err := c.postAccountBlock(send); err != nil {
@@ -151,17 +134,10 @@ func (c *client) send(to string, token string, amount float64) (*tradeblocks.Acc
 }
 
 func (c *client) openFromSend(link string) (*tradeblocks.AccountBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
 
 	// get the linked send
 	send, err := c.getBlock(link)
@@ -175,13 +151,8 @@ func (c *client) openFromSend(link string) (*tradeblocks.AccountBlock, error) {
 	balance := sendParent.Balance - send.Balance
 
 	// create the Open
-	open, err := app.OpenFromSend(publicKey, send, balance)
+	open, err := c.signAccount(tradeblocks.NewOpenBlockFromSend(account, send, balance))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := sign(privateKey, open); err != nil {
 		return nil, err
 	}
 
@@ -193,31 +164,19 @@ func (c *client) openFromSend(link string) (*tradeblocks.AccountBlock, error) {
 }
 
 func (c *client) openFromSwap(link string) (*tradeblocks.AccountBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
 
 	// get the linked send
 	swap, err := c.getSwapBlock(link)
 	if err != nil {
-		return nil, err
-	}
-
-	address, err := app.PublicKeyToAddress(publicKey)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for openFromSwap: %s", err.Error())
 	}
 
 	var send *tradeblocks.AccountBlock
-	if address == swap.Account {
+	if account == swap.Account {
 		send, err = c.getBlock(swap.Right)
 		if err != nil {
 			return nil, err
@@ -237,13 +196,8 @@ func (c *client) openFromSwap(link string) (*tradeblocks.AccountBlock, error) {
 	token := send.Token
 
 	// create the Open
-	open, err := app.OpenFromSwap(publicKey, token, swap, balance)
+	open, err := c.signAccount(tradeblocks.NewOpenBlockFromSwap(account, token, swap, balance))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := sign(privateKey, open); err != nil {
 		return nil, err
 	}
 
@@ -255,17 +209,10 @@ func (c *client) openFromSwap(link string) (*tradeblocks.AccountBlock, error) {
 }
 
 func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
 
 	// get the linked send
 	send, err := c.getBlock(link)
@@ -276,22 +223,17 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 	if err != nil {
 		return nil, err
 	}
-	balance := sendParent.Balance - send.Balance
+	amount := sendParent.Balance - send.Balance
 
 	// get the previous block on this chain
-	previous, err := c.getHeadBlock(publicKey, send.Token)
+	previous, err := c.getAccountHeadBlock(account, send.Token)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for receive: %s", err.Error())
 	}
 
 	// create the receive
-	receive, err := app.Receive(publicKey, previous, send, balance)
+	receive, err := c.signAccount(tradeblocks.NewReceiveBlockFromSend(previous, send, amount))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := sign(privateKey, receive); err != nil {
 		return nil, err
 	}
 
@@ -303,17 +245,10 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 }
 
 func (c *client) offer(left, ID, counterparty, want string, quantity float64, executor string, fee float64) (*tradeblocks.SwapBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
 
 	// get the linked send
 	send, err := c.getBlock(left)
@@ -322,13 +257,8 @@ func (c *client) offer(left, ID, counterparty, want string, quantity float64, ex
 	}
 
 	// create the offer
-	offer, err := app.Offer(publicKey, send, ID, counterparty, want, quantity, executor, fee)
+	offer, err := c.signSwap(tradeblocks.NewOfferBlock(account, send, ID, counterparty, want, quantity, executor, fee))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := signSwap(privateKey, offer); err != nil {
 		return nil, err
 	}
 
@@ -340,18 +270,6 @@ func (c *client) offer(left, ID, counterparty, want string, quantity float64, ex
 }
 
 func (c *client) commit(offer string, send string) (*tradeblocks.SwapBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
-
 	// get the linked send
 	right, err := c.getBlock(send)
 	if err != nil {
@@ -361,20 +279,11 @@ func (c *client) commit(offer string, send string) (*tradeblocks.SwapBlock, erro
 	// get the original offer block
 	offerBlock, err := c.getSwapBlock(offer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for commit: %s", err.Error())
 	}
 
 	// create the commit
-	commit, err := app.Commit(publicKey, offerBlock, right)
-	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := signSwap(privateKey, commit); err != nil {
-		return nil, err
-	}
-
+	commit, err := c.signSwap(tradeblocks.NewCommitBlock(offerBlock, right))
 	if err := c.postSwapBlock(commit); err != nil {
 		return nil, err
 	}
@@ -383,22 +292,10 @@ func (c *client) commit(offer string, send string) (*tradeblocks.SwapBlock, erro
 }
 
 func (c *client) refundLeft(offer string) (*tradeblocks.SwapBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
-
 	// get the original offer block
 	offerBlock, err := c.getSwapBlock(offer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for refundLeft: %s", err.Error())
 	}
 
 	// get the original send
@@ -411,13 +308,8 @@ func (c *client) refundLeft(offer string) (*tradeblocks.SwapBlock, error) {
 	refundTo := left.Account
 
 	// create the refund
-	refundLeft, err := app.RefundLeft(publicKey, offerBlock, refundTo)
+	refundLeft, err := c.signSwap(tradeblocks.NewRefundLeftBlock(offerBlock, refundTo))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := signSwap(privateKey, refundLeft); err != nil {
 		return nil, err
 	}
 
@@ -429,22 +321,10 @@ func (c *client) refundLeft(offer string) (*tradeblocks.SwapBlock, error) {
 }
 
 func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
-
 	// get the original offer block
 	refundLeftBlock, err := c.getSwapBlock(refundLeft)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for refundRight: %s", err.Error())
 	}
 
 	// get the counterparty send
@@ -457,13 +337,8 @@ func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) 
 	refundTo := right.Account
 
 	// create the refund
-	refundRight, err := app.RefundRight(publicKey, refundLeftBlock, right, refundTo)
+	refundRight, err := c.signSwap(tradeblocks.NewRefundRightBlock(refundLeftBlock, right, refundTo))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := signSwap(privateKey, refundRight); err != nil {
 		return nil, err
 	}
 
@@ -475,17 +350,10 @@ func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) 
 }
 
 func (c *client) createOrder(send string, ID string, partial bool, quote string, price float64, executor string, fee float64) (*tradeblocks.OrderBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
 
 	// get the originating send
 	sendBlock, err := c.getBlock(send)
@@ -503,13 +371,8 @@ func (c *client) createOrder(send string, ID string, partial bool, quote string,
 	balance := sendPrevBlock.Balance - sendBlock.Balance
 
 	// create the refund
-	createOrderBlock, err := app.CreateOrder(publicKey, sendBlock, balance, ID, partial, quote, price, executor, fee)
+	createOrderBlock, err := c.signOrder(tradeblocks.NewCreateOrderBlock(account, sendBlock, balance, ID, partial, quote, price, executor, fee))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := signOrder(privateKey, createOrderBlock); err != nil {
 		return nil, err
 	}
 
@@ -521,20 +384,12 @@ func (c *client) createOrder(send string, ID string, partial bool, quote string,
 }
 
 func (c *client) acceptOrder(swap string, link string) (*tradeblocks.OrderBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
-
 	// get the previous order
-	prevBlock, err := c.getHeadOrderBlock(publicKey, swap)
+	prevBlock, err := c.getHeadOrderBlock(account, swap)
 	if err != nil {
 		return nil, err
 	}
@@ -542,20 +397,15 @@ func (c *client) acceptOrder(swap string, link string) (*tradeblocks.OrderBlock,
 	// get the swap by address
 	swapBlock, err := c.getSwapBlock(swap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error getting head block for acceptOrder: %s", err.Error())
 	}
 
 	// balance of the order
 	balance := prevBlock.Balance - swapBlock.Quantity
 
 	// create the refund
-	acceptOrderBlock, err := app.AcceptOrder(publicKey, prevBlock, link, balance)
+	acceptOrderBlock, err := c.signOrder(tradeblocks.NewAcceptOrderBlock(prevBlock, link, balance))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := signOrder(privateKey, acceptOrderBlock); err != nil {
 		return nil, err
 	}
 
@@ -567,20 +417,13 @@ func (c *client) acceptOrder(swap string, link string) (*tradeblocks.OrderBlock,
 }
 
 func (c *client) refundOrder(order string) (*tradeblocks.OrderBlock, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := c.openPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-	defer privateKey.Close()
 
 	// get the previous order
-	prevBlock, err := c.getHeadOrderBlock(publicKey, order)
+	prevBlock, err := c.getHeadOrderBlock(account, order)
 	if err != nil {
 		return nil, err
 	}
@@ -588,13 +431,8 @@ func (c *client) refundOrder(order string) (*tradeblocks.OrderBlock, error) {
 	refundTo := prevBlock.Account
 
 	// create the refund
-	refundOrderBlock, err := app.RefundOrder(publicKey, prevBlock, refundTo)
+	refundOrderBlock, err := c.signOrder(tradeblocks.NewRefundOrderBlock(prevBlock, refundTo))
 	if err != nil {
-		return nil, err
-	}
-
-	// add the signature
-	if err := signOrder(privateKey, refundOrderBlock); err != nil {
 		return nil, err
 	}
 
@@ -606,25 +444,19 @@ func (c *client) refundOrder(order string) (*tradeblocks.OrderBlock, error) {
 }
 
 func (c *client) sell(quantity float64, base string, ppu float64, quote string) (tradeblocks.Block, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
-	defer publicKey.Close()
 
 	// TODO match against buy order if found
 
 	id := app.UniqueID()
-	addr, err := app.PublicKeyToAddress(publicKey)
-	if err != nil {
-		return nil, err
-	}
-	link := tradeblocks.OrderAddress(addr, id)
+	link := tradeblocks.OrderAddress(account, id)
 
 	send, err := c.send(link, base, quantity)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: error creating send for sell: %s", err.Error())
 	}
 
 	r, err := c.api.NewGetAddressRequest()
@@ -646,14 +478,7 @@ func (c *client) sell(quantity float64, base string, ppu float64, quote string) 
 }
 
 func (c *client) buy(quantity float64, base string, ppu float64, quote string) ([]tradeblocks.Block, error) {
-	// get the keys
-	publicKey, err := c.openPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	defer publicKey.Close()
-
-	account, err := app.PublicKeyToAddress(publicKey)
+	account, err := c.getUserAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -737,11 +562,7 @@ func openPrivateKey() (*os.File, error) {
 	return os.Open(string(user) + ".pem")
 }
 
-func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.AccountBlock, error) {
-	address, err := app.PublicKeyToAddress(publicKey)
-	if err != nil {
-		return nil, err
-	}
+func (c *client) getAccountHeadBlock(address, token string) (*tradeblocks.AccountBlock, error) {
 	r, err := c.api.NewGetAccountHeadRequest(address, token)
 	if err != nil {
 		return nil, err
@@ -757,11 +578,7 @@ func (c *client) getHeadBlock(publicKey io.Reader, token string) (*tradeblocks.A
 	return &result, nil
 }
 
-func (c *client) getHeadSwapBlock(publicKey io.Reader, id string) (*tradeblocks.SwapBlock, error) {
-	address, err := app.PublicKeyToAddress(publicKey)
-	if err != nil {
-		return nil, err
-	}
+func (c *client) getHeadSwapBlock(address, id string) (*tradeblocks.SwapBlock, error) {
 	r, err := c.api.NewGetSwapHeadRequest(address, id)
 	if err != nil {
 		return nil, err
@@ -777,11 +594,7 @@ func (c *client) getHeadSwapBlock(publicKey io.Reader, id string) (*tradeblocks.
 	return &result, nil
 }
 
-func (c *client) getHeadOrderBlock(publicKey io.Reader, id string) (*tradeblocks.OrderBlock, error) {
-	address, err := app.PublicKeyToAddress(publicKey)
-	if err != nil {
-		return nil, err
-	}
+func (c *client) getHeadOrderBlock(address, id string) (*tradeblocks.OrderBlock, error) {
 	r, err := c.api.NewGetOrderHeadRequest(address, id)
 	if err != nil {
 		return nil, err
@@ -877,6 +690,23 @@ func (c *client) postOrderBlock(b *tradeblocks.OrderBlock) error {
 	return nil
 }
 
+func (c *client) getUserAccount() (string, error) {
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return "", err
+	}
+	defer privateKey.Close()
+	priv, err := parsePrivateKey(privateKey)
+	if err != nil {
+		return "", err
+	}
+	addr, err := app.PrivateKeyToAddress(priv)
+	if err != nil {
+		return "", err
+	}
+	return addr, nil
+}
+
 func parsePrivateKey(r io.Reader) (*rsa.PrivateKey, error) {
 	keyBytes, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -891,29 +721,74 @@ func parsePrivateKey(r io.Reader) (*rsa.PrivateKey, error) {
 	return x509.ParsePKCS1PrivateKey(p.Bytes)
 }
 
-func sign(privateKey io.Reader, b *tradeblocks.AccountBlock) error {
-	b.Normalize()
-	priv, err := parsePrivateKey(privateKey)
+func (c *client) signAccount(b *tradeblocks.AccountBlock) (*tradeblocks.AccountBlock, error) {
+	priv, err := c.getPrivateKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return b.SignBlock(priv)
+	b.Normalize()
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	if *verifyLocalSigning {
+		pub, err := app.AddressToRSAKey(b.Account)
+		if err != nil {
+			return nil, err
+		}
+		if err := b.VerifyBlock(pub); err != nil {
+			return nil, fmt.Errorf("client: verification error: %s", err.Error())
+		}
+	}
+	return b, nil
 }
 
-func signSwap(privateKey io.Reader, b *tradeblocks.SwapBlock) error {
-	b.Normalize()
-	priv, err := parsePrivateKey(privateKey)
+func (c *client) signSwap(b *tradeblocks.SwapBlock) (*tradeblocks.SwapBlock, error) {
+	priv, err := c.getPrivateKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return b.SignBlock(priv)
+	b.Normalize()
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	if *verifyLocalSigning {
+		pub, err := app.AddressToRSAKey(b.Account)
+		if err != nil {
+			return nil, err
+		}
+		if err := b.VerifyBlock(pub); err != nil {
+			return nil, fmt.Errorf("client: verification error: %s", err.Error())
+		}
+	}
+	return b, nil
 }
 
-func signOrder(privateKey io.Reader, b *tradeblocks.OrderBlock) error {
-	b.Normalize()
-	priv, err := parsePrivateKey(privateKey)
+func (c *client) signOrder(b *tradeblocks.OrderBlock) (*tradeblocks.OrderBlock, error) {
+	priv, err := c.getPrivateKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return b.SignBlock(priv)
+	b.Normalize()
+	if err := b.SignBlock(priv); err != nil {
+		return nil, err
+	}
+	if *verifyLocalSigning {
+		pub, err := app.AddressToRSAKey(b.Account)
+		if err != nil {
+			return nil, err
+		}
+		if err := b.VerifyBlock(pub); err != nil {
+			return nil, fmt.Errorf("client: verification error: %s", err.Error())
+		}
+	}
+	return b, nil
+}
+
+func (c *client) getPrivateKey() (*rsa.PrivateKey, error) {
+	privateKey, err := c.openPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	defer privateKey.Close()
+	return parsePrivateKey(privateKey)
 }
