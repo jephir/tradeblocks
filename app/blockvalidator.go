@@ -471,10 +471,7 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 
 		// get the send (right) for the second swap
 		rightBlock, err := blockStore.GetVariableBlock(block.Right)
-		if err != nil {
-			return err
-		}
-		if rightBlock == nil {
+		if err == db.ErrNotFound {
 			return errors.New("counter send not found")
 		}
 
