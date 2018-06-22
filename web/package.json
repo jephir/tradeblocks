@@ -5,8 +5,11 @@
   "dependencies": {
     "@material-ui/core": "^1.1.0",
     "@material-ui/icons": "^1.1.0",
+    "highcharts-more": "^0.1.7",
+    "jquery": "^3.3.1",
     "react": "^16.4.0",
     "react-dom": "^16.4.0",
+    "react-highcharts": "^16.0.2",
     "react-json-view": "^1.16.6",
     "react-scripts": "1.1.4",
     "storm-react-diagrams": "^5.2.1"

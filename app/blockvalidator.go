@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
-	"strings"
 
 	tb "github.com/jephir/tradeblocks"
 	"github.com/jephir/tradeblocks/db"
@@ -471,30 +470,54 @@ func (validator SwapBlockValidator) ValidateSwapBlock(block *tb.SwapBlock) error
 		}
 
 		// get the send (right) for the second swap
-		// TODO causing CLI limit test to fail (the send can be in the order chain as well as the account chain)
-		// sendCounter, errSendCounter := getAndVerifyAccount(block.Right, blockStore)
-		// if errSendCounter != nil || sendCounter == nil {
-		// 	return errors.New("counter send not found")
-		// }
+		rightBlock, err := blockStore.GetVariableBlock(block.Right)
+		if err == db.ErrNotFound {
+			return errors.New("counter send not found")
+		}
 
-		// check to see if the send (left) is pointed at this block
-		// if sendCounter.Link != block.Account+":swap:"+block.ID {
-		// 	return errors.New("Linked right block does not send to this swap")
-		// }
+		switch rightBlock := rightBlock.(type) {
+		case *tb.AccountBlock:
+			// check to see if the send (right) is pointed at this block
+			if rightBlock.Link != block.Account+":swap:"+block.ID {
+				return errors.New("Linked right block does not send to this swap")
+			}
 
-		// // get the sendCounter's prev to determine quantity sent
-		// sendCounterPrev, errSendCounterPrev := getAndVerifyAccount(sendCounter.Previous, blockStore)
-		// if errSendCounterPrev != nil || sendCounterPrev == nil {
-		// 	return errors.New("counter send prev not found")
-		// }
+			// get the rightBlock's prev to determine quantity sent
+			rightBlockPrev, err := getAndVerifyAccount(rightBlock.Previous, blockStore)
+			if err != nil || rightBlockPrev == nil {
+				return errors.New("counter send prev not found")
+			}
 
-		// // check if the tokens sent line up
-		// requestedQty := prevBlock.Quantity
-		// requestedWant := prevBlock.Want
-		// counterQuantity := sendCounterPrev.Balance - sendCounter.Balance
-		// if requestedWant != sendCounter.Token || requestedQty != counterQuantity {
-		// 	return errors.New("amount/token requested not sent")
-		// }
+			// check if the tokens sent line up
+			requestedQty := prevBlock.Quantity
+			requestedWant := prevBlock.Want
+			counterQuantity := rightBlockPrev.Balance - rightBlock.Balance
+			if requestedWant != rightBlock.Token || requestedQty != counterQuantity {
+				return errors.New("amount/token requested not sent")
+			}
+		case *tb.OrderBlock:
+			// check to see if the accept-order is pointed at this block
+			if rightBlock.Link != block.Account+":swap:"+block.ID {
+				return errors.New("Linked right block does not send to this swap")
+			}
+
+			// get the accept-order's prev to determine quantity sent
+			rightBlockPrev, err := getAndVerifyOrder(rightBlock.Previous, blockStore)
+			if err != nil || rightBlockPrev == nil {
+				return errors.New("accept-order prev not found")
+			}
+
+			// check if the tokens sent line up
+			requestedQty := prevBlock.Quantity
+			requestedWant := prevBlock.Want
+			counterQuantity := rightBlockPrev.Balance - rightBlock.Balance
+			if requestedWant != rightBlock.Token || requestedQty != counterQuantity {
+				return errors.New("amount/token requested not sent")
+			}
+		default:
+			return errors.New("Linked right block was invalid")
+		}
+
 	} else if action == "refund-left" {
 		if errPrev != nil || prevBlock == nil {
 			return errors.New("previous must be not null")
@@ -671,13 +694,7 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// get the linked swap
-		// TODO the link in 'accept-order' is always a swap address because it's sending funds into a swap. don't validate by getting a hash
-		var swapBlock *tb.SwapBlock
-		if strings.Contains(block.Link, ":swap:") {
-			swapBlock, err = getAndVerifySwapByLink(block.Link, blockStore)
-		} else {
-			swapBlock, err = getAndVerifySwap(block.Link, blockStore)
-		}
+		swapBlock, err := getAndVerifySwapByLink(block.Link, blockStore)
 		if err != nil {
 			return fmt.Errorf("Swap link validation failed: %s", err.Error())
 		}
@@ -713,10 +730,11 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 		}
 
 		// Balances check
-		swapWant := swapBlock.Quantity
-		orderBalance := prevBlock.Balance - block.Balance
-		// orderPrice := block.Price
-		// swapSendQuantity := swapSendPrevBlock.Balance - swapSendBlock.Balance
+		swapQuantityWant := swapBlock.Quantity
+		orderSend := prevBlock.Balance - block.Balance
+		orderPrice := block.Price
+		orderQuantityWant := orderSend * orderPrice
+		swapSendQuantity := swapSendPrevBlock.Balance - swapSendBlock.Balance
 		// valid block balance
 		if block.Balance < 0 {
 			return errors.New("Invalid block balance, must be greater than zero")
@@ -728,15 +746,14 @@ func (validator OrderBlockValidator) ValidateOrderBlock(block *tb.OrderBlock) er
 			}
 		}
 		// check to see if order gets what it wants
-		// TODO causing CLI limit test to fail
-		// incoming := orderPrice * swapSendQuantity
-		// if incoming != orderBalance {
-		// 	return fmt.Errorf("Balance sent to order is invalid: expected %f; got %f", incoming, orderBalance)
-		// }
+		incomingQuantity := swapSendQuantity
+		if incomingQuantity != orderQuantityWant {
+			return fmt.Errorf("Balance sent to order is invalid: expected %f; got %f", incomingQuantity, orderQuantityWant)
+		}
 
 		// check if swap gets what it wants
-		if orderBalance != swapWant {
-			return fmt.Errorf("Balance sent to swap is invalid: expected %f; got %f", swapWant, orderBalance)
+		if orderSend != swapQuantityWant {
+			return fmt.Errorf("Balance sent to swap is invalid: expected %f; got %f", orderSend, swapQuantityWant)
 		}
 
 	case "refund-order":
