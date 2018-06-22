@@ -12,7 +12,7 @@ import (
 const badAddress = "xtb:MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCz8_JKRKFLWxECvLqxyBt3L95IzqtFcxPMbXeCwGUzi0MNuG7Z_WxNfrKJZEZnepL_KzmFaa9gwXQ1GmPmFHShKjk7eqhglOyO6pPWWoCvxywY3hqVFvVE4hUchvzUTZNUSu1Pr-TOFzicYU4zXnzmh7r7cD4xC1N5CAIHtjAXKQIDAQAB"
 const badSignature = "zypz3O++osG8rj3R9jirIvhZGwTtwwEZ16LTc3BdjUiJ6w5pBKd1JPDamXbSyIjCIC9wGTZx14IDVHLpL/wW8W8GI3d2ocsFfPolo81Wrgu1HN5ciklQ3Ph1MaxxO8/KND64k9cwG5EjH79M4vtiJMcl4EPM4BZ00yrcNxwSkik="
 
-func openSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, AccountBlockValidator, error) {
+func openSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.AccountBlock, *OpenBlockValidator, error) {
 	s := NewBlockStore()
 	i := tradeblocks.NewIssueBlock(address, 100.0)
 	send := tradeblocks.NewSendBlock(i, address, 100.0)
@@ -21,18 +21,15 @@ func openSetup(key *rsa.PrivateKey, address string, t *testing.T) (*tradeblocks.
 
 	validator := NewOpenValidator(s)
 
-	err := i.SignBlock(key)
-	if err != nil {
+	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
-	err = send.SignBlock(key)
-	if err != nil {
+	if err := send.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
-	err = open.SignBlock(key)
-	if err != nil {
+	if err := open.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,33 +91,35 @@ func TestOpenBlockValidator(t *testing.T) {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 
-	// test for send prev not existing
-	t.Skip("TODO Block has to be modified before added to blockstore")
-	open, send, validator, err = openSetup(key, address, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	send.Previous = ""
-	err = send.SignBlock(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateAccountBlock(open)
-	expectedError = "send has no previous"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
 	// test for send not having necessary balance
 	open, send, validator, err = openSetup(key, address, t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	send.Balance = 51
-	err = send.SignBlock(key)
-	if err != nil {
+
+	s := NewBlockStore()
+	validator = NewOpenValidator(s)
+	i := tradeblocks.NewIssueBlock(address, 100.0)
+	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
+	}
+
+	send.Balance = 51
+	if err := send.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
+
+	open.Link = send.Hash()
+	if err := open.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.AddAccountBlock(i); err != nil {
+		t.Fatal("Block not found")
+	}
+
+	if err := s.AddAccountBlock(send); err != nil {
+		t.Fatal("Block not found")
 	}
 
 	err = validator.ValidateAccountBlock(open)
@@ -134,10 +133,29 @@ func TestOpenBlockValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	send.Link = "WRONG_ACCOUNT"
-	err = send.SignBlock(key)
-	if err != nil {
+	s = NewBlockStore()
+	validator = NewOpenValidator(s)
+	i = tradeblocks.NewIssueBlock(address, 100.0)
+	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
+	}
+
+	send.Link = "WRONG_ACCOUNT"
+	if err := send.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
+
+	open.Link = send.Hash()
+	if err := open.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.AddAccountBlock(i); err != nil {
+		t.Fatal("Block not found")
+	}
+
+	if err := s.AddAccountBlock(send); err != nil {
+		t.Fatal("Block not found")
 	}
 
 	err = validator.ValidateAccountBlock(open)
@@ -493,13 +511,12 @@ func TestReceiveBlockValidator(t *testing.T) {
 	addressList := []string{address, address2, address3}
 
 	// test for success
-	receive, send2, validator, err := receiveSetup(keyList, addressList, t)
+	receive, _, validator, err := receiveSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = validator.ValidateAccountBlock(receive)
-	if err != nil {
+	if err := validator.ValidateAccountBlock(receive); err != nil {
 		t.Fatal(err)
 	}
 
@@ -510,8 +527,7 @@ func TestReceiveBlockValidator(t *testing.T) {
 	}
 
 	receive.Previous = badAddress
-	err = receive.SignBlock(key2)
-	if err != nil {
+	if err := receive.SignBlock(key2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -526,51 +542,14 @@ func TestReceiveBlockValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	receive.Link = ""
-	err = receive.SignBlock(key2)
-	if err != nil {
+	if err := receive.SignBlock(key2); err != nil {
 		t.Fatal(err)
 	}
 
 	err = validator.ValidateAccountBlock(receive)
 	expectedError = "db: not found"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// test for link previous invalid
-	receive, send2, validator, err = receiveSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Skip("TODO send2 needs to be modified before being inserted into block store")
-	send2.Previous = badAddress
-	err = send2.SignBlock(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateAccountBlock(receive)
-	expectedError = "link field's previous references invalid block"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// test for send linked to this
-	receive, send2, validator, err = receiveSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	send2.Previous = ""
-	err = send2.SignBlock(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateAccountBlock(receive)
-	expectedError = "link field's previous references invalid block"
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
@@ -1044,7 +1023,6 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	// good executor
-	t.Skip("TODO swap must be modified before inserting into blockstore")
 	swap, swap2, send, validator, err = swapOfferSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
@@ -1057,10 +1035,14 @@ func TestSwapCommitValidation(t *testing.T) {
 	}
 
 	swap2.Executor = address4
+	swap2.Previous = swap.Hash()
 	err = swap2.SignBlock(key4)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	validator.blockStore.AddSwapBlock(swap)
+	validator.blockStore.AddSwapBlock(swap2)
 
 	err = validator.ValidateSwapBlock(swap2)
 	if err != nil {
@@ -1089,30 +1071,6 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 
-	// original send doesn't exist (linked to bad swap)
-	swap, swap2, _, validator, err = swapOfferSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	swap.Left = badAddress
-	err = swap.SignBlock(key3)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	swap2.Left = badAddress
-	err = swap2.SignBlock(key2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateSwapBlock(swap2)
-	expectedError = "originating send not found"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
 	// counter send doesn't exist
 	swap, swap2, _, validator, err = swapOfferSetup(keyList, addressList, t)
 	if err != nil {
@@ -1131,48 +1089,56 @@ func TestSwapCommitValidation(t *testing.T) {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 
-	// counter send doesn't exist
+	// invalid amount sent
 	swap, swap2, _, validator, err = swapOfferSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	send2, err := validator.blockStore.GetAccountBlock(swap2.Right)
-	if err != nil {
+	blockStore := NewBlockStore()
+	validator = NewSwapValidator(blockStore)
+	i := tradeblocks.NewIssueBlock(address, 100.0)
+	send = tradeblocks.NewSendBlock(i, address3+":swap:test-ID", 50.0)
+	i2 := tradeblocks.NewIssueBlock(address2, 50.0)
+	send2 := tradeblocks.NewSendBlock(i2, address3+":swap:test-ID", 10.0)
+	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
-	if send2 == nil {
-		t.Fatal("Block not found")
-	}
-
-	send2.Previous = badAddress
-	err = send2.SignBlock(key2)
-	if err != nil {
+	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
-
-	err = validator.ValidateSwapBlock(swap2)
-	expectedError = "counter send prev not found"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// counter send doesn't exist
-	swap, swap2, _, validator, err = swapOfferSetup(keyList, addressList, t)
-	if err != nil {
+	if err := i2.SignBlock(key2); err != nil {
 		t.Fatal(err)
 	}
-
-	send2, err = validator.blockStore.GetAccountBlock(swap2.Right)
-	if err != nil {
+	if err := send.SignBlock(key); err != nil {
 		t.Fatal(err)
-	}
-	if send2 == nil {
-		t.Fatal("Block not found")
 	}
 	send2.Balance = 0
-	err = send2.SignBlock(key2)
-	if err != nil {
+	if err := send2.SignBlock(key2); err != nil {
+		t.Fatal(err)
+	}
+
+	swap2.Right = send2.Hash()
+	if err := swap2.SignBlock(key2); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := blockStore.AddAccountBlock(i); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := blockStore.AddAccountBlock(send); err != nil {
+		t.Fatal(err)
+	}
+	if err := blockStore.AddAccountBlock(i2); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := blockStore.AddAccountBlock(send2); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := blockStore.AddSwapBlock(swap); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1249,7 +1215,7 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 	keyList := []*rsa.PrivateKey{key, key2, key3}
 	addressList := []string{address, address2, address3}
 
-	swap, refundLeft, _, validator, err := swapRefundLeftSetup(keyList, addressList, t)
+	_, refundLeft, _, validator, err := swapRefundLeftSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1305,31 +1271,6 @@ func TestSwapRefundLeftValidation(t *testing.T) {
 
 	err = validator.ValidateSwapBlock(refundLeft)
 	expectedError = "Counterparty swap has incorrect fields: must match originating swap"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// originating send invalid
-	t.Skip("TODO swap must be modified before inserting into blockstore")
-	swap, refundLeft, send, validator, err = swapRefundLeftSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	swap.Left = badAddress
-	err = swap.SignBlock(key3)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	refundLeft.Left = badAddress
-	err = refundLeft.SignBlock(key3)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateSwapBlock(refundLeft)
-	expectedError = "Originating send is invalid or not found"
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
@@ -1487,21 +1428,38 @@ func TestSwapRefundRightValidation(t *testing.T) {
 	}
 
 	// good executor
-	t.Skip("TODO blocks must be modified before inserting into block store")
-	_, refundLeft, refundRight, _, validator, err = swapRefundRightSetup(keyList, addressList, t)
+	swap, refundLeft, refundRight, _, validator, err = swapRefundRightSetup(keyList, addressList, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	swap.Executor = address4
+	err = swap.SignBlock(key3)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	refundLeft.Executor = address4
+	refundLeft.Previous = swap.Hash()
 	err = refundLeft.SignBlock(key3)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	refundRight.Executor = address4
+	refundRight.Previous = refundLeft.Hash()
 	err = refundRight.SignBlock(key4)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validator.blockStore.AddSwapBlock(swap); err != nil {
+		t.Fatal(err)
+	}
+	if err := validator.blockStore.AddSwapBlock(refundLeft); err != nil {
+		t.Fatal(err)
+	}
+	if err := validator.blockStore.AddSwapBlock(refundRight); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1528,7 +1486,7 @@ func TestSwapRefundRightValidation(t *testing.T) {
 	}
 
 	// previous must be refund-left
-	_, refundLeft, refundRight, _, validator, err = swapRefundRightSetup(keyList, addressList, t)
+	swap, refundLeft, refundRight, _, validator, err = swapRefundRightSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1538,6 +1496,7 @@ func TestSwapRefundRightValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	err = validator.ValidateSwapBlock(refundRight)
 	expectedError = "Previous must be a refund-left"
 	if err == nil || err.Error() != expectedError {
@@ -1605,25 +1564,22 @@ func TestSwapRefundRightValidation(t *testing.T) {
 	}
 }
 
-func createOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.OrderBlock, *OrderBlockValidator, error) {
+func createOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*tradeblocks.AccountBlock, *tradeblocks.OrderBlock, *tradeblocks.AccountBlock, *OrderBlockValidator, error) {
 	blockStore := NewBlockStore()
 
 	i := tradeblocks.NewIssueBlock(address[0], 100.0)
 	send := tradeblocks.NewSendBlock(i, address[0]+":order:ID0", 50.0)
 	order := tradeblocks.NewCreateOrderBlock(address[0], send, 50, "ID0", false, "quote0", 10.0, "", 0.0)
 
-	err := i.SignBlock(key[0])
-	if err != nil {
+	if err := i.SignBlock(key[0]); err != nil {
 		t.Fatal(err)
 	}
 
-	err = send.SignBlock(key[0])
-	if err != nil {
+	if err := send.SignBlock(key[0]); err != nil {
 		t.Fatal(err)
 	}
 
-	err = order.SignBlock(key[0])
-	if err != nil {
+	if err := order.SignBlock(key[0]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1639,7 +1595,7 @@ func createOrderSetup(key []*rsa.PrivateKey, address []string, t *testing.T) (*t
 
 	validator := NewOrderValidator(blockStore)
 
-	return send, order, validator, nil
+	return send, order, i, validator, nil
 }
 
 func TestCreateOrderValidation(t *testing.T) {
@@ -1650,7 +1606,7 @@ func TestCreateOrderValidation(t *testing.T) {
 	keyList := []*rsa.PrivateKey{key, key2, key3}
 	addressList := []string{address, address2, address3}
 
-	send, order, validator, err := createOrderSetup(keyList, addressList, t)
+	send, order, _, validator, err := createOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1662,7 +1618,7 @@ func TestCreateOrderValidation(t *testing.T) {
 	}
 
 	// bad signature format
-	_, order, validator, err = createOrderSetup(keyList, addressList, t)
+	_, order, _, validator, err = createOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1675,7 +1631,7 @@ func TestCreateOrderValidation(t *testing.T) {
 	}
 
 	// signed by wrong key
-	_, order, validator, err = createOrderSetup(keyList, addressList, t)
+	_, order, _, validator, err = createOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1688,7 +1644,7 @@ func TestCreateOrderValidation(t *testing.T) {
 	}
 
 	// send is invalid
-	_, order, validator, err = createOrderSetup(keyList, addressList, t)
+	_, order, _, validator, err = createOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1705,63 +1661,46 @@ func TestCreateOrderValidation(t *testing.T) {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 
-	t.Skip("TODO Send must be modified before inserting into block store")
-	// send is not to the order
-	send, order, validator, err = createOrderSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	send.Link = badAddress
-	err = send.SignBlock(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateOrderBlock(order)
-	expectedError = "Linked send block does not send to this order"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// send previous not found
-	send, order, validator, err = createOrderSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	send.Previous = badAddress
-	err = send.SignBlock(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateOrderBlock(order)
-	expectedError = "Linked send block does not have a valid previous"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
 	// balances don't line up
-	send, order, validator, err = createOrderSetup(keyList, addressList, t)
+	send, order, _, validator, err = createOrderSetup(keyList, addressList, t)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	i := tradeblocks.NewIssueBlock(address, 100.0)
+	if err := i.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
 	send.Balance = 75
-	err = send.SignBlock(key)
-	if err != nil {
+	send.Previous = i.Hash()
+	if err = send.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
-	err = validator.ValidateOrderBlock(order)
+	order.Link = send.Hash()
+	if err = order.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
+
+	blockStore := NewBlockStore()
+	if err := blockStore.AddAccountBlock(i); err != nil {
+		t.Fatal(err)
+	}
+	if err := blockStore.AddAccountBlock(send); err != nil {
+		t.Fatal(err)
+	}
+
+	validator1 := NewOrderValidator(blockStore)
+
+	err = validator1.ValidateOrderBlock(order)
 	expectedError = "Balance sent and Balance created do not match up"
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 
 	// balances don't line up v2
-	send, order, validator, err = createOrderSetup(keyList, addressList, t)
+	send, order, _, validator, err = createOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1779,7 +1718,7 @@ func TestCreateOrderValidation(t *testing.T) {
 	}
 
 	// try to executor sign
-	send, order, validator, err = createOrderSetup(keyList, addressList, t)
+	send, order, _, validator, err = createOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1917,7 +1856,6 @@ func TestAcceptOrderValidation(t *testing.T) {
 	}
 
 	// signed by executor
-	t.Skip("TODO blocks must be modified before inserting into block store")
 	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
@@ -1929,8 +1867,13 @@ func TestAcceptOrderValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	acceptOrder.Executor = address4
+	acceptOrder.Previous = createOrder.Hash()
 	err = acceptOrder.SignBlock(key4)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validator.blockStore.AddOrderBlock(createOrder); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1951,8 +1894,13 @@ func TestAcceptOrderValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	acceptOrder.Executor = address4
+	acceptOrder.Previous = createOrder.Hash()
 	err = acceptOrder.SignBlock(key3)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validator.blockStore.AddOrderBlock(createOrder); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2052,65 +2000,24 @@ func TestAcceptOrderValidation(t *testing.T) {
 		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
 	}
 
-	// linked swap doesn't point to offer
-	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	createOrder.Account = address4
-	err = createOrder.SignBlock(key4)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	acceptOrder.Account = address4
-	err = acceptOrder.SignBlock(key4)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateOrderBlock(acceptOrder)
-	expectedError = "The swap must have counterparty point to this order"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
-	// linked swap bad ID
-	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	createOrder.ID = "bad ID"
-	if err = createOrder.SignBlock(key); err != nil {
-		t.Fatal(err)
-	}
-
-	acceptOrder.ID = "bad ID"
-	if err = acceptOrder.SignBlock(key); err != nil {
-		t.Fatal(err)
-	}
-
-	err = validator.ValidateOrderBlock(acceptOrder)
-	expectedError = "The swap must have same ID as the order"
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("error \"%v\" did not match \"%s\" ", err, expectedError)
-	}
-
 	// mismatched token type v1
 	_, createOrder, acceptOrder, _, validator, err = acceptOrderSetup(keyList, addressList, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	createOrder.Token = "bad Token"
+	createOrder.Token = "xtb:bad Token"
 	if err = createOrder.SignBlock(key); err != nil {
 		t.Fatal(err)
 	}
 
-	acceptOrder.Token = "bad Token"
+	acceptOrder.Token = "xtb:bad Token"
+	acceptOrder.Previous = createOrder.Hash()
 	if err = acceptOrder.SignBlock(key); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validator.blockStore.AddOrderBlock(createOrder); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2170,8 +2077,13 @@ func TestAcceptOrderValidation(t *testing.T) {
 
 	acceptOrder.Partial = true
 	acceptOrder.Balance = 5
+	acceptOrder.Previous = createOrder.Hash()
 	err = acceptOrder.SignBlock(key)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validator.blockStore.AddOrderBlock(createOrder); err != nil {
 		t.Fatal(err)
 	}
 
