@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/jephir/tradeblocks"
+	"github.com/jephir/tradeblocks/db"
 )
 
 // Client communicates with a TradeBlocks server
@@ -236,6 +237,44 @@ func (c *Client) DecodeOrderBlockResponse(res *http.Response, result *tradeblock
 		return err
 	}
 	return json.NewDecoder(res.Body).Decode(&result)
+}
+
+// DecodeBlockResponse returns the result of any block request
+func (c *Client) DecodeBlockResponse(res *http.Response) (tradeblocks.Block, error) {
+	if err := c.checkResponse(res); err != nil {
+		return nil, err
+	}
+	tag, err := strconv.Atoi(res.Header.Get("TradeBlocks-Tag"))
+	if err != nil {
+		return nil, err
+	}
+	switch tag {
+	case db.AccountTag:
+		var b tradeblocks.AccountBlock
+		if err := json.NewDecoder(res.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		return &b, nil
+	case db.SwapTag:
+		var b tradeblocks.SwapBlock
+		if err := json.NewDecoder(res.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		return &b, nil
+	case db.OrderTag:
+		var b tradeblocks.OrderBlock
+		if err := json.NewDecoder(res.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		return &b, nil
+	case db.ConfirmTag:
+		var b tradeblocks.ConfirmBlock
+		if err := json.NewDecoder(res.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		return &b, nil
+	}
+	return nil, fmt.Errorf("client: unknown block tag %d", tag)
 }
 
 // DecodeGetBlocksResponse returns the result of a blocks request

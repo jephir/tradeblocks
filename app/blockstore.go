@@ -196,6 +196,17 @@ func (s *BlockStore) Block(hash string) (tradeblocks.Block, error) {
 		return nil, err
 	}
 	defer tx.Commit()
+	_, block, err := tx.GetBlock(hash)
+	return block, err
+}
+
+// BlockWithTag returns the block with the specified hash or nil if it's not found
+func (s *BlockStore) BlockWithTag(hash string) (int, tradeblocks.Block, error) {
+	tx, err := s.db.NewTransaction()
+	if err != nil {
+		return 0, nil, err
+	}
+	defer tx.Commit()
 	return tx.GetBlock(hash)
 }
 

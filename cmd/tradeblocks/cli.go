@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -221,6 +222,16 @@ func (cli *cli) dispatch(args []string) error {
 		}
 		for _, b := range blocks {
 			fmt.Fprintln(cli.out, b.Hash())
+		}
+	case "cat":
+		// TODO validation
+		hash := args[2]
+		b, err := cmd.getBlock(hash)
+		if err != nil {
+			return err
+		}
+		if err := json.NewEncoder(cli.out).Encode(b); err != nil {
+			return err
 		}
 	default:
 		return errors.New("Invalid command")

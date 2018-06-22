@@ -62,7 +62,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			hash := r.FormValue("hash")
-			block, err := s.store.Block(hash)
+			tag, block, err := s.store.BlockWithTag(hash)
 			if err == db.ErrNotFound {
 				serverError(w, "no block found with hash '"+hash+"'", http.StatusBadRequest)
 				return
@@ -70,6 +70,7 @@ func (s *Server) handleBlock() http.HandlerFunc {
 			if err != nil {
 				serverError(w, "error getting block: "+err.Error(), http.StatusInternalServerError)
 			}
+			w.Header().Set("TradeBlocks-Tag", strconv.Itoa(tag))
 			if err := json.NewEncoder(w).Encode(block); err != nil {
 				serverError(w, "error encoding block: "+err.Error(), http.StatusInternalServerError)
 				return

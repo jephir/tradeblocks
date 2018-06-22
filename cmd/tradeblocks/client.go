@@ -140,11 +140,11 @@ func (c *client) openFromSend(link string) (*tradeblocks.AccountBlock, error) {
 	}
 
 	// get the linked send
-	send, err := c.getBlock(link)
+	send, err := c.getAccountBlock(link)
 	if err != nil {
 		return nil, err
 	}
-	sendParent, err := c.getBlock(send.Previous)
+	sendParent, err := c.getAccountBlock(send.Previous)
 	if err != nil {
 		return nil, err
 	}
@@ -177,18 +177,18 @@ func (c *client) openFromSwap(link string) (*tradeblocks.AccountBlock, error) {
 
 	var send *tradeblocks.AccountBlock
 	if account == swap.Account {
-		send, err = c.getBlock(swap.Right)
+		send, err = c.getAccountBlock(swap.Right)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		send, err = c.getBlock(swap.Right)
+		send, err = c.getAccountBlock(swap.Right)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	sendParent, err := c.getBlock(send.Previous)
+	sendParent, err := c.getAccountBlock(send.Previous)
 	if err != nil {
 		return nil, err
 	}
@@ -215,11 +215,11 @@ func (c *client) receive(link string) (*tradeblocks.AccountBlock, error) {
 	}
 
 	// get the linked send
-	send, err := c.getBlock(link)
+	send, err := c.getAccountBlock(link)
 	if err != nil {
 		return nil, err
 	}
-	sendParent, err := c.getBlock(send.Previous)
+	sendParent, err := c.getAccountBlock(send.Previous)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (c *client) offer(left, ID, counterparty, want string, quantity float64, ex
 	}
 
 	// get the linked send
-	send, err := c.getBlock(left)
+	send, err := c.getAccountBlock(left)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (c *client) offer(left, ID, counterparty, want string, quantity float64, ex
 
 func (c *client) commit(offer string, send string) (*tradeblocks.SwapBlock, error) {
 	// get the linked send
-	right, err := c.getBlock(send)
+	right, err := c.getAccountBlock(send)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func (c *client) refundLeft(offer string) (*tradeblocks.SwapBlock, error) {
 	}
 
 	// get the original send
-	left, err := c.getBlock(offerBlock.Left)
+	left, err := c.getAccountBlock(offerBlock.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +328,7 @@ func (c *client) refundRight(refundLeft string) (*tradeblocks.SwapBlock, error) 
 	}
 
 	// get the counterparty send
-	right, err := c.getBlock(refundLeftBlock.Right)
+	right, err := c.getAccountBlock(refundLeftBlock.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -356,13 +356,13 @@ func (c *client) createOrder(send string, ID string, partial bool, quote string,
 	}
 
 	// get the originating send
-	sendBlock, err := c.getBlock(send)
+	sendBlock, err := c.getAccountBlock(send)
 	if err != nil {
 		return nil, err
 	}
 
 	// get the previous of the send
-	sendPrevBlock, err := c.getBlock(sendBlock.Previous)
+	sendPrevBlock, err := c.getAccountBlock(sendBlock.Previous)
 	if err != nil {
 		return nil, err
 	}
@@ -615,7 +615,7 @@ func (c *client) getHeadOrderBlock(address, id string) (*tradeblocks.OrderBlock,
 	return &result, nil
 }
 
-func (c *client) getBlock(hash string) (*tradeblocks.AccountBlock, error) {
+func (c *client) getAccountBlock(hash string) (*tradeblocks.AccountBlock, error) {
 	r, err := c.api.NewGetBlockRequest(hash)
 	if err != nil {
 		return nil, err
@@ -647,6 +647,23 @@ func (c *client) getSwapBlock(hash string) (*tradeblocks.SwapBlock, error) {
 		return nil, err
 	}
 	return &result, nil
+}
+
+func (c *client) getBlock(hash string) (tradeblocks.Block, error) {
+	r, err := c.api.NewGetBlockRequest(hash)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.http.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	result, err := c.api.DecodeBlockResponse(res)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (c *client) postAccountBlock(b *tradeblocks.AccountBlock) error {

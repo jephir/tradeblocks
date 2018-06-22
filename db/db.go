@@ -4,15 +4,23 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/jephir/tradeblocks"
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
 const (
-	accountTag = 0
-	swapTag    = 1
-	orderTag   = 2
-	confirmTag = 3
+	// AccountTag tags an account block
+	AccountTag = 0
+
+	// SwapTag tags a swap block
+	SwapTag = 1
+
+	// OrderTag tags an order block
+	OrderTag = 2
+
+	// ConfirmTag tags a confirm block
+	ConfirmTag = 3
 )
 
 type scanner interface {
@@ -223,7 +231,7 @@ func (m *Transaction) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO blocks (
 		tag,
 		hash
-		) VALUES ($1, $2)`, accountTag, hash)
+		) VALUES ($1, $2)`, AccountTag, hash)
 	if m.err != nil {
 		return m.err
 	}
@@ -234,7 +242,7 @@ func (m *Transaction) InsertAccountBlock(b *tradeblocks.AccountBlock) error {
 			head
 			) VALUES ($1, $2, $3, $4)
 				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
-		accountTag,
+		AccountTag,
 		b.Account,
 		b.Token,
 		hash)
@@ -300,7 +308,7 @@ func (m *Transaction) GetAccountHead(account, token string) (*tradeblocks.Accoun
 		signature
 		FROM accounts WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
-		)`, accountTag, account, token)
+		)`, AccountTag, account, token)
 	b, err := scanAccount(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -397,7 +405,7 @@ func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO blocks (
 			tag,
 			hash
-			) VALUES ($1, $2)`, swapTag, hash)
+			) VALUES ($1, $2)`, SwapTag, hash)
 	if m.err != nil {
 		return m.err
 	}
@@ -408,7 +416,7 @@ func (m *Transaction) InsertSwapBlock(b *tradeblocks.SwapBlock) error {
 			head
 			) VALUES ($1, $2, $3, $4)
 				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
-		swapTag,
+		SwapTag,
 		b.Account,
 		b.ID,
 		hash)
@@ -495,7 +503,7 @@ func (m *Transaction) GetSwapHead(account, id string) (*tradeblocks.SwapBlock, e
 		signature
 		FROM swaps WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
-		)`, swapTag, account, id)
+		)`, SwapTag, account, id)
 	b, err := scanSwap(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -606,7 +614,7 @@ func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO blocks (
 			tag,
 			hash
-			) VALUES ($1, $2)`, orderTag, hash)
+			) VALUES ($1, $2)`, OrderTag, hash)
 	if m.err != nil {
 		return m.err
 	}
@@ -617,7 +625,7 @@ func (m *Transaction) InsertOrderBlock(b *tradeblocks.OrderBlock) error {
 			head
 			) VALUES ($1, $2, $3, $4)
 				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
-		orderTag,
+		OrderTag,
 		b.Account,
 		b.ID,
 		hash)
@@ -698,7 +706,7 @@ func (m *Transaction) GetOrderHead(account, id string) (*tradeblocks.OrderBlock,
 		signature
 		FROM orders WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
-		)`, orderTag, account, id)
+		)`, OrderTag, account, id)
 	b, err := scanOrder(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -802,7 +810,7 @@ func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 	_, m.err = m.tx.Exec(`INSERT INTO blocks (
 			tag,
 			hash
-			) VALUES ($1, $2)`, confirmTag, hash)
+			) VALUES ($1, $2)`, ConfirmTag, hash)
 	if m.err != nil {
 		return m.err
 	}
@@ -813,7 +821,7 @@ func (m *Transaction) InsertConfirmBlock(b *tradeblocks.ConfirmBlock) error {
 			head
 			) VALUES ($1, $2, $3, $4)
 				ON CONFLICT (tag, account, key) DO UPDATE SET head = $4`,
-		confirmTag,
+		ConfirmTag,
 		b.Account,
 		b.Addr,
 		hash)
@@ -870,7 +878,7 @@ func (m *Transaction) GetConfirmHead(account, addr string) (*tradeblocks.Confirm
 		signature
 		FROM confirms WHERE hash IN (
 			SELECT head FROM heads WHERE tag = $1 AND account = $2 AND key = $3
-		)`, confirmTag, account, addr)
+		)`, ConfirmTag, account, addr)
 	b, err := scanConfirm(row)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -894,17 +902,18 @@ func scanConfirm(s scanner) (*tradeblocks.ConfirmBlock, error) {
 }
 
 // GetBlock returns a block by hash
-func (m *Transaction) GetBlock(hash string) (tradeblocks.Block, error) {
-	var tag int
+func (m *Transaction) GetBlock(hash string) (tag int, block tradeblocks.Block, err error) {
 	row := m.tx.QueryRow(`SELECT tag FROM blocks WHERE hash = $1`, hash)
-	err := row.Scan(&tag)
+	err = row.Scan(&tag)
 	if err == sql.ErrNoRows {
-		return nil, ErrNotFound
+		err = ErrNotFound
+		return
 	}
 	if err != nil {
-		return nil, err
+		return
 	}
-	return m.getBlock(tag, hash)
+	block, err = m.getBlock(tag, hash)
+	return
 }
 
 // GetBlocks returns all blocks
@@ -934,13 +943,13 @@ func (m *Transaction) GetBlocks() ([]tradeblocks.Block, error) {
 
 func (m *Transaction) getBlock(tag int, hash string) (tradeblocks.Block, error) {
 	switch tag {
-	case accountTag:
+	case AccountTag:
 		return m.GetAccountBlock(hash)
-	case swapTag:
+	case SwapTag:
 		return m.GetSwapBlock(hash)
-	case orderTag:
+	case OrderTag:
 		return m.GetOrderBlock(hash)
-	case confirmTag:
+	case ConfirmTag:
 		return m.GetConfirmBlock(hash)
 	}
 	return nil, fmt.Errorf("db: unknown tag %d for hash %s", tag, hash)
