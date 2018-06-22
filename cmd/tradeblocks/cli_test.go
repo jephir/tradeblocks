@@ -66,14 +66,18 @@ func TestDemo(t *testing.T) {
 
 	x := newExecutor(t, s.URL, dir)
 
-	xtbAlice := x.exec("tradeblocks", "register", "alice")
-	xtbAppleCoin := x.exec("tradeblocks", "register", "apple-coin")
-	x.exec("tradeblocks", "login", "apple-coin")
+	xtbT1 := x.exec("tradeblocks", "register", "t1")
+	xtbT2 := x.exec("tradeblocks", "register", "t2")
+
+	x.exec("tradeblocks", "login", "t1")
+	x.exec("tradeblocks", "issue", "1000")
+	x.exec("tradeblocks", "login", "t2")
 	x.exec("tradeblocks", "issue", "1000")
 
-	xtbSend := x.exec("tradeblocks", "send", xtbAlice, xtbAppleCoin, "50")
-	x.exec("tradeblocks", "login", "alice")
-	x.exec("tradeblocks", "open", xtbSend)
+	x.exec("tradeblocks", "sell", "100", xtbT2, "2", xtbT1)
+
+	x.exec("tradeblocks", "login", "t1")
+	x.exec("tradeblocks", "buy", "100", xtbT2, "2", xtbT1)
 }
 
 func TestLimitOrders(t *testing.T) {

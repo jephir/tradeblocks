@@ -1,43 +1,22 @@
-import React, { Component } from 'react';
-import AccountsController from './AccountsController.jsx'
+import React, { Component } from 'react'
+import ChartController from './ChartController'
 
-// pulls blocks from the server
-export default class DataController extends Component {
+// pulls chart data from the server (or demo)
+export default class ChartDataController extends Component {
     state = {
         blocks: []
     }
-    // inline blocks maybe
 
     componentDidMount() {
-        var accountsSource = new EventSource("http://localhost:8080/blocks?stream=1", {mode: 'no-cors'} )
-        accountsSource.onmessage = function(message) {
-            var blockJson = JSON.parse(message.data)
-            var block = blockJson.Block
-            block.Hash = blockJson.Hash
-            console.log("accounts message", block)
-            this.addBlock(block)
-        }.bind(this)
-        accountsSource.onerror = function(error) {
-            console.log("accounts stream error", error)
-        }
+        
     }
 
     render() {
         return (
         <div>
-            <AccountsController blocks={this.state.blocks.slice()} />
+            <ChartController />
         </div>
         );
-    }
-
-    addBlock(block) {
-        const {
-            blocks
-        } = this.state
-        blocks.push(block)
-        this.setState({
-            blocks: blocks
-        })
     }
 
     demoData() {
