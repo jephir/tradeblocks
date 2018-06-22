@@ -21,11 +21,14 @@ func (cli *cli) handleNode() error {
 	if err != nil {
 		return err
 	}
-	if *bootstrap != "" {
+	if *addr != "" && *bootstrap != "" {
 		if err := n.Bootstrap(*addr, *bootstrap); err != nil {
 			return err
 		}
 	}
-	fmt.Fprintln(cli.out, *addr)
-	return http.ListenAndServe(*addr, n)
+	if *addr != "" {
+		fmt.Fprintln(cli.out, *addr)
+		return http.ListenAndServe(*addr, n)
+	}
+	return nil
 }
