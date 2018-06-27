@@ -719,6 +719,7 @@ func (m *Transaction) GetLimitOrders(base, condition string, ppu float64, quote 
 	if condition != ">=" && condition != "<=" {
 		return nil, fmt.Errorf("db: condition must be >= or <=")
 	}
+	// TODO only return heads
 	q := fmt.Sprintf(`SELECT
 		action,
 		account,

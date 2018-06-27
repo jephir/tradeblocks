@@ -29,6 +29,7 @@ type Node struct {
 
 	priv    *rsa.PrivateKey
 	address string
+	hostURL string
 
 	mu                sync.Mutex
 	peers             peerMap
@@ -72,6 +73,8 @@ func NewNode(dir string) (n *Node, err error) {
 
 // Bootstrap registers with the specified server and downloads all blocks
 func (n *Node) Bootstrap(hostURL, bootstrapURL string) error {
+	n.hostURL = hostURL
+
 	client := web.NewClient(bootstrapURL)
 	accounts, err := n.bootstrapAccounts(hostURL, client)
 	if err != nil {
@@ -200,13 +203,41 @@ func (n *Node) bootstrapOrders(hostURL string, client *web.Client) (map[string]t
 
 func (n *Node) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if addr := r.Header.Get("TradeBlocks-Register"); addr != "" {
-		n.addPeer(addr)
+		if n.addPeer(addr) {
+			if err := n.register(addr); err != nil {
+				log.Println(err)
+			}
+		}
 	}
 	if r.URL.Path == "/address" {
 		n.handleAddress().ServeHTTP(rw, r)
 		return
 	}
 	n.server.ServeHTTP(rw, r)
+}
+
+func (n *Node) register(addr string) error {
+	c := web.NewClient(addr)
+	r, err := c.NewGetAccountBlocksRequest()
+	if err != nil {
+		return err
+	}
+	r.Header.Add("TradeBlocks-Register", n.hostURL)
+
+	// Execute get all blocks request
+	res, err := n.client.Do(r)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	// Decode response
+	// TODO add new blocks
+	_, err = c.DecodeGetAccountBlocksResponse(res)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (n *Node) handleAddress() http.HandlerFunc {
@@ -272,6 +303,7 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 				log.Println(err)
 				return
 			}
+			fmt.Println("synced " + b.AccountBlock.Hash() + " to " + address)
 		case "swap":
 			req, err := c.NewPostSwapBlockRequest(b.SwapBlock)
 			if err != nil {
@@ -289,6 +321,7 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 				log.Println(err)
 				return
 			}
+			fmt.Println("synced " + b.SwapBlock.Hash())
 		case "order":
 			req, err := c.NewPostOrderBlockRequest(b.OrderBlock)
 			if err != nil {
@@ -306,6 +339,7 @@ func (n *Node) handleBlock(b app.TypedBlock) {
 				log.Println(err)
 				return
 			}
+			fmt.Println("synced " + b.OrderBlock.Hash())
 		}
 	}
 }
@@ -377,12 +411,17 @@ func (n *Node) confirmBlock(b tradeblocks.Block) error {
 	return nil
 }
 
-func (n *Node) addPeer(address string) {
+func (n *Node) addPeer(address string) bool {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
 	// TODO do connection check before adding peer
+	if _, ok := n.peers[address]; ok {
+		return false
+	}
 	n.peers[address] = struct{}{}
+	return true
+
 }
 
 // Sync flushes all unbroadcasted blocks to known peers
