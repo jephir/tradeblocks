@@ -1,15 +1,28 @@
 # TradeBlocks [![Build Status](https://travis-ci.com/jephir/tradeblocks.svg?token=H5s5urysT233MRnGw5EA&branch=master)](https://travis-ci.com/jephir/tradeblocks)
 
-Decentralized exchange implementation for Binance Dexathon.
+Decentralized exchange proof of concept for Binance Dexathon.
+
+## Presentation Video
+
+[![Presentation Video](https://img.youtube.com/vi/aNVp_qxYUbs/0.jpg)](https://www.youtube.com/watch?v=aNVp_qxYUbs)
+
+## [Whitepaper](TradeBlocksWhitepaper.pdf)
 
 ## Summary
 
-**TradeBlocks** is a decentralized token exchange network that provides near-instant token trading with high scalability. This is achieved by utilizing a separate blockchain for each account-token pair in the network. To transfer tokens from one account to another, the sender creates a send transaction on their own blockchain, and the receiver creates a receive transaction on their own blockchain. This makes token transfers asynchronous and massively increases the throughput of the network. To trade one type of token for a different type, an initiator first sends tokens into a swap blockchain and creates an offer transaction. Next, a counterparty sends tokens into the swap blockchain and creates a commit transaction. Finally, the parties create receive transactions on their own account-token blockchains to receive the swapped tokens. If the counterparty doesn’t send tokens for the swap, the initiator can create a refund transaction to return their tokens back to their own account-token blockchain. If a fork occurs, the network uses a delegated proof-of-stake protocol to resolve the conflict.
+**TradeBlocks** is a decentralized token exchange network that provides near-instant token trading with high scalability.
+
+This is achieved by utilizing a separate blockchain for each account-token pair in the network. To transfer tokens from one account to another, the sender creates a send transaction on their own blockchain, and the receiver creates a receive transaction on their own blockchain. This makes token transfers asynchronous and massively increases the throughput of the network. 
+
+To trade one type of token for a different type, an initiator first sends tokens into a swap blockchain and creates an offer transaction. Next, a counterparty sends tokens into the swap blockchain and creates a commit transaction. Finally, the parties create receive transactions on their own account-token blockchains to receive the swapped tokens. If the counterparty doesn’t send tokens for the swap, the initiator can create a refund transaction to return their tokens back to their own account-token blockchain. 
+
+If a fork occurs, the network uses a delegated proof-of-stake protocol to resolve the conflict.
 
 ## Requirements
 
 - [Go 1.10](https://golang.org/)
 - [GCC 7.3](https://gcc.gnu.org/)
+- [Node 6.11.5](https://nodejs.org/en/)
 
 ## Installation
 
@@ -18,6 +31,8 @@ $ go install -i github.com/jephir/tradeblocks/cmd/tradeblocks
 ```
 
 ## Demo
+
+To view created blocks, launch the web server (see section below).
 
 ### Limit Orders
 
@@ -51,7 +66,7 @@ $ tradeblocks login t1
 $ tradeblocks buy 100 $XTB_T2 2 $XTB_T1
 ```
 
-### Low-Level Block Creation
+### Low-Level Transactions
 
 1.  Start the node server.
 
@@ -120,6 +135,45 @@ $ tradeblocks login banana-coin
 $ XTB_RECEIVE1 = "$(tradeblocks receive $XTB_SWAP_COMMIT)"
 ```
 
+## Commands
+
+* `tradeblocks node -listen <address> -bootstrap <url> -dir <path>`
+  * Start a new node server on this machine
+* `tradeblocks register <name>`
+  * Register a new key pair
+* `tradeblocks login <name>`
+  * Login to an existing key pair
+* `tradeblocks issue <balance>`
+  * Issue new tokens
+* `tradeblocks send <address> <token> <amount>`
+  * Send tokens to an address
+* `tradeblocks open <block>`
+  * Open a new account from a send
+* `tradeblocks open-from-swap <block>`
+  * Open a new account from a swap
+* `tradeblocks receive <block>`
+  * Receive tokens from a send
+* `tradeblocks offer <send> <id> <counterparty> <base> <quantity> <executor> <fee>`
+  * Offer a swap with a counterparty
+* `tradeblocks commit <offer> <send>`
+  * Commit a swap as a counterparty
+* `tradeblocks refund-left <offer>`
+  * Cancel a swap as the initiator
+* `tradeblocks refund-right <refund-left>`
+  * Refund yourself as a counterparty
+* `tradeblocks create-order <send> <id> <partial> <quote> <price> <executor> <fee>`
+  * Create a new order
+* `tradeblocks accept-order <swap> <link>`
+  * Accept an incoming swap for your order
+* `tradeblocks refund-order <order>`
+  * Cancel an order
+* `tradeblocks sell <quantity> <base> <ppu> <quote>`
+  * Create a limit sell order
+* `tradeblocks buy <quantity> <base> <ppu> <quote>`
+  * Create a limit buy order
+* `tradeblocks cat <hash>`
+  * Print out a block
+
 ## Running Tests
 
 ```sh
@@ -129,7 +183,7 @@ $ go test -v ./...
 
 ## Web Servers
 
-Need both of the following running:
+Requires both of the following running:
 
 1.  Blockchain server
 
@@ -145,7 +199,13 @@ $ npm install
 $ npm start
 ```
 
+## Known Issues
+
+* Nodes do not sync all blocks from a connecting node to a root node
+* A limit sell order must be placed before a matching limit buy order
+* Conflicted blocks are not always removed from the block store
+
 ## Authors
 
-- Julian Hoang
-- Eric Parker
+- Julian Hoang <julian.b.hoang@gmail.com>
+- Eric Parker <eric.parker13@gmail.com>

@@ -143,7 +143,7 @@ func (cli *cli) dispatch(args []string) error {
 	case "refund-right":
 		goodInputs, addInfo := refundRightInputValidation(args)
 		if goodInputs {
-			swapBlock, err = cmd.refundLeft(args[2])
+			swapBlock, err = cmd.refundRight(args[2])
 			if err != nil {
 				return err
 			}
