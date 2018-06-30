@@ -11,7 +11,7 @@ func main() {
 	c := &cli{
 		keySize:   4096,
 		serverURL: "http://" + *n,
-		dataDir:   "data",
+		dataDir:   ".",
 		out:       os.Stdout,
 	}
 	if err := c.dispatch(os.Args); err != nil {

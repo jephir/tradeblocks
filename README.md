@@ -141,6 +141,7 @@ $ tradeblocks node
 
 ```
 $ cd web
+$ npm install
 $ npm start
 ```
 
